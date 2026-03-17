@@ -1,0 +1,220 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@200;300;400;500;600;700;800&family=Michroma&family=Montserrat:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  button {
+    font-family: var(--font-manrope);
+  }
+
+  :root {
+    --font-serif: 'Manrope', sans-serif;
+    --font-display: 'Manrope', sans-serif;
+    --font-manrope: 'Manrope', sans-serif;
+    --font-michroma: 'Michroma', sans-serif;
+    --font-montserrat: 'Montserrat', sans-serif;
+
+    /* Dark Mode (Default) */
+    --color-brand-dark: 5 5 5;
+    --color-brand-surface: 18 18 18;
+    --color-brand-surface-highlight: 30 30 30;
+    --color-brand-text: 226 232 240;
+    --color-brand-text-muted: 148 163 184;
+    --color-brand-border-rgb: 255 255 255;
+    --color-brand-purple: 124 58 237;
+    --color-brand-orange: 249 115 22;
+
+    /* Zodiac Gradients (Dark Mode) */
+    --color-zodiac-fire-1: #450a0a;
+    --color-zodiac-fire-2: #991b1b;
+    --color-zodiac-fire-3: #fbbf24;
+    --color-zodiac-earth-1: #064e3b;
+    --color-zodiac-earth-2: #065f46;
+    --color-zodiac-earth-3: #34d399;
+    --color-zodiac-air-1: #1e3a8a;
+    --color-zodiac-air-2: #334155;
+    --color-zodiac-air-3: #cbd5e1;
+    --color-zodiac-water-1: #0f172a;
+    --color-zodiac-water-2: #164e63;
+    --color-zodiac-water-3: #22d3ee;
+
+    --color-zodiac-icon-fire-1: #fca5a5;
+    --color-zodiac-icon-fire-2: #f87171;
+    --color-zodiac-icon-fire-3: #fef08a;
+    --color-zodiac-icon-earth-1: #86efac;
+    --color-zodiac-icon-earth-2: #4ade80;
+    --color-zodiac-icon-earth-3: #d9f99d;
+    --color-zodiac-icon-air-1: #bfdbfe;
+    --color-zodiac-icon-air-2: #93c5fd;
+    --color-zodiac-icon-air-3: #e2e8f0;
+    --color-zodiac-icon-water-1: #a5f3fc;
+    --color-zodiac-icon-water-2: #67e8f9;
+    --color-zodiac-icon-water-3: #e0f2fe;
+
+    /* Elemental Colors (Dark Mode Default) */
+    --color-element-fire: 245 158 11; /* amber-500 */
+    --color-element-earth: 52 211 153; /* emerald-400 */
+    --color-element-air: 203 213 225; /* slate-300 */
+    --color-element-water: 34 211 238; /* cyan-400 */
+    
+    --color-polarity-masculine: 239 68 68; /* red-500 */
+    --color-polarity-feminine: 59 130 246; /* blue-500 */
+    
+    --color-modality-cardinal: 251 113 133; /* rose-400 */
+    --color-modality-fixed: 167 139 250; /* violet-400 */
+    --color-modality-mutable: 94 234 212; /* teal-300 */
+
+    /* Aspect Colors (Dark Mode) */
+    --color-aspect-conjunction: #c084fc;
+    --color-aspect-opposition: #f87171;
+    --color-aspect-trine: #4ade80;
+    --color-aspect-square: #fb923c;
+    --color-aspect-sextile: #60a5fa;
+  }
+
+  /* Light Mode Overrides */
+  .light-mode {
+    --color-brand-dark: 244 241 234; /* Soft paper/beige reading mode */
+    --color-brand-surface: 252 251 248; /* Off-white surface */
+    --color-brand-surface-highlight: 232 227 217; /* Darker gray/beige for contrast */
+    --color-brand-text: 26 26 26; /* Almost black for high contrast */
+    --color-brand-text-muted: 89 89 89; /* Darker gray for readable muted text */
+    --color-brand-border-rgb: 0 0 0;
+
+    /* Zodiac Gradients (Light Mode) */
+    --color-zodiac-fire-1: #fed7aa;
+    --color-zodiac-fire-2: #fdba74;
+    --color-zodiac-fire-3: #fb923c;
+    --color-zodiac-earth-1: #dcfce7;
+    --color-zodiac-earth-2: #bbf7d0;
+    --color-zodiac-earth-3: #86efac;
+    --color-zodiac-air-1: #e0f2fe;
+    --color-zodiac-air-2: #bae6fd;
+    --color-zodiac-air-3: #7dd3fc;
+    --color-zodiac-water-1: #ede9fe;
+    --color-zodiac-water-2: #ddd6fe;
+    --color-zodiac-water-3: #c4b5fd;
+
+    /* Icons: darker for contrast */
+    --color-zodiac-icon-fire-1: #c2410c;
+    --color-zodiac-icon-fire-2: #9a3412;
+    --color-zodiac-icon-fire-3: #7c2d12;
+    --color-zodiac-icon-earth-1: #15803d;
+    --color-zodiac-icon-earth-2: #166534;
+    --color-zodiac-icon-earth-3: #14532d;
+    --color-zodiac-icon-air-1: #0369a1;
+    --color-zodiac-icon-air-2: #075985;
+    --color-zodiac-icon-air-3: #0c4a6e;
+    --color-zodiac-icon-water-1: #6d28d9;
+    --color-zodiac-icon-water-2: #5b21b6;
+    --color-zodiac-icon-water-3: #4c1d95;
+
+    /* Elemental Colors (Light Mode) */
+    --color-element-fire: 217 119 6; /* amber-600 */
+    --color-element-earth: 5 150 105; /* emerald-600 */
+    --color-element-air: 71 85 105; /* slate-600 */
+    --color-element-water: 8 145 178; /* cyan-600 */
+    
+    --color-polarity-masculine: 220 38 38; /* red-600 */
+    --color-polarity-feminine: 37 99 235; /* blue-600 */
+    
+    --color-modality-cardinal: 225 29 72; /* rose-600 */
+    --color-modality-fixed: 124 58 237; /* violet-600 */
+    --color-modality-mutable: 13 148 136; /* teal-600 */
+
+    /* Aspect Colors (Light Mode) */
+    --color-aspect-conjunction: #9333ea;
+    --color-aspect-opposition: #dc2626;
+    --color-aspect-trine: #16a34a;
+    --color-aspect-square: #ea580c;
+    --color-aspect-sextile: #2563eb;
+  }
+
+  html {
+    font-family: 'Manrope', sans-serif;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Manrope', sans-serif;
+  }
+  .font-manrope {
+    font-family: 'Manrope', sans-serif;
+  }
+  .font-michroma {
+    font-family: 'Michroma', sans-serif;
+  }
+  .font-montserrat {
+    font-family: 'Montserrat', sans-serif;
+  }
+  
+  /* Luxury Zodiac Gradients */
+  .grad-fire {
+    background: linear-gradient(135deg, var(--color-zodiac-fire-1) 0%, var(--color-zodiac-fire-3) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .grad-earth {
+    background: linear-gradient(135deg, var(--color-zodiac-earth-1) 0%, var(--color-zodiac-earth-3) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .grad-air {
+    background: linear-gradient(135deg, var(--color-zodiac-air-1) 0%, var(--color-zodiac-air-3) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .grad-water {
+    background: linear-gradient(135deg, var(--color-zodiac-water-1) 0%, var(--color-zodiac-water-3) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Background versions */
+  .bg-grad-fire { background: linear-gradient(135deg, var(--color-zodiac-fire-1) 0%, var(--color-zodiac-fire-3) 100%); }
+  .bg-grad-earth { background: linear-gradient(135deg, var(--color-zodiac-earth-1) 0%, var(--color-zodiac-earth-3) 100%); }
+  .bg-grad-air { background: linear-gradient(135deg, var(--color-zodiac-air-1) 0%, var(--color-zodiac-air-3) 100%); }
+  .bg-grad-water { background: linear-gradient(135deg, var(--color-zodiac-water-1) 0%, var(--color-zodiac-water-3) 100%); }
+
+  /* Elemental Text Colors */
+  .text-element-fire { color: rgb(var(--color-element-fire)); }
+  .text-element-earth { color: rgb(var(--color-element-earth)); }
+  .text-element-air { color: rgb(var(--color-element-air)); }
+  .text-element-water { color: rgb(var(--color-element-water)); }
+  
+  .text-polarity-masculine { color: rgb(var(--color-polarity-masculine)); }
+  .text-polarity-feminine { color: rgb(var(--color-polarity-feminine)); }
+  
+  .text-modality-cardinal { color: rgb(var(--color-modality-cardinal)); }
+  .text-modality-fixed { color: rgb(var(--color-modality-fixed)); }
+  .text-modality-mutable { color: rgb(var(--color-modality-mutable)); }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.3); /* Brand purple with opacity */
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 58, 237, 0.5);
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 58, 237, 0.3) rgba(255, 255, 255, 0.02);
+}
