@@ -1,0 +1,5 @@
+{
+  "name": "V2.9.17 Cronografo Sideral",
+  "description": "An interactive sidereal chronograph that displays time, date, location, and visually represents day and night cycles on a 24-hour dial. The clock updates in real-time based on the user\u0027s system clock.",
+  "requestFramePermissions": []
+}
