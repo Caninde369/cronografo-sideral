@@ -1,27 +1,24 @@
 /**
  * Configuração Centralizada de Pagamentos & Checkout
- * Suporta Stripe, AbacatePay, NuPay, Asaas, MercadoPago ou PIX Direto via Vercel / .env
+ *
+ * Todos os valores vêm das variáveis de ambiente do Vercel (VITE_*).
+ * Não há valores padrão de propósito: se uma variável não estiver configurada,
+ * o item correspondente simplesmente não aparece no modal de planos
+ * (em vez de mostrar um link, telefone ou chave Pix falsos para o comprador).
  */
 
 export const PAYMENT_CONFIG = {
   // URLs de Checkout para redirecionamento direto
-  checkoutUrlLifetime: 
-    import.meta.env.VITE_CHECKOUT_URL_LIFETIME || 
-    import.meta.env.VITE_CHECKOUT_URL || 
-    'https://checkout.nubank.com.br/WYxT1HYG5fay6s65',
+  checkoutUrlLifetime: (import.meta.env.VITE_CHECKOUT_URL_LIFETIME as string | undefined) || '',
 
-  checkoutUrlMonthly: 
-    import.meta.env.VITE_CHECKOUT_URL_MONTHLY || 
-    import.meta.env.VITE_CHECKOUT_URL || 
-    'https://checkout.nubank.com.br/WYxT1HYG5fay6s65',
+  checkoutUrlMonthly: (import.meta.env.VITE_CHECKOUT_URL_MONTHLY as string | undefined) || '',
 
-  // Canal de suporte no WhatsApp
-  whatsappSupportUrl: 
-    import.meta.env.VITE_WHATSAPP_SUPPORT_URL || 
-    'https://wa.me/5511999999999?text=Ol%C3%A1%2C%20tenho%20interesse%20em%20assinar%20o%20Cron%C3%B3grafo%20Sideral.',
+  // Canal de suporte no WhatsApp (ex.: https://wa.me/5584XXXXXXXXX?text=...)
+  whatsappSupportUrl: (import.meta.env.VITE_WHATSAPP_SUPPORT_URL as string | undefined) || '',
 
-  // Chave PIX (Copia e Cola ou chave nominal)
-  pixKey: 
-    import.meta.env.VITE_PIX_KEY || 
-    '00020126580014br.gov.bcb.pix0136cronografo.sideral@pagamentos.com5204000053039865802BR5920CRONOGRAFO SIDERAL6009SAO PAULO62070503***6304E8A2',
+  // Chave PIX (Copia e Cola ou chave nominal). Vazio = seção Pix oculta.
+  pixKey: (import.meta.env.VITE_PIX_KEY as string | undefined) || '',
+
+  // Prazo informado ao comprador para liberação manual do plano
+  activationDeadline: '24 horas',
 };

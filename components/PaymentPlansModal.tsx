@@ -62,6 +62,8 @@ export const PaymentPlansModal: React.FC<PaymentPlansModalProps> = ({
   const [copiedPix, setCopiedPix] = useState(false);
   const [showPixDetails, setShowPixDetails] = useState(false);
   const [showComparisonTable, setShowComparisonTable] = useState(true);
+  const [checkoutOpened, setCheckoutOpened] = useState(false);
+  const [checkoutUnavailable, setCheckoutUnavailable] = useState(false);
 
   if (!isOpen) return null;
 
@@ -87,7 +89,14 @@ export const PaymentPlansModal: React.FC<PaymentPlansModalProps> = ({
     const targetUrl = plan === 'monthly'
       ? PAYMENT_CONFIG.checkoutUrlMonthly
       : PAYMENT_CONFIG.checkoutUrlLifetime;
+    if (!targetUrl) {
+      setCheckoutUnavailable(true);
+      setCheckoutOpened(false);
+      return;
+    }
+    setCheckoutUnavailable(false);
     window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    setCheckoutOpened(true);
   };
 
   return createPortal(
@@ -439,7 +448,7 @@ export const PaymentPlansModal: React.FC<PaymentPlansModalProps> = ({
                 <div className="mb-3.5">
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-sm text-[#F5D98A]/70 font-sans font-semibold">R$</span>
-                    <span className="text-3xl font-display font-bold text-[#F5D98A] tracking-tight">450</span>
+                    <span className="text-3xl font-display font-bold text-[#F5D98A] tracking-tight">920</span>
                     <span className="text-xs text-[#F5D98A]/60 font-sans">/ taxa única</span>
                   </div>
                   <p className="text-[11px] text-white/50 font-sans mt-1">
@@ -588,19 +597,32 @@ export const PaymentPlansModal: React.FC<PaymentPlansModalProps> = ({
                     ? 'Plano Gratuito Selecionado' 
                     : selectedPlan === 'monthly' 
                       ? 'Assinatura Mensal (R$ 100/mês)' 
-                      : 'Acesso Vitalício sem Mensalidades (R$ 450 taxa única)'}
+                      : 'Acesso Vitalício sem Mensalidades (R$ 920 taxa única)'}
                 </h4>
                 <p className="font-sans text-xs text-white/60 mt-0.5">
                   {selectedPlan === 'free'
                     ? 'Acesso opcional para testes. Você pode fazer o upgrade a qualquer momento.'
-                    : 'Cartão de Crédito via Checkout Seguro ou Pagamento Instantâneo via Pix.'}
+                    : PAYMENT_CONFIG.pixKey
+                      ? 'Cartão de Crédito via Checkout Seguro ou Pagamento Instantâneo via Pix.'
+                      : 'Pagamento via Checkout Seguro.'}
                 </p>
+                {selectedPlan !== 'free' && checkoutOpened && (
+                  <p className="font-sans text-xs text-[#F5D98A] mt-1.5">
+                    Abrimos o pagamento em uma nova aba. Após a confirmação, seu plano é liberado
+                    {userEmail ? <> na conta <strong>{userEmail}</strong></> : null} em até {PAYMENT_CONFIG.activationDeadline}.
+                  </p>
+                )}
+                {selectedPlan !== 'free' && checkoutUnavailable && (
+                  <p className="font-sans text-xs text-amber-300 mt-1.5">
+                    Checkout indisponível no momento. Fale com o suporte para concluir sua assinatura.
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-2.5 w-full md:w-auto">
               {/* Toggle Pix Button (apenas se não for o plano gratuito) */}
-              {selectedPlan !== 'free' && (
+              {selectedPlan !== 'free' && PAYMENT_CONFIG.pixKey && (
                 <button
                   onClick={() => setShowPixDetails(!showPixDetails)}
                   className="py-2.5 px-3.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-sans font-semibold text-xs transition-colors flex items-center gap-2 cursor-pointer active:scale-95"
@@ -638,7 +660,7 @@ export const PaymentPlansModal: React.FC<PaymentPlansModalProps> = ({
 
           {/* Detalhes Pix (Drawer) */}
           <AnimatePresence>
-            {showPixDetails && selectedPlan !== 'free' && (
+            {showPixDetails && selectedPlan !== 'free' && PAYMENT_CONFIG.pixKey && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
@@ -648,9 +670,9 @@ export const PaymentPlansModal: React.FC<PaymentPlansModalProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-sans font-bold text-white flex items-center gap-2">
                     <QrCode className="w-4 h-4 text-[#D4AF37]" />
-                    <span>Chave Pix Copia e Cola ({selectedPlan === 'monthly' ? 'R$ 100,00' : 'Acesso Vitalício: R$ 450,00'})</span>
+                    <span>Chave Pix Copia e Cola ({selectedPlan === 'monthly' ? 'R$ 100,00' : 'Acesso Vitalício: R$ 920,00'})</span>
                   </span>
-                  <span className="text-[11px] text-white/50 font-sans">Liberação imediata após envio</span>
+                  <span className="text-[11px] text-white/50 font-sans">Liberação em até {PAYMENT_CONFIG.activationDeadline} após a confirmação</span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -674,15 +696,17 @@ export const PaymentPlansModal: React.FC<PaymentPlansModalProps> = ({
 
           {/* Rodapé: Suporte WhatsApp & Fechar */}
           <div className="relative mt-4 pt-3.5 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-            <a
-              href={PAYMENT_CONFIG.whatsappSupportUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition-colors font-sans"
-            >
-              <MessageCircle className="w-3.5 h-3.5 text-[#D4AF37]" />
-              <span>Dúvidas? Fale com o suporte no WhatsApp</span>
-            </a>
+            {PAYMENT_CONFIG.whatsappSupportUrl ? (
+              <a
+                href={PAYMENT_CONFIG.whatsappSupportUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition-colors font-sans"
+              >
+                <MessageCircle className="w-3.5 h-3.5 text-[#D4AF37]" />
+                <span>Dúvidas? Fale com o suporte no WhatsApp</span>
+              </a>
+            ) : <span />}
 
             <div className="flex items-center gap-2">
               <button
