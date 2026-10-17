@@ -19,14 +19,12 @@ service cloud.firestore {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    // Admin = e-mail do Rafael, somente com e-mail verificado.
+    // Login com Google sempre chega com email_verified = true.
     function isAdmin() {
-      return isSignedIn() && (
-        (request.auth.token.email != null && (
-          request.auth.token.email.lower() == 'rafael.cm333@gmail.com' ||
-          request.auth.token.email == 'Rafael.cm333@gmail.com'
-        )) ||
-        request.auth.uid == 'admin'
-      );
+      return isSignedIn()
+        && request.auth.token.get('email_verified', false) == true
+        && request.auth.token.get('email', '').lower() == 'rafael.cm333@gmail.com';
     }
 
     function isValidUserProfile(data) {
@@ -37,6 +35,20 @@ service cloud.firestore {
         && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 2048))
         && (!('role' in data) || data.role == 'user' || (data.role == 'admin' && isAdmin()))
         && (!('plan' in data) || data.plan in ['free', 'monthly', 'lifetime']);
+    }
+
+    // Plano pago só pode ser concedido pelo admin (após confirmar o pagamento).
+    // O próprio usuário só pode criar o perfil como 'free' e nunca pode mudar o plano.
+    function planOnCreateAllowed(data) {
+      return data.get('plan', 'free') == 'free' || isAdmin();
+    }
+
+    function planUnchangedOrAdmin() {
+      return request.resource.data.get('plan', 'free') == resource.data.get('plan', 'free') || isAdmin();
+    }
+
+    function roleUnchangedOrAdmin() {
+      return request.resource.data.get('role', 'user') == resource.data.get('role', 'user') || isAdmin();
     }
 
     function isValidSavedMap(data, userId) {
@@ -64,10 +76,14 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-      allow create: if (isOwner(userId) || isAdmin()) && isValidId(userId) && isValidUserProfile(request.resource.data);
-      allow update: if (isOwner(userId) || isAdmin()) && isValidId(userId) && isValidUserProfile(request.resource.data)
+      allow create: if (isOwner(userId) || isAdmin()) && isValidId(userId)
+        && isValidUserProfile(request.resource.data)
+        && planOnCreateAllowed(request.resource.data);
+      allow update: if (isOwner(userId) || isAdmin()) && isValidId(userId)
+        && isValidUserProfile(request.resource.data)
         && (!('uid' in resource.data) || request.resource.data.uid == resource.data.uid)
-        && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role || isAdmin());
+        && roleUnchangedOrAdmin()
+        && planUnchangedOrAdmin();
       allow delete: if isOwner(userId) || isAdmin();
 
       // User saved maps subcollection
