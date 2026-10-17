@@ -1042,11 +1042,19 @@ useEffect(() => {
                     setUserPlan('lifetime');
                 }
                 syncUserProfile(user).then((profile) => {
-                    if (profile?.plan && !isUserAdmin) {
-                        setUserPlan(profile.plan);
-                        try { localStorage.setItem('cronografo_user_plan', profile.plan); } catch {}
+                    if (isUserAdmin) return;
+                    // Fonte da verdade do plano = Firestore. Sem perfil válido, volta para 'free'.
+                    const p = profile?.plan;
+                    const plan: 'free' | 'monthly' | 'lifetime' = (p === 'monthly' || p === 'lifetime') ? p : 'free';
+                    setUserPlan(plan);
+                    try { localStorage.setItem('cronografo_user_plan', plan); } catch {}
+                }).catch((err) => {
+                    console.error(err);
+                    if (!isUserAdmin) {
+                        setUserPlan('free');
+                        try { localStorage.setItem('cronografo_user_plan', 'free'); } catch {}
                     }
-                }).catch(console.error);
+                });
 
                 // Sincronizar mapas do Firestore
                 loadMapsFromFirestore(user.uid).then(cloudMaps => {
@@ -1084,6 +1092,8 @@ useEffect(() => {
             } else {
                 setIsAuthenticated(false);
                 setIsAdmin(false);
+                setUserPlan('free');
+                try { localStorage.setItem('cronografo_user_plan', 'free'); } catch {}
             }
             setIsAuthChecking(false);
         });
@@ -1752,11 +1762,8 @@ const handlePlanetClick = useCallback((id: string) => {
                         isOpen={showPaymentPlansModal && !showLoginModal}
                         onClose={() => setShowPaymentPlansModal(false)}
                         onSelectPlan={(plan) => {
-                            setUserPlan(plan);
-                            try { localStorage.setItem('cronografo_user_plan', plan); } catch {}
-                            if (auth.currentUser && (plan === 'free' || plan === 'monthly' || plan === 'lifetime')) {
-                                updateUserPlanInFirestore(auth.currentUser.uid, plan).catch(console.error);
-                            }
+                            // Plano pago NÃO é liberado no clique: o modal só abre o checkout.
+                            // A liberação é feita pelo admin (AdminDashboard) após confirmar o pagamento.
                             if (plan === 'free') {
                                 setShowPaymentPlansModal(false);
                             }
