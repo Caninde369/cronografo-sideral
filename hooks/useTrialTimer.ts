@@ -1,70 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
+import { auth, updateUserDailyTrial } from '../lib/firebase';
 
-const TRIAL_DURATION_MS = 10 * 60 * 1000;
+// Contador de tempo diário removido conforme solicitação:
+// O plano gratuito permite exploração contínua com recursos selecionados limitados (ano 2026, 1 exportação com marca d'água, etc.)
+export const DAILY_TRIAL_DURATION_MS = 0;
 
-export function useTrialTimer(isAuthenticated: boolean) {
-    const getInitialState = () => {
-        if (typeof window === 'undefined') return { active: false, expired: false, left: null as number | null };
-        const startTimeStr = localStorage.getItem('cronografo_trial_start');
-        if (!startTimeStr) return { active: false, expired: false, left: null as number | null };
-        const elapsed = Date.now() - parseInt(startTimeStr, 10);
-        const remaining = Math.max(0, TRIAL_DURATION_MS - elapsed);
-        return { active: true, expired: remaining === 0, left: remaining };
-    };
-
-    const initial = getInitialState();
-    const [trialActive, setTrialActive] = useState(initial.active);
-    const [timeLeft, setTimeLeft]       = useState<number | null>(initial.left);
-    const [isExpired, setIsExpired]     = useState(initial.expired);
-    const intervalRef = useRef<number | null>(null);
-
-    useEffect(() => {
-        if (isAuthenticated) {
-            setTrialActive(false);
-            setIsExpired(false);
-            setTimeLeft(null);
-            if (intervalRef.current) clearInterval(intervalRef.current);
-            return;
-        }
-
-        if (!trialActive) {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-            return;
-        }
-
-        const startTimeStr = localStorage.getItem('cronografo_trial_start');
-        if (!startTimeStr) return;
-        const startTime = parseInt(startTimeStr, 10);
-
-        const tick = () => {
-            const remaining = Math.max(0, TRIAL_DURATION_MS - (Date.now() - startTime));
-            setTimeLeft(remaining);
-            setIsExpired(remaining === 0);
-            if (remaining === 0 && intervalRef.current) {
-                clearInterval(intervalRef.current);
-            }
-        };
-
-        tick();
-        intervalRef.current = window.setInterval(tick, 1000);
-        return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-    }, [isAuthenticated, trialActive]);
-
-    const startTrial = () => {
-        if (!localStorage.getItem('cronografo_trial_start')) {
-            localStorage.setItem('cronografo_trial_start', Date.now().toString());
-        }
-        setTrialActive(true);
-        setIsExpired(false);
-    };
-
-    const resetTrial = () => {
-        localStorage.removeItem('cronografo_trial_start');
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        setTrialActive(false);
-        setIsExpired(false);
-        setTimeLeft(null);
-    };
-
-    return { trialActive, timeLeft, isExpired, startTrial, resetTrial };
+export function useTrialTimer(_isAuthenticated: boolean, _userEmail?: string, _isAdmin?: boolean) {
+  return {
+    trialActive: false,
+    isGuestExploring: false,
+    timeLeft: null,
+    isExpired: false,
+    isUnlimited: true,
+    dailyLimitMs: 0,
+    usedMsToday: 0,
+    formattedTimeLeft: '',
+    resetTrial: () => {},
+    startTrial: () => {}
+  };
 }

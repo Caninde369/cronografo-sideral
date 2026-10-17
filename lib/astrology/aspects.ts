@@ -184,3 +184,51 @@ export const calculateTransitNatalAspects = (
 
     return aspectList.sort((a, b) => a.orb - b.orb);
 };
+
+const PLANET_DAILY_SPEEDS: Record<string, number> = {
+    moon: 13.176,
+    sun: 0.9856,
+    mercury: 1.22,
+    venus: 1.20,
+    mars: 0.524,
+    jupiter: 0.083,
+    saturn: 0.033,
+    uranus: 0.0117,
+    neptune: 0.006,
+    pluto: 0.004,
+    northNode: 0.053,
+    southNode: 0.053,
+    lilith: 0.111,
+    chiron: 0.08,
+    ceres: 0.22,
+    pallas: 0.22,
+    juno: 0.22,
+    vesta: 0.22,
+    partOfFortune: 13.176
+};
+
+export function getAspectTransitRange(aspect: Aspect, baseDate: Date = new Date()): { start: Date; end: Date } {
+    const speed1 = PLANET_DAILY_SPEEDS[aspect.body1.id] || 0.5;
+    const speed2 = PLANET_DAILY_SPEEDS[aspect.body2.id] || 0.5;
+    
+    let relSpeed = Math.abs(speed1 - speed2);
+    if (relSpeed < 0.02) relSpeed = 0.02;
+    
+    const maxOrb = ASPECT_ORBS[aspect.type] || 6;
+    const currentOrb = aspect.orb;
+    
+    const daysSinceStart = Math.max(0.1, (maxOrb - currentOrb) / relSpeed);
+    const daysUntilEnd = Math.max(0.1, (maxOrb + currentOrb) / relSpeed);
+    
+    const startTime = new Date(baseDate.getTime() - daysSinceStart * 86400000);
+    const endTime = new Date(baseDate.getTime() + daysUntilEnd * 86400000);
+    
+    return { start: startTime, end: endTime };
+}
+
+export function formatDateCompact(d: Date): string {
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+}

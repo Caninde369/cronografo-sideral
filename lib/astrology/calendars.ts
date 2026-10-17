@@ -229,6 +229,102 @@ export const getTzolkinDate = (date: Date): { kin: number, tone: string, sign: s
     };
 };
 
+export const NORTHERN_MOONS = [
+    'Lua do Lobo', 'Lua da Neve', 'Lua da Minhoca', 'Lua Rosa', 'Lua das Flores', 'Lua de Morango',
+    'Lua do Cervo', 'Lua do Esturjão', 'Lua da Colheita', 'Lua do Caçador', 'Lua do Castor', 'Lua Fria'
+];
+
+export const SOUTHERN_MOONS = [
+    'Lua do Feno', 'Lua dos Grãos', 'Lua da Colheita', 'Lua do Caçador', 'Lua da Geada', 'Lua Fria',
+    'Lua de Gelo', 'Lua da Tempestade', 'Lua da Minhoca', 'Lua Rosa', 'Lua das Flores', 'Lua de Morango'
+];
+
+export const getMoonEmoji = (moonName: string): string => {
+    switch (moonName) {
+        case 'Lua do Lobo': return '🐺';
+        case 'Lua da Neve': return '🌨️';
+        case 'Lua da Minhoca': return '🪱';
+        case 'Lua Rosa': return '🌸';
+        case 'Lua das Flores': return '💐';
+        case 'Lua de Morango': return '🍓';
+        case 'Lua do Cervo': return '🦌';
+        case 'Lua do Esturjão': return '🐟';
+        case 'Lua da Colheita': return '🌾';
+        case 'Lua do Caçador': return '🏹';
+        case 'Lua do Castor': return '🦫';
+        case 'Lua Fria': return '💨';
+        case 'Lua do Feno': return '🌿';
+        case 'Lua dos Grãos': return '🌽';
+        case 'Lua da Geada': return '🧊';
+        case 'Lua de Gelo': return '❄️';
+        case 'Lua da Tempestade': return '⚡';
+        case 'Lua Azul': return '🔵';
+        default: return '🌕';
+    }
+};
+
+export const getCelticMoonCycle = (date: Date, latitude: number = 0): { name: string, index: number, emoji: string } | null => {
+    const getYearCycleStart = (year: number): Date => {
+        const seasons = Seasons(year);
+        const equinox = seasons.mar_equinox.date;
+        const searchFrom = new Date(equinox);
+        searchFrom.setDate(searchFrom.getDate() - 2);
+        const newMoon = SearchMoonPhase(0, searchFrom, 40);
+        return newMoon ? newMoon.date : equinox;
+    };
+
+    const getYearCycles = (year: number) => {
+        const firstNewMoon = getYearCycleStart(year);
+        const cycles = [];
+        let searchDate = new Date(firstNewMoon);
+        const seenMonths = new Set<number>();
+
+        for (let i = 0; i < 13; i++) {
+            const nm = i === 0 ? firstNewMoon : (() => {
+                const s = new Date(searchDate);
+                s.setDate(s.getDate() + 1);
+                const found = SearchMoonPhase(0, s, 35);
+                return found ? found.date : s;
+            })();
+            
+            const fullMoonDate = new Date(nm);
+            fullMoonDate.setDate(fullMoonDate.getDate() + 14);
+            const month = fullMoonDate.getMonth();
+            
+            let name = '';
+            if (seenMonths.has(month)) {
+                name = 'Lua Azul';
+            } else {
+                seenMonths.add(month);
+                const isSouth = latitude < 0;
+                name = isSouth ? SOUTHERN_MOONS[month] : NORTHERN_MOONS[month];
+            }
+
+            cycles.push({ start: new Date(nm), name, emoji: getMoonEmoji(name), index: i + 1 });
+            if (i > 0) searchDate = nm;
+            else searchDate = nm;
+            if (i > 0) searchDate = new Date(nm);
+        }
+        return cycles;
+    };
+
+    const year = date.getFullYear();
+    const cycles = [...getYearCycles(year - 1), ...getYearCycles(year)];
+    
+    let currentCycle = null;
+    for (let i = 0; i < cycles.length - 1; i++) {
+        if (date >= cycles[i].start && date < cycles[i+1].start) {
+            currentCycle = cycles[i];
+            break;
+        }
+    }
+    if (!currentCycle && date >= cycles[cycles.length - 1].start) {
+        currentCycle = cycles[cycles.length - 1];
+    }
+    
+    return currentCycle;
+};
+
 export const getMoonAge = (moonPhase: number): number => {
     // moonPhase is 0..1
     // Cycle is approx 29.53 days

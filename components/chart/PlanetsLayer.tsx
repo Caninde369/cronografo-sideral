@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { CelestialData } from '../../hooks/useCelestialData';
 import { getMoonPhaseEmoji } from '../../lib/astrology/utils';
 import { PLANET_COLORS, SPHERE_GLYPH_COLORS, getPlanetRadialIndex } from '../../lib/astrology/constants';
-import { CELESTIAL_GLYPHS } from '../icons';
+import { CelestialGlyphSvg } from './CelestialGlyphSvg';
 
 interface PlanetsLayerProps {
     cx: number;
@@ -118,18 +118,13 @@ export const PlanetsLayer: React.FC<PlanetsLayerProps> = ({
                         )}
 
                         {/* Glyph */}
-                        <text
-                            textAnchor="middle"
-                            dominantBaseline="middle"
-                            className="font-astro select-none pointer-events-none"
-                            fill={showPlanetSpheres ? (SPHERE_GLYPH_COLORS[planetId] || '#000') : baseColor}
-                            style={{ 
-                                fontSize: planetSize * 0.6,
-                                textShadow: showPlanetSpheres ? '0 1px 2px rgba(0,0,0,0.3)' : 'none'
-                            }}
-                        >
-                            {CELESTIAL_GLYPHS[planetId]}
-                        </text>
+                        <g transform={`translate(${-planetSize * 0.3}, ${-planetSize * 0.3})`} className="pointer-events-none select-none">
+                            <CelestialGlyphSvg 
+                                bodyId={planetId} 
+                                size={planetSize * 0.6} 
+                                color={showPlanetSpheres ? (SPHERE_GLYPH_COLORS[planetId] || '#000') : baseColor} 
+                            />
+                        </g>
 
                         {/* Retrograde Indicator */}
                         {isRetrograde && (

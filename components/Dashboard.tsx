@@ -22,6 +22,12 @@ interface DashboardProps {
     initialTab?: 'profile' | 'maps' | 'layouts' | 'admin';
     onEditNatal?: () => void;
     onUpdateProfile?: (data: { username: string; birthDate?: string }) => void;
+    savedMaps?: any[];
+    onLoadMap?: (map: any) => void;
+    onDeleteMap?: (id: string) => void;
+    savedLayouts?: any[];
+    onLoadLayout?: (layout: any) => void;
+    onDeleteLayout?: (id: string) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -32,22 +38,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
     natalTime,
     initialTab = 'profile',
     onEditNatal,
-    onUpdateProfile 
+    onUpdateProfile,
+    savedMaps = [],
+    onLoadMap,
+    onDeleteMap,
+    savedLayouts = [],
+    onLoadLayout,
+    onDeleteLayout
 }) => {
     const [activeTab, setActiveTab] = useState<'profile' | 'maps' | 'layouts' | 'admin'>(initialTab);
     const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
     const [loadingAdmin, setLoadingAdmin] = useState(false);
-
-    // Mock data for saved items (in a real app, these would come from an API or localStorage)
-    const [savedMaps] = useState([
-        { id: 1, name: 'Meu Mapa Natal', date: '1990-05-15', time: '14:30' },
-        { id: 2, name: 'Trânsito Importante', date: '2024-03-20', time: '10:00' },
-    ]);
-
-    const [savedLayouts] = useState([
-        { id: 1, name: 'Minimalista Dark', description: 'Foco no relógio e planetas' },
-        { id: 2, name: 'Técnico Completo', description: 'Todas as linhas e tabelas visíveis' },
-    ]);
 
     useEffect(() => {
         if (activeTab === 'admin' && isAdmin) {
@@ -97,22 +98,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     {/* Sidebar Navigation */}
                     <div className="w-64 border-r border-white/5 p-6 flex flex-col gap-2 bg-black/20">
                         <button 
-                            onClick={() => setActiveTab('profile')}
-                            className={`w-full px-4 py-3 rounded-xl flex items-center gap-3 transition-all duration-300 ${activeTab === 'profile' ? 'bg-brand-purple text-white shadow-lg shadow-brand-purple/20' : 'text-brand-text-muted hover:bg-white/5 hover:text-brand-text'}`}
-                        >
-                            <UI_ICONS.UserIcon className="w-4 h-4" />
-                            <span className="text-sm font-bold">Perfil</span>
-                        </button>
-                        <button 
                             onClick={() => setActiveTab('maps')}
-                            className={`w-full px-4 py-3 rounded-xl flex items-center gap-3 transition-all duration-300 ${activeTab === 'maps' ? 'bg-brand-purple text-white shadow-lg shadow-brand-purple/20' : 'text-brand-text-muted hover:bg-white/5 hover:text-brand-text'}`}
+                            className={`w-full px-4 py-3 rounded-xl flex items-center gap-3 transition-all duration-300 ${activeTab === 'maps' ? 'bg-brand-purple text-[rgb(var(--color-brand-purple-contrast))] shadow-lg shadow-brand-purple/20' : 'text-brand-text-muted hover:bg-white/5 hover:text-brand-text'}`}
                         >
                             <UI_ICONS.BookIcon className="w-4 h-4" />
                             <span className="text-sm font-bold">Mapas Salvos</span>
                         </button>
                         <button 
+                            onClick={() => setActiveTab('profile')}
+                            className={`w-full px-4 py-3 rounded-xl flex items-center gap-3 transition-all duration-300 ${activeTab === 'profile' ? 'bg-brand-purple text-[rgb(var(--color-brand-purple-contrast))] shadow-lg shadow-brand-purple/20' : 'text-brand-text-muted hover:bg-white/5 hover:text-brand-text'}`}
+                        >
+                            <UI_ICONS.UserIcon className="w-4 h-4" />
+                            <span className="text-sm font-bold">Perfil</span>
+                        </button>
+                        <button 
                             onClick={() => setActiveTab('layouts')}
-                            className={`w-full px-4 py-3 rounded-xl flex items-center gap-3 transition-all duration-300 ${activeTab === 'layouts' ? 'bg-brand-purple text-white shadow-lg shadow-brand-purple/20' : 'text-brand-text-muted hover:bg-white/5 hover:text-brand-text'}`}
+                            className={`w-full px-4 py-3 rounded-xl flex items-center gap-3 transition-all duration-300 ${activeTab === 'layouts' ? 'bg-brand-purple text-[rgb(var(--color-brand-purple-contrast))] shadow-lg shadow-brand-purple/20' : 'text-brand-text-muted hover:bg-white/5 hover:text-brand-text'}`}
                         >
                             <UI_ICONS.LayersIcon className="w-4 h-4" />
                             <span className="text-sm font-bold">Layouts</span>
@@ -180,43 +181,54 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         {activeTab === 'maps' && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-bottom-4 duration-500">
                                 {savedMaps.map(map => (
-                                    <div key={map.id} className="bg-white/5 border border-white/10 p-5 rounded-3xl hover:bg-white/10 transition-all duration-300 group cursor-pointer">
+                                    <div key={map.id} className="bg-white/5 border border-white/10 p-5 rounded-3xl hover:bg-white/10 transition-all duration-300 group cursor-pointer" onClick={() => onLoadMap && onLoadMap(map)}>
                                         <div className="flex justify-between items-start mb-4">
                                             <div className="p-2 bg-brand-purple/20 rounded-xl text-brand-purple">
                                                 <UI_ICONS.BookIcon className="w-5 h-5" />
                                             </div>
                                             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button className="p-2 hover:bg-white/10 rounded-lg text-brand-text-muted hover:text-brand-text"><UI_ICONS.OrbitIcon className="w-4 h-4" /></button>
-                                                <button className="p-2 hover:bg-red-500/20 rounded-lg text-brand-text-muted hover:text-red-400"><UI_ICONS.CloseIcon className="w-4 h-4" /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); onLoadMap && onLoadMap(map); }} className="p-2 hover:bg-white/10 rounded-lg text-brand-text-muted hover:text-brand-text"><UI_ICONS.OrbitIcon className="w-4 h-4" /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); onDeleteMap && onDeleteMap(map.id); }} className="p-2 hover:bg-red-500/20 rounded-lg text-brand-text-muted hover:text-red-400"><UI_ICONS.CloseIcon className="w-4 h-4" /></button>
                                             </div>
                                         </div>
                                         <h4 className="font-bold text-brand-text">{map.name}</h4>
-                                        <p className="text-xs text-brand-text-muted mt-1">{new Date(map.date).toLocaleDateString('pt-BR')} • {map.time}</p>
+                                        <p className="text-xs text-brand-text-muted mt-1">{new Date(map.targetDate || map.date).toLocaleDateString('pt-BR')} • {map.time}</p>
+                                        {map.description && <p className="text-xs text-brand-text-muted mt-2 opacity-80">{map.description}</p>}
                                     </div>
                                 ))}
-                                <button className="border-2 border-dashed border-white/10 p-5 rounded-3xl flex flex-col items-center justify-center gap-2 text-brand-text-muted hover:border-brand-purple/50 hover:text-brand-purple transition-all duration-300">
-                                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">+</div>
-                                    <span className="text-xs font-bold uppercase tracking-wider">Novo Mapa</span>
-                                </button>
+                                {savedMaps.length === 0 && (
+                                    <div className="col-span-full border-2 border-dashed border-white/10 p-10 rounded-3xl flex flex-col items-center justify-center gap-2 text-brand-text-muted">
+                                        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center"><UI_ICONS.BookIcon className="w-4 h-4" /></div>
+                                        <span className="text-sm font-bold uppercase tracking-wider">Nenhum mapa salvo</span>
+                                    </div>
+                                )}
                             </div>
                         )}
 
                         {activeTab === 'layouts' && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-bottom-4 duration-500">
                                 {savedLayouts.map(layout => (
-                                    <div key={layout.id} className="bg-white/5 border border-white/10 p-5 rounded-3xl hover:bg-white/10 transition-all duration-300 group cursor-pointer">
+                                    <div key={layout.id} className="bg-white/5 border border-white/10 p-5 rounded-3xl hover:bg-white/10 transition-all duration-300 group cursor-pointer" onClick={() => onLoadLayout && onLoadLayout(layout)}>
                                         <div className="flex justify-between items-start mb-4">
                                             <div className="p-2 bg-brand-orange/20 rounded-xl text-brand-orange">
                                                 <UI_ICONS.LayersIcon className="w-5 h-5" />
                                             </div>
-                                            <button className="p-2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10 rounded-lg text-brand-text-muted hover:text-brand-text">
-                                                <UI_ICONS.SparklesIcon className="w-4 h-4" />
-                                            </button>
+                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={(e) => { e.stopPropagation(); onLoadLayout && onLoadLayout(layout); }} className="p-2 hover:bg-white/10 rounded-lg text-brand-text-muted hover:text-brand-text"><UI_ICONS.SparklesIcon className="w-4 h-4" /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); onDeleteLayout && onDeleteLayout(layout.id); }} className="p-2 hover:bg-red-500/20 rounded-lg text-brand-text-muted hover:text-red-400"><UI_ICONS.CloseIcon className="w-4 h-4" /></button>
+                                            </div>
                                         </div>
                                         <h4 className="font-bold text-brand-text">{layout.name}</h4>
-                                        <p className="text-xs text-brand-text-muted mt-1">{layout.description}</p>
+                                        <p className="text-xs text-brand-text-muted mt-1">{new Date(layout.dateSaved).toLocaleDateString('pt-BR')}</p>
+                                        {layout.description && <p className="text-xs text-brand-text-muted mt-2 opacity-80">{layout.description}</p>}
                                     </div>
                                 ))}
+                                {savedLayouts.length === 0 && (
+                                    <div className="col-span-full border-2 border-dashed border-white/10 p-10 rounded-3xl flex flex-col items-center justify-center gap-2 text-brand-text-muted">
+                                        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center"><UI_ICONS.LayersIcon className="w-4 h-4" /></div>
+                                        <span className="text-sm font-bold uppercase tracking-wider">Nenhum layout salvo</span>
+                                    </div>
+                                )}
                             </div>
                         )}
 

@@ -29,7 +29,7 @@ import {
     getHousePlacement,
     HouseSystem
 } from '../lib/astrology/houseSystem';
-import { calculateAllRetrogrades } from '../lib/astrology/retrogrades';
+import { calculateAllRetrogrades, calculateAllStationary } from '../lib/astrology/retrogrades';
 import { calculateAspects, Aspect } from '../lib/astrology/aspects';
 import { normalizeAngle } from '../lib/astrology/utils';
 
@@ -71,12 +71,14 @@ export type CelestialData = {
     pallasEclipticLongitude: number;
     junoEclipticLongitude: number;
     vestaEclipticLongitude: number;
+    partOfFortuneEclipticLongitude: number;
     midheavenLongitude: number;
     ascendantLongitude: number;
     descendantLongitude: number;
     imumCoeliLongitude: number;
     zodiacRotation: number;
     retrogradeStatus: Record<string, boolean>;
+    stationaryStatus: Record<string, boolean>;
     houseCusps: number[];
     housePlacements: Record<string, number>;
     aspects: Aspect[];
@@ -121,6 +123,7 @@ type SlowPlanetsCache = {
     juno: number;
     vesta: number;
     retrogradeStatus: Record<string, boolean>;
+    stationaryStatus: Record<string, boolean>;
 };
 
 // Cache global — persiste entre renders, não causa re-renders
@@ -151,6 +154,7 @@ const getSlowPlanets = (currentTime: Date): Omit<SlowPlanetsCache, 'minuteKey'> 
         juno:            calculateJunoTropicalLongitude(currentTime),
         vesta:           calculateVestaTropicalLongitude(currentTime),
         retrogradeStatus: calculateAllRetrogrades(currentTime),
+        stationaryStatus: calculateAllStationary(currentTime),
     };
 
     slowPlanetsCache = { minuteKey, ...result };
@@ -178,13 +182,25 @@ const makeEmpty = (currentTime: Date, houseSystem: HouseSystem): CelestialData =
     southNodeEclipticLongitude: 0, chironEclipticLongitude: 0,
     ceresEclipticLongitude: 0, pallasEclipticLongitude: 0,
     junoEclipticLongitude: 0, vestaEclipticLongitude: 0,
+    partOfFortuneEclipticLongitude: 0,
     midheavenLongitude: 0, ascendantLongitude: 0,
     descendantLongitude: 180, imumCoeliLongitude: 180,
     zodiacRotation: 0,
     retrogradeStatus: {},
+    stationaryStatus: {},
     houseCusps: Array(12).fill(0).map((_, i) => i * 30),
     housePlacements: {}, aspects: [], houseSystem
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AYANAMSA (Lahiri)
+// ─────────────────────────────────────────────────────────────────────────────
+const getAyanamsa = (date: Date): number => {
+    const jd = date.getTime() / 86400000 + 2440587.5;
+    const T = (jd - 2451545.0) / 36525.0;
+    // Lahiri approximation: 23.85 + 1.396 * T
+    return normalizeAngle(23.85 + 1.396 * T);
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN CALCULATION
@@ -197,11 +213,15 @@ export const calculateCelestialData = (
     currentTime: Date | null,
     location: LocationState,
     visiblePlanets: Record<string, boolean>,
-    houseSystem: HouseSystem = 'porphyry'
+    houseSystem: HouseSystem = 'porphyry',
+    zodiacSystem: 'sidereal' | 'tropical' = 'sidereal'
 ): CelestialData => {
     if (!currentTime || isNaN(currentTime.getTime())) {
-        return makeEmpty(new Date(0), houseSystem);
+        return makeEmpty(currentTime || new Date(0), houseSystem);
     }
+
+    const ayanamsa = zodiacSystem === 'sidereal' ? -getAyanamsa(currentTime) : 0;
+    const ao = (lon: number) => normalizeAngle(lon + ayanamsa);
 
     const currentMs = currentTime.getTime();
     const sunTimesToday = SunCalc.getTimes(currentTime, location.latitude, location.longitude);
@@ -263,6 +283,10 @@ export const calculateCelestialData = (
         houseSystem, ascendantLongitude, midheavenLongitude, lst, location.latitude, currentTime
     );
 
+    const partOfFortuneEclipticLongitude = isDayTime
+        ? normalizeAngle(ascendantLongitude + moonEclipticLongitude - sunEclipticLongitude)
+        : normalizeAngle(ascendantLongitude + sunEclipticLongitude - moonEclipticLongitude);
+
     const longitudes = {
         sun:       sunEclipticLongitude,
         moon:      moonEclipticLongitude,
@@ -282,6 +306,7 @@ export const calculateCelestialData = (
         pallas:    slow.pallas,
         juno:      slow.juno,
         vesta:     slow.vesta,
+        partOfFortune: partOfFortuneEclipticLongitude,
     };
 
     const housePlacements = Object.fromEntries(
@@ -310,31 +335,33 @@ export const calculateCelestialData = (
         moonsetTime:     formatTime(moonTimes.set),
         gradientStatus,
         gradientProgress,
-        sunEclipticLongitude,
-        moonEclipticLongitude,
-        mercuryEclipticLongitude,
-        marsEclipticLongitude,
-        venusEclipticLongitude,
-        jupiterEclipticLongitude:  slow.jupiter,
-        saturnEclipticLongitude:   slow.saturn,
-        neptuneEclipticLongitude:  slow.neptune,
-        uranusEclipticLongitude:   slow.uranus,
-        plutoEclipticLongitude:    slow.pluto,
-        lilithEclipticLongitude:   slow.lilith,
-        northNodeEclipticLongitude: slow.northNode,
-        southNodeEclipticLongitude,
-        chironEclipticLongitude:   slow.chiron,
-        ceresEclipticLongitude:    slow.ceres,
-        pallasEclipticLongitude:   slow.pallas,
-        junoEclipticLongitude:     slow.juno,
-        vestaEclipticLongitude:    slow.vesta,
-        midheavenLongitude,
-        ascendantLongitude,
-        descendantLongitude: normalizeAngle(ascendantLongitude + 180),
-        imumCoeliLongitude:  normalizeAngle(midheavenLongitude + 180),
-        zodiacRotation:      normalizeAngle(ascendantLongitude),
+        sunEclipticLongitude: ao(sunEclipticLongitude),
+        moonEclipticLongitude: ao(moonEclipticLongitude),
+        mercuryEclipticLongitude: ao(mercuryEclipticLongitude),
+        marsEclipticLongitude: ao(marsEclipticLongitude),
+        venusEclipticLongitude: ao(venusEclipticLongitude),
+        jupiterEclipticLongitude:  ao(slow.jupiter),
+        saturnEclipticLongitude:   ao(slow.saturn),
+        neptuneEclipticLongitude:  ao(slow.neptune),
+        uranusEclipticLongitude:   ao(slow.uranus),
+        plutoEclipticLongitude:    ao(slow.pluto),
+        lilithEclipticLongitude:   ao(slow.lilith),
+        northNodeEclipticLongitude: ao(slow.northNode),
+        southNodeEclipticLongitude: ao(southNodeEclipticLongitude),
+        chironEclipticLongitude:   ao(slow.chiron),
+        ceresEclipticLongitude:    ao(slow.ceres),
+        pallasEclipticLongitude:   ao(slow.pallas),
+        junoEclipticLongitude:     ao(slow.juno),
+        vestaEclipticLongitude:    ao(slow.vesta),
+        partOfFortuneEclipticLongitude: ao(partOfFortuneEclipticLongitude),
+        midheavenLongitude: ao(midheavenLongitude),
+        ascendantLongitude: ao(ascendantLongitude),
+        descendantLongitude: ao(normalizeAngle(ascendantLongitude + 180)),
+        imumCoeliLongitude:  ao(normalizeAngle(midheavenLongitude + 180)),
+        zodiacRotation:      normalizeAngle(ao(ascendantLongitude)),
         retrogradeStatus:    slow.retrogradeStatus,
-        houseCusps,
+        stationaryStatus:    slow.stationaryStatus,
+        houseCusps: houseCusps.map(ao),
         housePlacements,
         aspects,
         houseSystem,
@@ -349,13 +376,14 @@ export const useCelestialData = (
     currentTime: Date | null,
     location: LocationState,
     visiblePlanets: Record<string, boolean>,
-    houseSystem: HouseSystem = 'porphyry'
+    houseSystem: HouseSystem = 'porphyry',
+    zodiacSystem: 'sidereal' | 'tropical' = 'sidereal'
 ): CelestialData => {
     const timeKey = currentTime?.getTime() ?? 0;
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     return useMemo(
-        () => calculateCelestialData(currentTime, location, visiblePlanets, houseSystem),
-        [timeKey, location, visiblePlanets, houseSystem]
+        () => calculateCelestialData(currentTime, location, visiblePlanets, houseSystem, zodiacSystem),
+        [timeKey, location, visiblePlanets, houseSystem, zodiacSystem]
     );
 };

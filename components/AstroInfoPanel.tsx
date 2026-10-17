@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ZODIAC_ICONS, CELESTIAL_GLYPHS, UI_ICONS } from './icons';
 import { ZODIAC_DATA, ELEMENT_COLORS, getZodiacColorClass } from './zodiac';
-import { Aspect, ASPECT_ORBS } from '../lib/astrology/aspects';
+import { Aspect, ASPECT_ORBS, getAspectTransitRange, formatDateCompact } from '../lib/astrology/aspects';
 import { WidgetId } from '../App';
 import { SizeControl, PopupToggle, SegmentedControl } from './Controls';
 import { toRoman } from '../lib/astrology/utils';
@@ -18,6 +18,7 @@ export type AspectSettings = {
         colors: boolean;
         names: boolean;
         nameColors: boolean;
+        namesAbbr?: boolean;
     };
     signs: {
         enabled: boolean;
@@ -39,6 +40,7 @@ export type AspectSettings = {
         };
     };
     orb: boolean;
+    transitDates?: boolean;
 };
 
 interface AstroInfoPanelProps {
@@ -64,11 +66,18 @@ interface AstroInfoPanelProps {
     showPlanetSpheres?: boolean;
     settings: AspectSettings;
     onSettingsChange: (settings: AspectSettings) => void;
+    currentTime?: Date;
     panelPosition?: 'left' | 'right';
     onWidthChange?: (width: number) => void;
     onPanelPositionChange?: (pos: 'left' | 'right') => void;
     panelScale?: number;
     onPanelScaleChange?: (scale: number) => void;
+    theme?: 'dark' | 'light';
+    hideHeader?: boolean;
+    menuButtonRef?: React.RefObject<HTMLButtonElement | null>;
+    isFreeTier?: boolean;
+    isFreeTrial?: boolean;
+    onOpenPaymentPlans?: () => void;
 }
 
 const PopupMenu: React.FC<{ children: React.ReactNode, onClose: () => void, triggerRef: React.RefObject<HTMLElement | null>, panelRef?: React.RefObject<HTMLElement | null> }> = ({ children, onClose, triggerRef, panelRef }) => {
@@ -100,7 +109,7 @@ const PopupMenu: React.FC<{ children: React.ReactNode, onClose: () => void, trig
         <>
             <div className="fixed inset-0 z-[9998]" onClick={onClose} />
             <div 
-                className="fixed z-[9999] bg-brand-surface/95 backdrop-blur-xl border border-brand-border/10 rounded-lg shadow-2xl p-3 w-72 animate-in fade-in zoom-in-95 duration-100 font-display text-brand-text"
+                className="fixed z-[9999] bg-[#06060a]/98 border border-white/20 shadow-2xl backdrop-blur-2xl rounded-2xl p-3.5 w-80 sm:w-84 animate-in fade-in zoom-in-95 duration-100 font-sans text-brand-text"
                 style={{ top: coords.top, left: coords.left, right: coords.right }}
                 onClick={e => e.stopPropagation()}
             >
@@ -142,7 +151,29 @@ const ASPECT_NAMES: Record<string, string> = {
 
 type AspectFormat = 'name' | 'abbr' | 'symbol';
 
-const PLANET_NAMES_PT: Record<string, string> = {
+const PLANET_NAMES_ABBR_PT: Record<string, string> = {
+    sun: 'Sol',
+    moon: 'Lua',
+    mercury: 'Mer',
+    venus: 'Vên',
+    mars: 'Mar',
+    jupiter: 'Júp',
+    saturn: 'Sat',
+    uranus: 'Ura',
+    neptune: 'Net',
+    pluto: 'Plu',
+    northNode: 'Nod.N',
+    southNode: 'Nod.S',
+    chiron: 'Quí',
+    lilith: 'Lil',
+    ceres: 'Cer',
+    pallas: 'Pal',
+    juno: 'Jun',
+    vesta: 'Ves',
+    partOfFortune: 'Rod'
+};
+
+const PLANET_NAMES_FULL_PT: Record<string, string> = {
     sun: 'Sol',
     moon: 'Lua',
     mercury: 'Mercúrio',
@@ -153,14 +184,15 @@ const PLANET_NAMES_PT: Record<string, string> = {
     uranus: 'Urano',
     neptune: 'Netuno',
     pluto: 'Plutão',
-    northNode: 'Nodo Norte',
-    southNode: 'Nodo Sul',
+    northNode: 'Nodo N.',
+    southNode: 'Nodo S.',
     chiron: 'Quíron',
     lilith: 'Lilith',
     ceres: 'Ceres',
     pallas: 'Pallas',
     juno: 'Juno',
-    vesta: 'Vesta'
+    vesta: 'Vesta',
+    partOfFortune: 'Roda'
 };
 
 const AspectBodyInfo: React.FC<{ 
@@ -171,20 +203,24 @@ const AspectBodyInfo: React.FC<{
     houseFormat: 'arabic' | 'roman';
     zodiacColorMode: 'none' | 'element' | 'modality' | 'polarity';
     showPlanetSpheres?: boolean;
-}> = ({ body, itemSize, settings, alignment, houseFormat, zodiacColorMode, showPlanetSpheres }) => {
+    theme?: 'dark' | 'light';
+}> = ({ body, itemSize, settings, alignment, houseFormat, zodiacColorMode, showPlanetSpheres, theme = 'dark' }) => {
     const planetGlyph = CELESTIAL_GLYPHS[body.id as keyof typeof CELESTIAL_GLYPHS];
     const sign = body.signIndex >= 0 && body.signIndex < 12 ? ZODIAC_DATA[body.signIndex] : null;
     const ZodiacSymbol = sign ? ZODIAC_ICONS[sign.id as keyof typeof ZODIAC_ICONS] : null;
 
     const planetColorClass = settings.planets.colors ? (planetColors[body.id] || 'text-brand-text') : 'text-brand-text';
     const nameColorClass = settings.planets.nameColors ? planetColorClass : 'text-brand-text';
-    const signColorClass = settings.signs.colors ? getZodiacColorClass(sign, zodiacColorMode) : 'text-brand-text-muted';
+    const signColorClass = settings.signs.colors ? getZodiacColorClass(sign, zodiacColorMode) : 'text-brand-text';
 
-    const baseFontSize = itemSize * 0.9;
-    const glyphSize = itemSize * 1.1;
-    const signSize = itemSize * 0.9;
+    const baseFontSize = Math.max(11, itemSize * 0.9);
+    const glyphSize = Math.max(12, itemSize * 1.1);
+    const signSize = Math.max(12, itemSize * 0.9);
     
     const houseLabel = houseFormat === 'roman' ? toRoman(body.house) : body.house;
+    const planetDisplayName = (settings.planets.namesAbbr ?? true) 
+        ? (PLANET_NAMES_ABBR_PT[body.id] || body.name) 
+        : (PLANET_NAMES_FULL_PT[body.id] || body.name);
 
     const renderPlanet = () => (
         <div className={`flex items-center gap-1.5 ${alignment === 'right' ? 'flex-row-reverse' : ''}`}>
@@ -197,33 +233,31 @@ const AspectBodyInfo: React.FC<{
                     <span className={planetColorClass} style={{ fontSize: `${glyphSize}px` }}>{planetGlyph}</span>
                 )
             )}
-            {settings.planets.names && <span className={`${nameColorClass} font-manrope font-light italic whitespace-nowrap`} style={{ fontSize: `${baseFontSize}px` }}>{PLANET_NAMES_PT[body.id] || body.name}</span>}
+            {settings.planets.names && <span className={`${nameColorClass} font-manrope font-light italic truncate`} style={{ fontSize: `${baseFontSize}px` }}>{planetDisplayName}</span>}
         </div>
     );
     
     return (
         <div className={`flex items-center ${alignment === 'left' ? 'justify-start' : 'justify-end'} flex-1 min-w-0`}>
             {alignment === 'left' ? (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 min-w-0">
                     {settings.signs.enabled && ZodiacSymbol && (
                         <div className="flex-shrink-0 flex items-center justify-center overflow-visible">
                             <ZodiacSymbol className={`${signColorClass} overflow-visible`} style={{ width: `${signSize}px`, height: `${signSize}px` }} />
                         </div>
                     )}
                     {settings.houses.enabled && (
-                        <div className="flex-shrink-0 flex items-center justify-center px-1">
+                        <div className="flex-shrink-0 flex items-center justify-center px-0.5">
                             <span className={`font-bold text-center text-brand-text ${houseFormat === 'roman' ? 'font-manrope' : ''}`} style={{ fontSize: `${baseFontSize}px` }}>{houseLabel}</span>
                         </div>
                     )}
-                    <div className="w-2"></div>
                     <div className="w-auto flex items-center justify-center">{renderPlanet()}</div>
                 </div>
             ) : (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 min-w-0">
                     <div className="w-auto flex items-center justify-center">{renderPlanet()}</div>
-                    <div className="w-2"></div>
                     {settings.houses.enabled && (
-                        <div className="flex-shrink-0 flex items-center justify-center px-1">
+                        <div className="flex-shrink-0 flex items-center justify-center px-0.5">
                             <span className={`font-bold text-center text-brand-text ${houseFormat === 'roman' ? 'font-manrope' : ''}`} style={{ fontSize: `${baseFontSize}px` }}>{houseLabel}</span>
                         </div>
                     )}
@@ -239,6 +273,14 @@ const AspectBodyInfo: React.FC<{
 };
 
 
+const ASPECT_COLORS: Record<string, string> = {
+  trine:       '#4ade80',
+  sextile:     '#60a5fa',
+  conjunction: '#4870FF',
+  square:      '#FB923C',
+  opposition:  '#f87171',
+};
+
 const AspectCard: React.FC<{ 
     aspect: Aspect, 
     isSelected: boolean, 
@@ -246,58 +288,215 @@ const AspectCard: React.FC<{
     onClick: (id: string) => void,
     onRightClick: (id: string) => void,
     itemSize: number,
+    scale?: number,
     settings: AspectSettings;
     houseFormat: 'arabic' | 'roman';
     zodiacColorMode: 'none' | 'element' | 'modality' | 'polarity';
     showPlanetSpheres?: boolean;
     onTooltip: (e: React.MouseEvent, aspect: Aspect) => void;
     onTooltipLeave: () => void;
-}> = ({ aspect, isSelected, onHover, onClick, onRightClick, itemSize, settings, houseFormat, zodiacColorMode, showPlanetSpheres, onTooltip, onTooltipLeave }) => {
+    theme?: 'dark' | 'light';
+    currentTime?: Date;
+}> = ({ aspect, isSelected, onHover, onClick, onRightClick, itemSize, scale = 1, settings, houseFormat, zodiacColorMode, showPlanetSpheres, onTooltip, onTooltipLeave, theme = 'dark', currentTime }) => {
     
     const aspectTypeClasses: Record<string, string> = {
-        conjunction: 'text-purple-400 drop-shadow-[0_0_8px_rgba(192,132,252,0.4)]',
-        opposition: 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.4)]',
-        trine: 'text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.4)]',
-        square: 'text-orange-400 drop-shadow-[0_0_8px_rgba(251,146,60,0.4)]',
-        sextile: 'text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.4)]',
+        conjunction: 'drop-shadow-[0_0_8px_rgba(72,112,255,0.4)]',
+        opposition: 'drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]',
+        trine: 'drop-shadow-[0_0_8px_rgba(52,211,153,0.4)]',
+        square: 'drop-shadow-[0_0_8px_rgba(251,146,60,0.4)]',
+        sextile: 'drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]',
     };
     
     const maxOrb = ASPECT_ORBS[aspect.type as keyof typeof ASPECT_ORBS] || 1;
     const orbRatio = Math.min(aspect.orb / maxOrb, 1);
     const opacity = 0.4 + (1 - orbRatio) * 0.6;
     
-    const baseFontSize = itemSize * 0.9;
-    const aspectNameFontSize = baseFontSize - 2;
+    const baseFontSize = Math.max(10, Math.round(itemSize * 0.9));
+    const aspectNameFontSize = Math.max(9, Math.round(baseFontSize - 2));
+    const glyphSize = Math.max(11, Math.round(itemSize * 1.1));
+    const signSize = Math.max(11, Math.round(itemSize * 0.9));
+    const signWidth = Math.max(14, Math.round(16 * scale));
+    const houseWidth = Math.max(14, Math.round(16 * scale));
+    const symbolWidth = Math.max(16, Math.round(20 * scale));
+    const aspectCenterWidth = Math.max(22, Math.round((settings.aspects.names ? 64 : settings.aspects.abbr ? 40 : 28) * scale));
+    const orbWidth = Math.max(30, Math.round(40 * scale));
+    const cardPaddingY = Math.max(3, Math.round(5 * scale));
+    const cardPaddingX = Math.max(6, Math.round(8 * scale));
+
+    const transitRange = useMemo(() => {
+        if (!settings.transitDates) return null;
+        return getAspectTransitRange(aspect, currentTime || new Date());
+    }, [settings.transitDates, aspect, currentTime]);
 
     const renderAspect = () => {
+        const color = ASPECT_COLORS[aspect.type] || '#F5F2EB';
         if (settings.aspects.names) {
-             return <span className={`font-bold uppercase font-display ${aspectTypeClasses[aspect.type] || ''} whitespace-nowrap`} style={{ fontSize: `${aspectNameFontSize}px`, fontFamily: "'Cormorant Infant', serif" }}>{ASPECT_NAMES[aspect.type] || aspect.type}</span>;
+             return <span className={`font-bold uppercase font-sans tracking-wide ${aspectTypeClasses[aspect.type] || ''} whitespace-nowrap`} style={{ fontSize: `${aspectNameFontSize}px`, color }}>{ASPECT_NAMES[aspect.type] || aspect.type}</span>;
         } else if (settings.aspects.abbr) {
-            return <span className={`font-bold uppercase font-display ${aspectTypeClasses[aspect.type] || ''} whitespace-nowrap`} style={{ fontSize: `${aspectNameFontSize}px`, fontFamily: "'Cormorant Infant', serif" }}>{aspectAbbr[aspect.type] || aspect.type}</span>;
+            return <span className={`font-bold uppercase font-sans tracking-wide ${aspectTypeClasses[aspect.type] || ''} whitespace-nowrap`} style={{ fontSize: `${aspectNameFontSize}px`, color }}>{aspectAbbr[aspect.type] || aspect.type}</span>;
         } else {
-             return <span className={`${aspectTypeClasses[aspect.type] || ''}`} style={{ fontSize: `${itemSize * 1.2}px` }}>{aspect.symbol}</span>;
+             return <span className={`inline-flex items-center justify-center text-center leading-none ${aspectTypeClasses[aspect.type] || ''}`} style={{ fontSize: `${itemSize * 1.2}px`, color }}>{aspect.symbol}</span>;
         }
     };
     
+    const isLight = theme === 'light';
+    const showPlanetText = settings.planets.names && scale > 0.92;
+
+    // Planet 1 Data
+    const planetGlyph1 = CELESTIAL_GLYPHS[aspect.body1.id as keyof typeof CELESTIAL_GLYPHS];
+    const sign1 = aspect.body1.signIndex >= 0 && aspect.body1.signIndex < 12 ? ZODIAC_DATA[aspect.body1.signIndex] : null;
+    const ZodiacSymbol1 = sign1 ? ZODIAC_ICONS[sign1.id as keyof typeof ZODIAC_ICONS] : null;
+    const planetColorClass1 = settings.planets.colors ? (planetColors[aspect.body1.id] || 'text-brand-text') : 'text-brand-text';
+    const nameColorClass1 = settings.planets.nameColors ? planetColorClass1 : 'text-brand-text';
+    const signColorClass1 = settings.signs.colors ? getZodiacColorClass(sign1, zodiacColorMode) : 'text-brand-text';
+    const houseLabel1 = houseFormat === 'roman' ? toRoman(aspect.body1.house) : aspect.body1.house;
+    const planetDisplayName1 = (settings.planets.namesAbbr ?? true) 
+        ? (PLANET_NAMES_ABBR_PT[aspect.body1.id] || aspect.body1.name) 
+        : (PLANET_NAMES_FULL_PT[aspect.body1.id] || aspect.body1.name);
+
+    // Planet 2 Data
+    const planetGlyph2 = CELESTIAL_GLYPHS[aspect.body2.id as keyof typeof CELESTIAL_GLYPHS];
+    const sign2 = aspect.body2.signIndex >= 0 && aspect.body2.signIndex < 12 ? ZODIAC_DATA[aspect.body2.signIndex] : null;
+    const ZodiacSymbol2 = sign2 ? ZODIAC_ICONS[sign2.id as keyof typeof ZODIAC_ICONS] : null;
+    const planetColorClass2 = settings.planets.colors ? (planetColors[aspect.body2.id] || 'text-brand-text') : 'text-brand-text';
+    const nameColorClass2 = settings.planets.nameColors ? planetColorClass2 : 'text-brand-text';
+    const signColorClass2 = settings.signs.colors ? getZodiacColorClass(sign2, zodiacColorMode) : 'text-brand-text';
+    const houseLabel2 = houseFormat === 'roman' ? toRoman(aspect.body2.house) : aspect.body2.house;
+    const planetDisplayName2 = (settings.planets.namesAbbr ?? true) 
+        ? (PLANET_NAMES_ABBR_PT[aspect.body2.id] || aspect.body2.name) 
+        : (PLANET_NAMES_FULL_PT[aspect.body2.id] || aspect.body2.name);
+
     return (
         <div 
             onMouseEnter={(e) => { onHover(aspect.id); onTooltip(e, aspect); }} 
             onMouseLeave={() => { onHover(null); onTooltipLeave(); }} 
             onClick={() => onClick(aspect.id)}
             onContextMenu={(e) => { e.preventDefault(); onRightClick(aspect.id); }}
-            className={`flex items-center justify-between px-2 py-0.5 rounded-lg transition-all duration-200 border cursor-pointer ${isSelected ? 'bg-gradient-to-r from-brand-purple/20 to-brand-orange/20 border-brand-purple/50 shadow-[0_0_15px_rgba(124,58,237,0.2)]' : 'bg-brand-surface/30 border-transparent hover:bg-brand-surface-highlight/30 hover:shadow-md'}`}  
-            style={{ opacity }}
+            className={`flex flex-col gap-1 rounded-[10px] transition-[background,border-color] duration-150 border cursor-pointer ${
+                isSelected
+                    ? (isLight
+                        ? 'bg-gradient-to-b from-[#D4AF37]/25 to-[#D4AF37]/10 border-[#8a6d1f]/60 text-amber-950'
+                        : 'bg-gradient-to-b from-[#D4AF37]/[0.10] to-[#D4AF37]/[0.03] border-[#D4AF37]/50')
+                    : (isLight
+                        ? 'bg-transparent border-transparent hover:bg-black/[0.04] text-amber-950'
+                        : 'bg-transparent border-transparent hover:bg-white/[0.05]')
+            }`}
+            style={{ 
+                opacity,
+                paddingTop: `${cardPaddingY}px`,
+                paddingBottom: `${cardPaddingY}px`,
+                paddingLeft: `${cardPaddingX}px`,
+                paddingRight: `${cardPaddingX}px`
+            }}
         >
-            <AspectBodyInfo body={aspect.body1} itemSize={itemSize} settings={settings} alignment="left" houseFormat={houseFormat} zodiacColorMode={zodiacColorMode} showPlanetSpheres={showPlanetSpheres} />
-            <div className={`flex-shrink-0 flex flex-col items-center justify-center font-bold px-1 text-center ${settings.aspects.names ? 'min-w-[4.5rem]' : settings.aspects.abbr ? 'min-w-[2.5rem]' : 'min-w-[2rem]'}`}>
-                {renderAspect()}
+            {/* Linha 1: Astros, Aspecto Central e Orbe */}
+            <div className="flex items-center justify-between gap-1.5 w-full">
+                {/* 1 & 2: Esfera planeta 1 > Nome planeta 1 (Alinhado à direita para convergir com o aspecto central) */}
+                <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0 overflow-hidden">
+                    {settings.signs.enabled && ZodiacSymbol1 && (
+                        <div className="shrink-0 flex items-center justify-center overflow-visible" style={{ width: `${signWidth}px` }}>
+                            <ZodiacSymbol1 className={`${signColorClass1} overflow-visible`} style={{ width: `${signSize}px`, height: `${signSize}px` }} />
+                        </div>
+                    )}
+                    {settings.houses.enabled && (
+                        <div className="shrink-0 flex items-center justify-center px-0.5" style={{ width: `${houseWidth}px` }}>
+                            <span className={`font-bold text-center text-brand-text ${houseFormat === 'roman' ? 'font-manrope' : ''}`} style={{ fontSize: `${baseFontSize}px` }}>{houseLabel1}</span>
+                        </div>
+                    )}
+                    {showPlanetText && (
+                        <span className={`${nameColorClass1} font-manrope font-light italic truncate min-w-0 flex-1 text-right leading-none`} style={{ fontSize: `${baseFontSize}px` }}>
+                            {planetDisplayName1}
+                        </span>
+                    )}
+                    {settings.planets.symbols && (
+                        <div className="shrink-0 flex items-center justify-center" style={{ width: `${symbolWidth}px` }}>
+                            {!settings.planets.glyphs ? (
+                                <div className="flex justify-center items-center" style={{ width: `${glyphSize * 1.2}px`, height: `${glyphSize * 1.2}px` }}>
+                                    <PlanetSphere id={aspect.body1.id} size={glyphSize * 1.2} />
+                                </div>
+                            ) : (
+                                <span className={`${planetColorClass1} shrink-0 text-center leading-none flex items-center justify-center`} style={{ fontSize: `${glyphSize}px` }}>{planetGlyph1}</span>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* 3: Símbolo aspecto - Ponto focal central perfeitamente posicionado entre os dois planetas */}
+                <div className="shrink-0 flex items-center justify-center font-bold px-1 text-center" style={{ width: `${aspectCenterWidth}px` }}>
+                    {renderAspect()}
+                </div>
+
+                {/* 4 & 5: Esfera planeta 2 > Nome planeta 2 (Alinhado à esquerda para convergir com o aspecto central) */}
+                <div className="flex-1 flex items-center justify-start gap-1.5 min-w-0 overflow-hidden">
+                    {settings.planets.symbols && (
+                        <div className="shrink-0 flex items-center justify-center" style={{ width: `${symbolWidth}px` }}>
+                            {!settings.planets.glyphs ? (
+                                <div className="flex justify-center items-center" style={{ width: `${glyphSize * 1.2}px`, height: `${glyphSize * 1.2}px` }}>
+                                    <PlanetSphere id={aspect.body2.id} size={glyphSize * 1.2} />
+                                </div>
+                            ) : (
+                                <span className={`${planetColorClass2} shrink-0 text-center leading-none flex items-center justify-center`} style={{ fontSize: `${glyphSize}px` }}>{planetGlyph2}</span>
+                            )}
+                        </div>
+                    )}
+                    {showPlanetText && (
+                        <span className={`${nameColorClass2} font-manrope font-light italic truncate min-w-0 flex-1 text-left leading-none`} style={{ fontSize: `${baseFontSize}px` }}>
+                            {planetDisplayName2}
+                        </span>
+                    )}
+                    {settings.houses.enabled && (
+                        <div className="shrink-0 flex items-center justify-center px-0.5" style={{ width: `${houseWidth}px` }}>
+                            <span className={`font-bold text-center text-brand-text ${houseFormat === 'roman' ? 'font-manrope' : ''}`} style={{ fontSize: `${baseFontSize}px` }}>{houseLabel2}</span>
+                        </div>
+                    )}
+                    {settings.signs.enabled && ZodiacSymbol2 && (
+                        <div className="shrink-0 flex items-center justify-center overflow-visible" style={{ width: `${signWidth}px` }}>
+                            <ZodiacSymbol2 className={`${signColorClass2} overflow-visible`} style={{ width: `${signSize}px`, height: `${signSize}px` }} />
+                        </div>
+                    )}
+                </div>
+
+                {/* 6: Grau do aspecto - Área de segurança para orbe */}
                 {settings.orb && (
-                    <span className="text-brand-text-muted font-manrope text-xs tabular-nums" style={{ fontSize: `${baseFontSize * 0.9}px`, fontFamily: "'DM Mono', 'Fira Code', monospace", fontWeight: 400 }}>
-                        {aspect.orb.toFixed(2)}°
-                    </span>
+                    <div className="shrink-0 text-right flex justify-end items-center" style={{ width: `${orbWidth}px` }}>
+                        <span 
+                            className="tabular-nums font-mono font-normal leading-none tracking-tight" 
+                            style={{ 
+                                fontSize: `${Math.max(9, baseFontSize * 0.88)}px`, 
+                                fontFamily: "'Azeret Mono', monospace", 
+                                fontVariantNumeric: 'tabular-nums', 
+                                color: isLight ? '#3B2F14' : '#F5F2EB',
+                                fontWeight: 400
+                            }}
+                        >
+                            {aspect.orb.toFixed(2)}°
+                        </span>
+                    </div>
                 )}
             </div>
-            <AspectBodyInfo body={aspect.body2} itemSize={itemSize} settings={settings} alignment="right" houseFormat={houseFormat} zodiacColorMode={zodiacColorMode} showPlanetSpheres={showPlanetSpheres} />
+
+            {/* Linha 2: Vigência do Trânsito (data de início e término formatadas em linha dedicada) */}
+            {settings.transitDates && transitRange && (
+                <div 
+                    className={`flex items-center justify-center gap-1.5 pt-1 mt-0.5 border-t ${
+                        isLight ? 'border-black/10 text-stone-700' : 'border-white/10 text-slate-200'
+                    } tabular-nums text-center leading-none tracking-tight whitespace-nowrap`}
+                    style={{ 
+                        fontSize: `${Math.max(8.5, baseFontSize * 0.75)}px`, 
+                        fontFamily: "'Azeret Mono', monospace" 
+                    }}
+                >
+                    <span className="inline-flex items-center gap-1">
+                        <span className="opacity-70 text-[8px] uppercase font-sans font-medium">de:</span>
+                        <span className="font-normal">{formatDateCompact(transitRange.start)}</span>
+                    </span>
+                    <span className="opacity-40">•</span>
+                    <span className="inline-flex items-center gap-1">
+                        <span className="opacity-70 text-[8px] uppercase font-sans font-medium">até:</span>
+                        <span className="font-normal">{formatDateCompact(transitRange.end)}</span>
+                    </span>
+                </div>
+            )}
         </div>
     );
 };
@@ -307,48 +506,67 @@ export const AstroInfoPanel: React.FC<AstroInfoPanelProps> = ({
     onClearAllSelections, isAnythingSelected, dragHandle, activeMenu, setActiveMenu, scale = 1,
     showAspectLines, setShowAspectLines, showNatalLines, setShowNatalLines, hasNatalDate,
     houseFormat = 'arabic', zodiacColorMode = 'element', showPlanetSpheres,
-    settings, onSettingsChange, panelPosition = 'right',
+    settings, onSettingsChange, currentTime, panelPosition = 'right',
     onWidthChange, onPanelPositionChange,
-    panelScale, onPanelScaleChange
+    panelScale, onPanelScaleChange,
+    theme = 'dark',
+    hideHeader,
+    menuButtonRef,
+    isFreeTier = false,
+    isFreeTrial = false,
+    onOpenPaymentPlans
 }) => {
+    const isFree = Boolean(isFreeTier || isFreeTrial);
     const panelRef = useRef<HTMLDivElement>(null);
     const [itemSize, setItemSize] = useState(14);
     const scaledItemSize = itemSize * scale * (panelScale || 1);
     const [tooltip, setTooltip] = useState<{ text: React.ReactNode, x: number, y: number } | null>(null);
     const hoverTimeout = useRef<number | null>(null);
     const [calculatedWidth, setCalculatedWidth] = useState(190);
+    const isInitialWidthEmitted = useRef(false);
 
     useEffect(() => {
-        // Base width for symbols only, adjusted by internal scale
-        let width = 140 * scale * (panelScale || 1); 
+        // Base width for aspect card container (padding, borders, symbols/spheres)
+        let width = 120 * scale * (panelScale || 1); 
         
-        const nameWidth = 55 * scale * (panelScale || 1);
-        const signWidth = 24 * scale * (panelScale || 1);
-        const houseWidth = 24 * scale * (panelScale || 1);
-        const aspectNameWidth = 60 * scale * (panelScale || 1);
+        const isFullNames = settings.planets.names && settings.planets.namesAbbr === false;
+        const nameWidth = (isFullNames ? 56 : 32) * scale * (panelScale || 1);
+        const signWidth = 16 * scale * (panelScale || 1);
+        const houseWidth = 16 * scale * (panelScale || 1);
+        const aspectNameWidth = (settings.aspects.names ? 52 : settings.aspects.abbr ? 26 : 0) * scale * (panelScale || 1);
+        const orbWidth = (settings.orb ? 18 : 0) * scale * (panelScale || 1);
 
         if (settings.planets.names) width += nameWidth * 2;
         if (settings.signs.enabled) width += signWidth * 2;
         if (settings.houses.enabled) width += houseWidth * 2;
-        if (settings.aspects.names) width += aspectNameWidth;
-        else if (settings.aspects.abbr) width += aspectNameWidth * 0.5;
+        width += aspectNameWidth;
+        width += orbWidth;
         
-        // Add padding and scrollbar buffer
         width += 24 * scale * (panelScale || 1);
 
-        setCalculatedWidth(width);
+        if (settings.transitDates) {
+            const minTransitWidth = 230 * scale * (panelScale || 1);
+            width = Math.max(width, minTransitWidth);
+        }
+
+        const finalWidth = Math.round(width);
+        setCalculatedWidth(finalWidth);
         
         if (onWidthChange) {
-            // Report the visual width
-            onWidthChange(width);
+            onWidthChange(finalWidth);
         }
     }, [settings, onWidthChange, scale, panelScale]);
     
-    const menuButtonRef = useRef<HTMLButtonElement>(null);
+    const localMenuButtonRef = useRef<HTMLButtonElement>(null);
+    const finalMenuButtonRef = menuButtonRef || localMenuButtonRef;
     const isMenuOpen = activeMenu === 'aspects';
 
     const handleMenuToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (isFree) {
+            onOpenPaymentPlans?.();
+            return;
+        }
         setActiveMenu(isMenuOpen ? null : 'aspects');
     };
 
@@ -392,172 +610,288 @@ export const AstroInfoPanel: React.FC<AstroInfoPanelProps> = ({
     return (
         <div 
             ref={panelRef} 
-            className="bg-brand-surface/40 backdrop-blur-xl rounded-3xl shadow-sm flex flex-col h-full font-display border border-brand-border/8 ring-1 ring-white/5"
-            style={{ 
-    width: '100%',
-    minWidth: `${calculatedWidth}px`,
-    flexShrink: 0,
-}}
+            className="flex flex-col h-full font-manrope bg-transparent w-full min-w-0"
         >
-                <div className="px-3 py-2 border-b border-brand-border/5 flex justify-between items-center gap-2 flex-shrink-0 bg-brand-surface-highlight/30 rounded-t-3xl">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                        {dragHandle}
-                        <h3 className="text-[10px] font-medium uppercase text-brand-text-muted tracking-wider truncate font-outfit">Aspectos</h3>
-                        <div className="h-px bg-brand-border/10 flex-1 ml-2"></div>
+                {!hideHeader && (
+                    <div className="px-3 py-2 flex justify-between items-center gap-2 flex-shrink-0 rounded-t-3xl">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                            {dragHandle}
+                            <h3 className="truncate" style={{
+                              fontFamily: "'Inter', sans-serif",
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              color: 'var(--color-panel-header)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em'
+                            }}>Aspectos</h3>
+                            <div style={{
+                              flex: 1,
+                              height: '1px',
+                              marginLeft: '8px',
+                              backgroundColor: '#2A2A2A',
+                              opacity: 0.8
+                        }} />
+                        </div>
+                        <button 
+                            ref={finalMenuButtonRef}
+                            onClick={handleMenuToggle}
+                            className={`p-1.5 rounded-xl transition-all duration-200 cursor-pointer active:scale-90 ${isMenuOpen ? 'bg-gradient-to-b from-[#D4AF37]/[0.18] to-[#D4AF37]/[0.06] border border-[#D4AF37]/50 text-[#F5D98A]' : 'text-brand-text-muted hover:text-brand-text hover:bg-white/10 hover:scale-105'}`}
+                            title={isFree ? "Opções de Aspectos (Disponível no Plano Pro)" : "Opções do Painel"}
+                        >
+                            {isFree ? (
+                                <i className="ti ti-lock text-amber-400 text-sm" />
+                            ) : (
+                                <UI_ICONS.MoreIcon className="w-4 h-4" />
+                            )}
+                        </button>
                     </div>
-                    <button 
-                        ref={menuButtonRef}
-                        onClick={handleMenuToggle}
-                        className={`p-1 rounded-lg transition-colors ${isMenuOpen ? 'bg-brand-surface-highlight text-brand-text' : 'text-brand-text-muted hover:text-brand-text hover:bg-brand-surface-highlight/50'}`}
-                    >
-                        <UI_ICONS.MoreIcon className="w-4 h-4" />
-                    </button>
-                </div>
+                )}
 
                 {isMenuOpen && (
-                    <PopupMenu onClose={() => setActiveMenu(null)} triggerRef={menuButtonRef} panelRef={panelRef}>
-                        <div className="flex flex-col gap-3 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-                            <div>
-                                <div className="flex items-center justify-between px-2 mb-1">
-                                    <div className="text-[10px] font-bold uppercase text-brand-text font-outfit tracking-wider">Símbolos Planetas</div>
-                                    <CompactToggle isChecked={settings.planets.symbols} onToggle={() => onSettingsChange({ ...settings, planets: { ...settings.planets, symbols: !settings.planets.symbols } })} />
+                    <PopupMenu onClose={() => setActiveMenu(null)} triggerRef={finalMenuButtonRef} panelRef={panelRef}>
+                        <div className="flex flex-col gap-3.5 max-h-[75vh] overflow-y-auto pr-1 custom-scrollbar text-white">
+                            {/* Header */}
+                            <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                                <div className="flex items-center gap-2">
+                                    <i className="ti ti-adjustments text-brand-purple text-base" />
+                                    <span className="text-xs font-bold uppercase tracking-wider text-white">Opções do Painel</span>
                                 </div>
-                                <div className="flex flex-col px-2">
-                                    {settings.planets.symbols && (
-                                        <>
-                                            <div className="flex items-center justify-between py-1.5 pl-4">
-                                                <span className="text-xs font-manrope text-brand-text-muted/60">Glifos (vs Esferas)</span>
-                                                <CompactToggle isChecked={settings.planets.glyphs} onToggle={() => onSettingsChange({ ...settings, planets: { ...settings.planets, glyphs: !settings.planets.glyphs } })} />
-                                            </div>
-                                            <div className="flex items-center justify-between py-1.5 pl-4">
-                                                <span className="text-xs font-manrope text-brand-text-muted/60">Cores</span>
-                                                <CompactToggle isChecked={settings.planets.colors} onToggle={() => onSettingsChange({ ...settings, planets: { ...settings.planets, colors: !settings.planets.colors } })} />
-                                            </div>
-                                        </>
-                                    )}
+                                <span className="text-[10px] text-white/40 font-mono">Aspectos</span>
+                            </div>
+
+                            {/* Banner de Bloqueio Plano Free */}
+                            {isFree && (
+                                <div className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/10 border border-amber-500/40 flex items-center justify-between gap-2 shadow-sm">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className="text-amber-400 text-sm shrink-0">🔒</span>
+                                        <span className="text-[11px] font-semibold text-amber-200 leading-tight">
+                                            Edições de Aspectos bloqueadas no Plano Gratuito.
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => { onOpenPaymentPlans?.(); setActiveMenu(null); }}
+                                        className="px-2.5 py-1 rounded-lg bg-amber-500 text-black font-bold text-[10px] hover:bg-amber-400 active:scale-95 transition-all shrink-0 cursor-pointer shadow-sm"
+                                    >
+                                        Upgrade
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className={isFree ? 'opacity-40 pointer-events-none select-none flex flex-col gap-3.5' : 'flex flex-col gap-3.5'}>
+                            {/* Modo de Exibição de Aspecto (Segmented Control Cards) */}
+                            <div>
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-white/70 mb-1.5 flex items-center gap-1.5 font-sans">
+                                    <i className="ti ti-star text-amber-400 text-xs" /> Formato do Aspecto
+                                </label>
+                                <div className="grid grid-cols-3 gap-1 bg-slate-950/60 p-1 rounded-xl border border-white/10 shadow-inner font-sans">
+                                    <button
+                                        onClick={() => onSettingsChange({ ...settings, aspects: { ...settings.aspects, symbols: true, abbr: false, names: false } })}
+                                        className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all duration-200 cursor-pointer active:scale-95 ${
+                                            settings.aspects.symbols && !settings.aspects.abbr && !settings.aspects.names
+                                                ? 'bg-gradient-to-b from-[#D4AF37]/[0.18] to-[#D4AF37]/[0.06] border border-[#D4AF37]/50 text-[#F5D98A]'
+                                                : 'text-white/60 hover:text-white hover:bg-white/5'
+                                        }`}
+                                    >
+                                        <span>☌</span> Símbolo
+                                    </button>
+                                    <button
+                                        onClick={() => onSettingsChange({ ...settings, aspects: { ...settings.aspects, abbr: true, symbols: false, names: false } })}
+                                        className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all duration-200 cursor-pointer active:scale-95 ${
+                                            settings.aspects.abbr
+                                                ? 'bg-gradient-to-b from-[#D4AF37]/[0.18] to-[#D4AF37]/[0.06] border border-[#D4AF37]/50 text-[#F5D98A]'
+                                                : 'text-white/60 hover:text-white hover:bg-white/5'
+                                        }`}
+                                    >
+                                        <span>CON</span> Abrev.
+                                    </button>
+                                    <button
+                                        onClick={() => onSettingsChange({ ...settings, aspects: { ...settings.aspects, names: true, symbols: false, abbr: false } })}
+                                        className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all duration-200 cursor-pointer active:scale-95 ${
+                                            settings.aspects.names
+                                                ? 'bg-gradient-to-b from-[#D4AF37]/[0.18] to-[#D4AF37]/[0.06] border border-[#D4AF37]/50 text-[#F5D98A]'
+                                                : 'text-white/60 hover:text-white hover:bg-white/5'
+                                        }`}
+                                    >
+                                        <span>Nome</span>
+                                    </button>
                                 </div>
                             </div>
 
-                            <div className="h-px bg-brand-border/10"></div>
-
+                            {/* Filtro de Tipos de Aspecto (Visual Toggle Cards with Colors) */}
                             <div>
-                                <div className="flex items-center justify-between px-2 mb-1">
-                                    <div className="text-[10px] font-bold uppercase text-brand-text font-outfit tracking-wider">Nomes Planetas</div>
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-white/70 mb-1.5 flex items-center gap-1.5 font-sans">
+                                    <i className="ti ti-filter text-cyan-400 text-xs" /> Filtrar Aspectos Ativos
+                                </label>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 font-sans">
+                                    {[
+                                        { id: 'conjunction', label: 'Conjunção', symbol: '☌', color: '#60a5fa', bg: 'rgba(72,112,255,0.25)', border: 'rgba(72,112,255,0.6)' },
+                                        { id: 'opposition', label: 'Oposição', symbol: '☍', color: '#f87171', bg: 'rgba(248,113,113,0.25)', border: 'rgba(248,113,113,0.6)' },
+                                        { id: 'trine', label: 'Trígono', symbol: '△', color: '#4ade80', bg: 'rgba(74,222,128,0.25)', border: 'rgba(74,222,128,0.6)' },
+                                        { id: 'square', label: 'Quadratura', symbol: '□', color: '#FB923C', bg: 'rgba(251,146,60,0.25)', border: 'rgba(251,146,60,0.6)' },
+                                        { id: 'sextile', label: 'Sextil', symbol: '⚹', color: '#38bdf8', bg: 'rgba(56,189,248,0.25)', border: 'rgba(56,189,248,0.6)' },
+                                    ].map((item) => {
+                                        const key = item.id as keyof typeof settings.aspects.types;
+                                        const isActive = settings.aspects.types[key];
+                                        return (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => onSettingsChange({
+                                                    ...settings,
+                                                    aspects: {
+                                                        ...settings.aspects,
+                                                        types: { ...settings.aspects.types, [key]: !isActive }
+                                                    }
+                                                })}
+                                                className={`flex items-center gap-1.5 p-1.5 rounded-xl border text-xs font-semibold transition-all text-left cursor-pointer active:scale-95 ${
+                                                    isActive
+                                                        ? 'shadow-md shadow-black/40'
+                                                        : 'opacity-40 bg-white/[0.02] border-white/5 hover:opacity-70'
+                                                }`}
+                                                style={isActive ? { backgroundColor: item.bg, borderColor: item.border } : {}}
+                                            >
+                                                <span className="font-bold text-sm leading-none" style={{ color: item.color }}>{item.symbol}</span>
+                                                <span className="truncate text-[11px] text-white font-bold">{item.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="h-px bg-white/10" />
+
+                            {/* Planetas Card */}
+                            <div className="p-2.5 bg-white/[0.03] rounded-xl border border-white/10 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                        <i className="ti ti-planet text-amber-300 text-sm" />
+                                        <span className="text-xs font-bold text-white">Símbolos dos Planetas</span>
+                                    </div>
+                                    <CompactToggle isChecked={settings.planets.symbols} onToggle={() => onSettingsChange({ ...settings, planets: { ...settings.planets, symbols: !settings.planets.symbols } })} />
+                                </div>
+                                {settings.planets.symbols && (
+                                    <div className="pl-6 space-y-1.5 pt-1.5 border-t border-white/5">
+                                        <div className="flex items-center justify-between text-xs text-white/70">
+                                            <span>Glifos (vs Esferas)</span>
+                                            <CompactToggle isChecked={settings.planets.glyphs} onToggle={() => onSettingsChange({ ...settings, planets: { ...settings.planets, glyphs: !settings.planets.glyphs } })} />
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs text-white/70">
+                                            <span>Cores dos Planetas</span>
+                                            <CompactToggle isChecked={settings.planets.colors} onToggle={() => onSettingsChange({ ...settings, planets: { ...settings.planets, colors: !settings.planets.colors } })} />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center justify-between pt-1.5 border-t border-white/5">
+                                    <div className="flex items-center gap-1.5">
+                                        <i className="ti ti-typography text-blue-300 text-sm" />
+                                        <span className="text-xs font-bold text-white">Nomes dos Planetas</span>
+                                    </div>
                                     <CompactToggle isChecked={settings.planets.names} onToggle={() => onSettingsChange({ ...settings, planets: { ...settings.planets, names: !settings.planets.names } })} />
                                 </div>
                                 {settings.planets.names && (
-                                    <div className="flex flex-col px-2">
-                                        <div className="flex items-center justify-between py-1.5 pl-4">
-                                            <span className="text-xs font-manrope text-brand-text-muted/60">Cores</span>
+                                    <div className="pl-6 space-y-1.5 pt-1.5 border-t border-white/5">
+                                        <div className="flex items-center justify-between text-xs text-white/70">
+                                            <span>Abreviar Nomes</span>
+                                            <CompactToggle isChecked={settings.planets.namesAbbr ?? true} onToggle={() => onSettingsChange({ ...settings, planets: { ...settings.planets, namesAbbr: !(settings.planets.namesAbbr ?? true) } })} />
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs text-white/70">
+                                            <span>Cores dos Nomes</span>
                                             <CompactToggle isChecked={settings.planets.nameColors} onToggle={() => onSettingsChange({ ...settings, planets: { ...settings.planets, nameColors: !settings.planets.nameColors } })} />
                                         </div>
                                     </div>
                                 )}
                             </div>
 
-                            <div className="h-px bg-brand-border/10"></div>
-
-                            <div>
-                                <div className="flex items-center justify-between px-2 mb-1">
-                                    <div className="text-[10px] font-bold uppercase text-brand-text font-outfit tracking-wider">Signos</div>
-                                    <CompactToggle isChecked={settings.signs.enabled} onToggle={() => onSettingsChange({ ...settings, signs: { ...settings.signs, enabled: !settings.signs.enabled } })} />
-                                </div>
-                                <div className="flex flex-col px-2">
+                            {/* Signos & Casas Card */}
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="p-2 bg-white/[0.03] rounded-xl border border-white/10 space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1">
+                                            <i className="ti ti-zodiac-leo text-emerald-300 text-sm" />
+                                            <span className="text-xs font-bold text-white">Signos</span>
+                                        </div>
+                                        <CompactToggle isChecked={settings.signs.enabled} onToggle={() => onSettingsChange({ ...settings, signs: { ...settings.signs, enabled: !settings.signs.enabled } })} />
+                                    </div>
                                     {settings.signs.enabled && (
-                                        <div className="flex items-center justify-between py-1.5 pl-4">
-                                            <span className="text-xs font-manrope text-brand-text-muted/60">Cores</span>
+                                        <div className="flex items-center justify-between text-[11px] text-white/70 pt-1 border-t border-white/5">
+                                            <span>Cores</span>
                                             <CompactToggle isChecked={settings.signs.colors} onToggle={() => onSettingsChange({ ...settings, signs: { ...settings.signs, colors: !settings.signs.colors } })} />
                                         </div>
                                     )}
                                 </div>
-                            </div>
 
-                            <div className="h-px bg-brand-border/10"></div>
-
-                            <div>
-                                <div className="flex items-center justify-between px-2 mb-1">
-                                    <div className="text-[10px] font-bold uppercase text-brand-text font-outfit tracking-wider">Casas</div>
-                                    <CompactToggle isChecked={settings.houses.enabled} onToggle={() => onSettingsChange({ ...settings, houses: { ...settings.houses, enabled: !settings.houses.enabled } })} />
-                                </div>
-                            </div>
-
-                            <div className="h-px bg-brand-border/10"></div>
-
-                            <div>
-                                <div className="text-[10px] font-bold uppercase text-brand-text font-outfit tracking-wider mb-2 px-2">Aspectos</div>
-                                <div className="flex flex-col px-2">
-                                    <div className="flex items-center justify-between py-1.5">
-                                        <span className="text-xs font-manrope text-brand-text-muted/60">Símbolos</span>
-                                        <CompactToggle isChecked={settings.aspects.symbols} onToggle={() => onSettingsChange({ ...settings, aspects: { ...settings.aspects, symbols: !settings.aspects.symbols, abbr: false, names: false } })} />
-                                    </div>
-                                    <div className="flex items-center justify-between py-1.5">
-                                        <span className="text-xs font-manrope text-brand-text-muted/60">Abreviação</span>
-                                        <CompactToggle isChecked={settings.aspects.abbr} onToggle={() => onSettingsChange({ ...settings, aspects: { ...settings.aspects, abbr: !settings.aspects.abbr, symbols: false, names: false } })} />
-                                    </div>
-                                    <div className="flex items-center justify-between py-1.5">
-                                        <span className="text-xs font-manrope text-brand-text-muted/60">Nomes</span>
-                                        <CompactToggle isChecked={settings.aspects.names} onToggle={() => onSettingsChange({ ...settings, aspects: { ...settings.aspects, names: !settings.aspects.names, symbols: false, abbr: false } })} />
-                                    </div>
-                                    
-                                    <div className="h-px bg-brand-border/10 my-1"></div>
-                                    
-                                    <div className="flex items-center justify-between py-1.5 pl-2">
-                                        <span className="text-xs font-manrope text-brand-text-muted/60">Conjunção</span>
-                                        <CompactToggle isChecked={settings.aspects.types.conjunction} onToggle={() => onSettingsChange({ ...settings, aspects: { ...settings.aspects, types: { ...settings.aspects.types, conjunction: !settings.aspects.types.conjunction } } })} />
-                                    </div>
-                                    <div className="flex items-center justify-between py-1.5 pl-2">
-                                        <span className="text-xs font-manrope text-brand-text-muted/60">Oposição</span>
-                                        <CompactToggle isChecked={settings.aspects.types.opposition} onToggle={() => onSettingsChange({ ...settings, aspects: { ...settings.aspects, types: { ...settings.aspects.types, opposition: !settings.aspects.types.opposition } } })} />
-                                    </div>
-                                    <div className="flex items-center justify-between py-1.5 pl-2">
-                                        <span className="text-xs font-manrope text-brand-text-muted/60">Trígono</span>
-                                        <CompactToggle isChecked={settings.aspects.types.trine} onToggle={() => onSettingsChange({ ...settings, aspects: { ...settings.aspects, types: { ...settings.aspects.types, trine: !settings.aspects.types.trine } } })} />
-                                    </div>
-                                    <div className="flex items-center justify-between py-1.5 pl-2">
-                                        <span className="text-xs font-manrope text-brand-text-muted/60">Quadratura</span>
-                                        <CompactToggle isChecked={settings.aspects.types.square} onToggle={() => onSettingsChange({ ...settings, aspects: { ...settings.aspects, types: { ...settings.aspects.types, square: !settings.aspects.types.square } } })} />
-                                    </div>
-                                    <div className="flex items-center justify-between py-1.5 pl-2">
-                                        <span className="text-xs font-manrope text-brand-text-muted/60">Sextil</span>
-                                        <CompactToggle isChecked={settings.aspects.types.sextile} onToggle={() => onSettingsChange({ ...settings, aspects: { ...settings.aspects, types: { ...settings.aspects.types, sextile: !settings.aspects.types.sextile } } })} />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="h-px bg-brand-border/10"></div>
-
-                            <div>
-                                <div className="flex items-center justify-between px-2 py-1.5">
-                                    <div className="text-[10px] font-bold uppercase text-brand-text font-outfit tracking-wider">Orbes</div>
-                                    <CompactToggle isChecked={settings.orb} onToggle={() => onSettingsChange({ ...settings, orb: !settings.orb })} />
-                                </div>
-                            </div>
-
-
-                            <div className="h-px bg-brand-border/10 my-1" />
-
-                            {/* Size Controls */}
-                            <div className="space-y-3 px-1 py-1">
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center text-[10px] text-brand-text font-bold uppercase tracking-wider font-outfit">
-                                        <span>Escala Painel</span>
-                                        <span className="text-brand-text">{Math.round((panelScale || 1) * 100)}%</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={() => onPanelScaleChange?.(Math.max(0.6, Number(((panelScale || 1) - 0.1).toFixed(1))))} className="w-6 h-6 flex items-center justify-center bg-brand-surface-highlight/50 hover:bg-brand-surface-highlight rounded text-brand-text border border-brand-border/5">-</button>
-                                        <div className="flex-1 h-1 bg-brand-surface-highlight/50 rounded-full overflow-hidden">
-                                            <div className="h-full bg-brand-purple" style={{ width: `${(((panelScale || 1) - 0.6) / (1.4 - 0.6)) * 100}%` }}></div>
+                                <div className="p-2 bg-white/[0.03] rounded-xl border border-white/10 space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1">
+                                            <i className="ti ti-home text-rose-300 text-sm" />
+                                            <span className="text-xs font-bold text-white">Casas</span>
                                         </div>
-                                        <button onClick={() => onPanelScaleChange?.(Math.min(1.4, Number(((panelScale || 1) + 0.1).toFixed(1))))} className="w-6 h-6 flex items-center justify-center bg-brand-surface-highlight/50 hover:bg-brand-surface-highlight rounded text-brand-text border border-brand-border/5">+</button>
+                                        <CompactToggle isChecked={settings.houses.enabled} onToggle={() => onSettingsChange({ ...settings, houses: { ...settings.houses, enabled: !settings.houses.enabled } })} />
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Orbes & Valor */}
+                            <div className="p-2 bg-white/[0.03] rounded-xl border border-white/10 flex items-center justify-between">
+                                <div className="flex items-center gap-1.5">
+                                    <i className="ti ti-ruler text-teal-300 text-sm" />
+                                    <span className="text-xs font-bold text-white">Exibir Graus de Orbe</span>
+                                </div>
+                                <CompactToggle isChecked={settings.orb} onToggle={() => onSettingsChange({ ...settings, orb: !settings.orb })} />
+                            </div>
+
+                            {/* Vigência do Trânsito */}
+                            <div className="p-2 bg-white/[0.03] rounded-xl border border-white/10 flex items-center justify-between">
+                                <div className="flex items-center gap-1.5">
+                                    <i className="ti ti-calendar-time text-fuchsia-300 text-sm" />
+                                    <span className="text-xs font-bold text-white">Vigência do Trânsito</span>
+                                </div>
+                                <CompactToggle isChecked={!!settings.transitDates} onToggle={() => onSettingsChange({ ...settings, transitDates: !settings.transitDates })} />
+                            </div>
+
+                            {/* Escala do Painel */}
+                            <div className="p-2.5 bg-white/[0.03] rounded-xl border border-white/10 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                        <i className="ti ti-zoom-in text-purple-300 text-sm" />
+                                        <span className="text-xs font-bold text-white">Escala do Painel</span>
+                                    </div>
+                                    <span className="text-xs font-mono font-bold text-purple-300 bg-brand-purple/20 px-1.5 py-0.5 rounded border border-brand-purple/30">
+                                        {Math.round((panelScale || 1) * 100)}%
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        onClick={() => onPanelScaleChange?.(Math.max(0.6, Number(((panelScale || 1) - 0.1).toFixed(1))))} 
+                                        className="w-7 h-7 flex items-center justify-center btn-3d-glow btn-3d-dark text-white font-bold transition-all duration-150 active:scale-90 hover:scale-110 cursor-pointer shadow-sm"
+                                    >
+                                        -
+                                    </button>
+                                    <input 
+                                        type="range"
+                                        min="0.6"
+                                        max="1.4"
+                                        step="0.05"
+                                        value={panelScale || 1}
+                                        onChange={(e) => onPanelScaleChange?.(parseFloat(e.target.value))}
+                                        className="flex-1 accent-purple-500 cursor-pointer h-1.5 bg-white/10 rounded-lg"
+                                    />
+                                    <button 
+                                        onClick={() => onPanelScaleChange?.(Math.min(1.4, Number(((panelScale || 1) + 0.1).toFixed(1))))} 
+                                        className="w-7 h-7 flex items-center justify-center btn-3d-glow btn-3d-dark text-white font-bold transition-all duration-150 active:scale-90 hover:scale-110 cursor-pointer shadow-sm"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                         </div>
                     </PopupMenu>
                 )}
 
                 <div 
-                    className={`flex-1 overflow-y-auto p-1 min-h-0 space-y-0.5 custom-scrollbar ${panelPosition === 'left' ? '[direction:rtl]' : ''}`}
+                    className={`flex-1 overflow-y-auto pl-1.5 pr-1.5 py-1 min-h-0 space-y-1 custom-scrollbar ${panelPosition === 'left' ? '[direction:rtl]' : ''}`}
                 >
                     <div className={panelPosition === 'left' ? '[direction:ltr]' : ''}>
                         {sortedAspects.length === 0 ? (
@@ -575,12 +909,15 @@ export const AstroInfoPanel: React.FC<AstroInfoPanelProps> = ({
                                         onClick={onAspectClick}
                                         onRightClick={onAspectRightClick}
                                         itemSize={scaledItemSize}
+                                        scale={scale}
                                         settings={settings}
                                         houseFormat={houseFormat}
                                         zodiacColorMode={zodiacColorMode}
                                         showPlanetSpheres={showPlanetSpheres}
                                         onTooltip={handleTooltip}
                                         onTooltipLeave={handleTooltipLeave}
+                                        theme={theme}
+                                        currentTime={currentTime}
                                     />
                                 </div>
                             ))

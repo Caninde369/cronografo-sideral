@@ -81,6 +81,8 @@ export const AspectsLayer: React.FC<AspectsLayerProps> = ({
                         stroke={color}
                         strokeWidth={(isSelected || isHovered) ? 2.5 : (1 + orbRatio)}
                         strokeOpacity={opacity}
+                        strokeLinecap="round"
+                        shapeRendering="geometricPrecision"
                         onClick={() => onAspectClick(aspect.id)}
                         onMouseEnter={(e) => onAspectHover(e, aspect.id)}
                         className="cursor-pointer transition-all duration-300 hover:stroke-[3px]"

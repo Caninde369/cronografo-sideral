@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useCelestialData, CelestialData } from './hooks/useCelestialData';
 import { SiderealClock } from './components/SiderealClock';
 import { CelestialBodyPanel, CelestialSettings } from './components/CelestialBodyPanel';
+import { PanelFrame } from './components/PanelFrame';
 import { AstroInfoPanel, AspectSettings } from './components/AstroInfoPanel';
 import { LoginScreen } from './components/LoginScreen';
 import { LandingPage } from './components/LandingPage';
@@ -15,19 +15,45 @@ import { SunInfoPanel } from './components/SunInfoPanel';
 import { MoonInfoPanel } from './components/MoonInfoPanel';
 import { CalendarPanel } from './components/CalendarPanel';
 import { ChartStatisticsPanel, HighlightFilter } from './components/ChartStatisticsPanel';
+import { SearchMoonPhase } from 'astronomy-engine';
+import { EnergyChartPanel } from './components/EnergyChartPanel';
 import { TransitChart } from './components/TransitChart';
 import { StarField } from './components/StarField';
 import { Dashboard } from './components/Dashboard';
-import { TimeControls, SizeControl } from './components/Controls';
+import { TimeControls, SizeControl, CompactToggle, SegmentedControl } from './components/Controls';
 import { UI_ICONS, ZODIAC_ICONS } from './components/icons';
 import { LocationSearchInput } from './components/LocationSearchInput';
+import { HeliocentricView } from './components/HeliocentricView';
 import { calculateTransitNatalAspects, Aspect } from './lib/astrology/aspects';
 import { normalizeAngle } from './lib/astrology/utils';
+import { HouseSystem } from './lib/astrology/houseSystem';
 import { getSeasonInfo, getNextMoonPhases, getSeasonIngresses } from './lib/astrology/calendars';
 import { getMoonPhaseInfo } from './lib/astrology/moon';
 import { useLanguage } from './i18n';
 import { ExportPDFButton } from './components/ExportPDFButton';
+import { TopBar } from './components/TopBar';
+import { QuickToolsSidebar } from './components/QuickToolsSidebar';
 import { useTrialTimer } from './hooks/useTrialTimer';
+import StarfieldBackground from './components/StarfieldBackground';
+import { GlobalSvgDefs } from './components/GlobalSvgDefs';
+import { ProfileModal } from './components/ProfileModal';
+import { PaymentPlansModal } from './components/PaymentPlansModal';
+import { LoginModal } from './components/LoginModal';
+import { AdminDashboard } from './components/AdminDashboard';
+import { 
+    auth, 
+    signOut, 
+    onAuthStateChanged, 
+    syncUserProfile, 
+    testFirestoreConnection,
+    saveMapToFirestore,
+    loadMapsFromFirestore,
+    deleteMapFromFirestore,
+    saveLayoutToFirestore,
+    loadLayoutsFromFirestore,
+    deleteLayoutFromFirestore,
+    updateUserPlanInFirestore
+} from './lib/firebase';
 
 export type WidgetId = 'planets' | 'aspects' | 'houses' | 'transits' | 'clock' | 'toolbar' | 'statistics';
 
@@ -74,12 +100,13 @@ const DEFAULT_VISIBLE_PLANETS: Record<string, boolean> = {
     sun: true, moon: true, mercury: true, venus: true, mars: true,
     jupiter: true, saturn: true, uranus: true, neptune: true, pluto: true,
     lilith: false, northNode: false, southNode: false,
-    chiron: false, ceres: false, pallas: false, juno: false, vesta: false
+    chiron: false, ceres: false, pallas: false, juno: false, vesta: false,
+    partOfFortune: false
 };
 
 const getBodiesFromData = (data: CelestialData, visible: Record<string, boolean>) => {
     const bodies: any[] = [];
-    const knownIds = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto', 'lilith', 'northNode', 'southNode', 'chiron', 'ceres', 'pallas', 'juno', 'vesta'];
+    const knownIds = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto', 'lilith', 'northNode', 'southNode', 'chiron', 'ceres', 'pallas', 'juno', 'vesta', 'partOfFortune'];
 
     knownIds.forEach(id => {
         if (!visible[id]) return;
@@ -114,21 +141,105 @@ const ECLIPSE_EVENTS = [
     { id: 'other-3', type: 'other', name: 'Chuva de Meteoros Gemínidas', date: '13-14 Dez 2026', description: 'Meteoros brilhantes e coloridos, visíveis de ambos os hemisférios.' },
 ];
 
+
 export const App: React.FC = () => {
     const { t } = useLanguage();
+    const clockRef = useRef<HTMLDivElement>(null);
     // --- State ---
     const [currentTime, setCurrentTime] = useState<Date>(new Date());
     const [isRealTime, setIsRealTime] = useState(true);
-    const [timeStep, setTimeStep] = useState<'min' | 'hour' | 'day' | 'month' | 'year'>('day');
-    const [speedMultiplier, setSpeedMultiplier] = useState<1 | 2 | 5>(1); 
+    const [timeStep, setTimeStep] = useState<'sec' | 'min' | 'hour' | 'day' | 'month' | 'year'>('min');
+    const [speedMultiplier, setSpeedMultiplier] = useState<number>(2); 
     const [location, setLocation] = useState(DEFAULT_LOCATION);
     
     // UI Layout State
-    const [panelWidths, setPanelWidths] = useState<Record<string, number>>({});
+    const [panelWidths, setPanelWidths] = useState<Record<string, number>>({
+        statistics: 220,
+        celestial: 220,
+        aspects: 245,
+        cusps: 245,
+    });
     const [rightPanelScale, setRightPanelScale] = useState(1.0);
     const [leftPanelScale, setLeftPanelScale] = useState(1.0);
+    const statusPanelRef = useRef<HTMLDivElement>(null);
+    // Configurações iniciais nativas: Status completo sem scroll por padrão (height: auto), ajustável via resizer
+    const [sidebarStatusHeight, setSidebarStatusHeight] = useState<number | null>(null);
+    const [sidebarCuspsHeight, setSidebarCuspsHeight] = useState<number>(215);
+
+    const resetAllPanelLayouts = useCallback(() => {
+        setSidebarStatusHeight(null);
+        setSidebarCuspsHeight(215);
+        setShowCuspDegrees(false);
+        setPanelWidths({
+            statistics: 220,
+            celestial: 220,
+            aspects: 245,
+            cusps: 245,
+        });
+        setLeftPanelScale(1.0);
+        setRightPanelScale(1.0);
+        setUiScale(1.0);
+        setStatsLayout('minimal');
+        setHouseCuspsColumns('2col');
+        setPanelStates(prev => ({
+            celestial: { ...prev.celestial, isOpen: true, isCollapsed: false },
+            statistics: { ...prev.statistics, isOpen: true, isCollapsed: false },
+            aspects: { ...prev.aspects, isOpen: true, isCollapsed: false },
+            cusps: { ...prev.cusps, isOpen: true, isCollapsed: false },
+        }));
+    }, []);
+
+    const handleSidebarSplitResizePointerDown = (e: React.PointerEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const startY = e.clientY;
+        const currentElem = statusPanelRef.current;
+        const startH = currentElem ? currentElem.getBoundingClientRect().height : (sidebarStatusHeight || 380);
+
+        const onPointerMove = (moveEv: PointerEvent) => {
+            const dy = moveEv.clientY - startY;
+            const maxH = Math.max(120, window.innerHeight - 200);
+            const newH = Math.max(100, Math.min(maxH, startH - dy));
+            setSidebarStatusHeight(newH);
+        };
+
+        const onPointerUp = () => {
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+            window.removeEventListener('pointercancel', onPointerUp);
+        };
+
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
+    };
+
+    const handleRightSidebarSplitResizePointerDown = (e: React.PointerEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const startY = e.clientY;
+        const startH = sidebarCuspsHeight;
+
+        const onPointerMove = (moveEv: PointerEvent) => {
+            const dy = moveEv.clientY - startY;
+            const maxH = Math.max(120, window.innerHeight - 260);
+            const newH = Math.max(100, Math.min(maxH, startH - dy));
+            setSidebarCuspsHeight(newH);
+        };
+
+        const onPointerUp = () => {
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+            window.removeEventListener('pointercancel', onPointerUp);
+        };
+
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
+    };
 
     const [visiblePlanets, setVisiblePlanets] = useState(DEFAULT_VISIBLE_PLANETS);
+    const [visibleNatalPlanets, setVisibleNatalPlanets] = useState(DEFAULT_VISIBLE_PLANETS);
     const [selectedPlanets, setSelectedPlanets] = useState<string[]>([]);
     const [selectedAspects, setSelectedAspects] = useState<string[]>([]);
     const [selectedHouses, setSelectedHouses] = useState<number[]>([]);
@@ -137,36 +248,116 @@ export const App: React.FC = () => {
     const [hoveredHouse, setHoveredHouse] = useState<number | null>(null);
     
     // Visual Settings
-    const [clockPlanetSize, setClockPlanetSize] = useState(32);
-    const [zodiacSignSize, setZodiacSignSize] = useState(34);
+    const [clockPlanetSize, setClockPlanetSize] = useState(46);
+    const [zodiacSignSize, setZodiacSignSize] = useState(46);
+    const [termsGlyphSize, setTermsGlyphSize] = useState(22);
+    const [decanGlyphSize, setDecanGlyphSize] = useState(22);
+    const [graduationRingWidth, setGraduationRingWidth] = useState(18);
+    const [zodiacRingScale, setZodiacRingScale] = useState(1.0);
+    const [seasonsRingScale, setSeasonsRingScale] = useState(0.75);
+    const [decanRingScale, setDecanRingScale] = useState(2.0);
+    const [termsRingScale, setTermsRingScale] = useState(2.0);
+    const [ringLineColor, setRingLineColor] = useState('#746F5D');
     const [panelPlanetSize, setPanelPlanetSize] = useState(12);
-    const [panelZodiacSignSize, setPanelZodiacSignSize] = useState(14);
+    const [panelZodiacSignSize, setPanelZodiacSignSize] = useState(16);
     const [showPlanetSpheres, setShowPlanetSpheres] = useState(true);
     const [showDegreeLabels, setShowDegreeLabels] = useState(false);
-    const [degreeLabelSize, setDegreeLabelSize] = useState(9);
+    const [degreeLabelSize, setDegreeLabelSize] = useState(18);
+    const [degreeLabelPosition, setDegreeLabelPosition] = useState<'responsive' | 'static' | 'callout' | 'staggered'>('responsive');
+    const [degreeLabelFormat, setDegreeLabelFormat] = useState<'vertical' | 'horizontal'>('vertical');
     const [showAspectLines, setShowAspectLines] = useState(true);
     const [showNatalLines, setShowNatalLines] = useState(false);
-    const [celestialTab, setCelestialTab] = useState<'transit' | 'natal'>('transit');
-    const [showNeedle, setShowNeedle] = useState(false);
+    const [celestialTab, setCelestialTab] = useState<'transit' | 'natal'>('natal');
+    const [showNeedle, setShowNeedle] = useState(true);
     const [showMagneticField, setShowMagneticField] = useState(false);
     const [magneticFieldSize, setMagneticFieldSize] = useState(1);
     const [magneticFieldOpacity, setMagneticFieldOpacity] = useState(0.5);
-    const [showTimeRing, setShowTimeRing] = useState(true);
-    const [showOrbits, setShowOrbits] = useState(true);
+    const [showTimeRing, setShowTimeRing] = useState(false);
+    const [showOrbits, setShowOrbits] = useState(false);
+    const [allPlanetsSameOrbit, setAllPlanetsSameOrbit] = useState(false);
+    const [planetColorMode, setPlanetColorMode] = useState<'colored' | 'gold'>('colored');
+    const [natalColorMode, setNatalColorMode] = useState<'gold' | 'colored'>('gold');
     const [showStars, setShowStars] = useState(true);
+    const [starCount, setStarCount] = useState<number>(() => {
+        const saved = localStorage.getItem('chrono_star_count');
+        return saved ? parseInt(saved, 10) : 1400;
+    });
+    const [starTwinkleIntensity, setStarTwinkleIntensity] = useState<number>(() => {
+        const saved = localStorage.getItem('chrono_star_twinkle_intensity');
+        return saved ? parseFloat(saved) : 0.75;
+    });
+    const [starTwinkleSpeed, setStarTwinkleSpeed] = useState<number>(() => {
+        const saved = localStorage.getItem('chrono_star_twinkle_speed');
+        return saved ? parseFloat(saved) : 1.0;
+    });
+    const [starTwinkleMode, setStarTwinkleMode] = useState<'natural' | 'calm' | 'vibrant' | 'subtle'>(() => {
+        const saved = localStorage.getItem('chrono_star_twinkle_mode');
+        return (saved as any) || 'natural';
+    });
+    const [starMeteors, setStarMeteors] = useState<boolean>(() => {
+        const saved = localStorage.getItem('chrono_star_meteors');
+        return saved !== null ? saved === 'true' : true;
+    });
+    const [starMeteorFrequency, setStarMeteorFrequency] = useState<'none' | 'rare' | 'moderate' | 'frequent'>(() => {
+        const saved = localStorage.getItem('chrono_star_meteor_freq');
+        return (saved as any) || 'moderate';
+    });
+    const [starNebulaGlow, setStarNebulaGlow] = useState<boolean>(() => {
+        const saved = localStorage.getItem('chrono_star_nebula');
+        return saved !== null ? saved === 'true' : true;
+    });
+    const [starBrightness, setStarBrightness] = useState<number>(() => {
+        const saved = localStorage.getItem('chrono_star_brightness');
+        return saved ? parseFloat(saved) : 1.0;
+    });
+
+    useEffect(() => {
+        localStorage.setItem('chrono_star_count', starCount.toString());
+    }, [starCount]);
+    useEffect(() => {
+        localStorage.setItem('chrono_star_twinkle_intensity', starTwinkleIntensity.toString());
+    }, [starTwinkleIntensity]);
+    useEffect(() => {
+        localStorage.setItem('chrono_star_twinkle_speed', starTwinkleSpeed.toString());
+    }, [starTwinkleSpeed]);
+    useEffect(() => {
+        localStorage.setItem('chrono_star_twinkle_mode', starTwinkleMode);
+    }, [starTwinkleMode]);
+    useEffect(() => {
+        localStorage.setItem('chrono_star_meteors', starMeteors.toString());
+    }, [starMeteors]);
+    useEffect(() => {
+        localStorage.setItem('chrono_star_meteor_freq', starMeteorFrequency);
+    }, [starMeteorFrequency]);
+    useEffect(() => {
+        localStorage.setItem('chrono_star_nebula', starNebulaGlow.toString());
+    }, [starNebulaGlow]);
+    useEffect(() => {
+        localStorage.setItem('chrono_star_brightness', starBrightness.toString());
+    }, [starBrightness]);
+
     const [showSeasonsRing, setShowSeasonsRing] = useState(true);
     const [isZodiacFixed, setIsZodiacFixed] = useState(false);
     const [showAtmosphere, setShowAtmosphere] = useState(false);
     const [showHouseLines, setShowHouseLines] = useState(true);
     const [showHouseMarkers, setShowHouseMarkers] = useState(true);
     const [houseLineThickness, setHouseLineThickness] = useState(1);
-    const [houseLineOpacity, setHouseLineOpacity] = useState(0.4);
+    const [houseLineOpacity, setHouseLineOpacity] = useState(1.0);
+    const [houseLineColor, setHouseLineColor] = useState('#878273'); // RGB 135,130,115
+    const [mainHouseLineThickness, setMainHouseLineThickness] = useState(1.5);
+    const [mainHouseLineOpacity, setMainHouseLineOpacity] = useState(1.0);
+    const [mainHouseLineColor, setMainHouseLineColor] = useState('#a3a59d'); // RGB 163, 165, 157
+    const [houseMarkerRingColor, setHouseMarkerRingColor] = useState('');
+    const [houseMarkerRingOpacity, setHouseMarkerRingOpacity] = useState(0.38);
     const [showSignLines, setShowSignLines] = useState(false);
+    const [showSignColors, setShowSignColors] = useState(false);
     const [signLineThickness, setSignLineThickness] = useState(1);
     const [signLineOpacity, setSignLineOpacity] = useState(0.3);
     const [showMcIcArrows, setShowMcIcArrows] = useState(false);
     const [isLeftPanelVisible, setIsLeftPanelVisible] = useState(true);
     const [isRightPanelVisible, setIsRightPanelVisible] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isQuickToolsSidebarOpen, setIsQuickToolsSidebarOpen] = useState(true);
     const [isTimeControlsMinimized, setIsTimeControlsMinimized] = useState(false);
     const [immersiveMode, setImmersiveMode] = useState(false);
     const [showEclipseModal, setShowEclipseModal] = useState(false);
@@ -174,23 +365,38 @@ export const App: React.FC = () => {
     const [zodiacColorMode, setZodiacColorMode] = useState<'none' | 'element' | 'modality' | 'polarity'>('element');
     const [highlightFilter, setHighlightFilter] = useState<HighlightFilter>(null);
     
+    const [showDecanRing, setShowDecanRing] = useState(true);
+    const [showTermsRing, setShowTermsRing] = useState(true);
+    const [backgroundBrightness, setBackgroundBrightness] = useState(80);
+    const [backgroundImageOpacity, setBackgroundImageOpacity] = useState(100);
+    const [visibleSecondaryAspects, setVisibleSecondaryAspects] = useState<Record<string, boolean>>({
+        quincunx: true, semisextile: false, semisquare: false,
+        sesquiquadrate: false, quintile: false, biquintile: false,
+        parallel: false, contraparallel: false,
+    });
+    
     // New Toolbar Settings
-    const [pointerStyle, setPointerStyle] = useState<'solid' | 'dashed'>('solid');
-    const [pointerThickness, setPointerThickness] = useState(1);
+    const [pointerStyle, setPointerStyle] = useState<'solid' | 'dashed' | 'minimal'>('minimal');
+    const [pointerThickness, setPointerThickness] = useState(2.5);
+    const [pointerOpacity, setPointerOpacity] = useState(0.8);
     const [pointerHead, setPointerHead] = useState<'arrow' | 'circle' | 'diamond' | 'square' | 'none'>('arrow');
     const [pointerTail, setPointerTail] = useState<'arrow' | 'circle' | 'diamond' | 'square' | 'none'>('none');
+    const [pointerShowGradLine, setPointerShowGradLine] = useState(true);
+    const [pointerFull, setPointerFull] = useState(false);
 
-    const [clockScale, setClockScale] = useState(1.0);
+    const [uiScale, setUiScale] = useState(1.0);
+    const [clockScale, setClockScale] = useState(1.15);
     const [celestialSettings, setCelestialSettings] = useState<CelestialSettings>({
         planets: { symbols: true, glyphs: false, colors: true, names: true, namesColors: true, namesAbbr: true },
         signs: { enabled: true, symbols: true, colors: true, abbr: false },
         houses: { enabled: true, format: 'roman' },
         degrees: true,
+        degrees_colors: false,
         retrograde: true
     });
     const [aspectSettings, setAspectSettings] = useState<AspectSettings>({
-        planets: { symbols: true, glyphs: false, colors: true, names: false, nameColors: false },
-        signs: { enabled: true, colors: true },
+        planets: { symbols: true, glyphs: false, colors: true, names: false, nameColors: false, namesAbbr: true },
+        signs: { enabled: false, colors: true },
         houses: { enabled: false },
         aspects: { 
             symbols: true, 
@@ -204,40 +410,279 @@ export const App: React.FC = () => {
                 sextile: true
             }
         },
-        orb: true
+        orb: true,
+        transitDates: true
     });
-    const [houseCuspsLayout, setHouseCuspsLayout] = useState<'minimal' | 'complete'>('minimal');
-    const [showCuspDegrees, setShowCuspDegrees] = useState(true);
-    const [statsLayout, setStatsLayout] = useState<'minimal' | 'complete'>('complete');
+    const [houseCuspsLayout, setHouseCuspsLayout] = useState<'table' | 'cards'>('table');
+    const [houseCuspsColumns, setHouseCuspsColumns] = useState<'1col' | '2col'>('2col');
+    const [showCuspDegrees, setShowCuspDegrees] = useState(false);
+    const [statsLayout, setStatsLayout] = useState<'minimal' | 'ultraslim'>(() => {
+        if (typeof window !== 'undefined' && (window.innerHeight < 820 || window.innerWidth <= 1366)) {
+            return 'ultraslim';
+        }
+        return 'minimal';
+    });
     const [sectionOrder, setSectionOrder] = useState<('celestial' | 'chronograph' | 'details')[]>(['celestial', 'chronograph', 'details']);
+    const [isHeliocentricMode, setIsHeliocentricMode] = useState(false);
 
     useEffect(() => {
         setSectionOrder(['celestial', 'chronograph', 'details']);
-        setLeftPanels(['celestial', 'cusps']);
-        setRightPanels(['aspects', 'statistics']);
     }, []);
-    
+
     type PanelId = 'celestial' | 'cusps' | 'aspects' | 'statistics';
-    const [leftPanels, setLeftPanels] = useState<PanelId[]>(['celestial', 'cusps']);
-    const [rightPanels, setRightPanels] = useState<PanelId[]>(['aspects', 'statistics']);
+    const [isOptionsRailOpen, setIsOptionsRailOpen] = useState(false);
+
+    const [panelStates, setPanelStates] = useState<Record<PanelId, { isOpen: boolean; isCollapsed: boolean; left: number; top: number; zIndex: number }>>(() => {
+        const winW = typeof window !== 'undefined' ? window.innerWidth : 1400;
+        const aspectsWidth = 245;
+        const cuspsWidth = 245;
+        return {
+            celestial: { isOpen: true, isCollapsed: false, left: 12, top: 60, zIndex: 10 },
+            statistics: { isOpen: true, isCollapsed: false, left: 12, top: 460, zIndex: 12 },
+            aspects: { isOpen: true, isCollapsed: false, left: winW - aspectsWidth - 12, top: 180, zIndex: 13 },
+            cusps: { isOpen: true, isCollapsed: false, left: winW - cuspsWidth - 12, top: 550, zIndex: 11 },
+        };
+    });
+
+    const celestialMenuRef = useRef<HTMLButtonElement>(null);
+    const cuspsMenuRef = useRef<HTMLButtonElement>(null);
+    const aspectsMenuRef = useRef<HTMLButtonElement>(null);
+    const statisticsMenuRef = useRef<HTMLButtonElement>(null);
     
-    const leftPanelWidth = leftPanels.length > 0 ? Math.max(160, ...leftPanels.map(id => panelWidths[id] || 160)) : 0;
-    const rightPanelWidth = rightPanels.length > 0 ? Math.max(160, ...rightPanels.map(id => panelWidths[id] || 160)) : 0;
+    const [maxZIndex, setMaxZIndex] = useState(15);
+
+    const focusPanel = (panelId: PanelId) => {
+        setMaxZIndex(prev => {
+            const nextZ = prev + 1;
+            setPanelStates(states => ({
+                ...states,
+                [panelId]: {
+                    ...states[panelId],
+                    zIndex: nextZ
+                }
+            }));
+            return nextZ;
+        });
+    };
+
+    const openPanel = (panelId: PanelId) => {
+        const winW = typeof window !== 'undefined' ? window.innerWidth : 1400;
+        let sidebarW = 0;
+        if (isQuickToolsSidebarOpen) sidebarW += 64;
+
+        setPanelStates(prev => {
+            let targetLeft = prev[panelId].left;
+            let targetTop = prev[panelId].top;
+
+            if (panelId === 'celestial') {
+                targetLeft = 12;
+                targetTop = 60;
+            } else if (panelId === 'statistics') {
+                targetLeft = 12;
+                targetTop = 460;
+            } else if (panelId === 'aspects') {
+                const width = panelWidths.aspects || 245;
+                targetLeft = Math.max(12, winW - width - 12 - sidebarW);
+                targetTop = 180;
+            } else if (panelId === 'cusps') {
+                const width = panelWidths.cusps || 245;
+                targetLeft = Math.max(12, winW - width - 12 - sidebarW);
+                targetTop = 550;
+            }
+
+            return {
+                ...prev,
+                [panelId]: {
+                    ...prev[panelId],
+                    isOpen: true,
+                    left: targetLeft,
+                    top: targetTop,
+                }
+            };
+        });
+        focusPanel(panelId);
+    };
+
+    const dragOffsetRef = useRef<{ 
+        x: number, 
+        y: number, 
+        latestX: number,
+        latestY: number,
+        panelId: PanelId, 
+        windowElement: HTMLElement | null, 
+        startLeft: number, 
+        startTop: number, 
+        rafId: number | null 
+    } | null>(null);
+
+    const handlePointerDownHeader = (e: React.PointerEvent, panelId: PanelId) => {
+        focusPanel(panelId);
+        if (e.button !== 0) return;
+        if ((e.target as HTMLElement).closest('button, input, select, a')) return; // DO NOT start drag if clicking a button
+
+        const targetElement = e.currentTarget as HTMLElement;
+        const windowElement = targetElement.closest('section');
+        if (!windowElement) return;
+
+        const currentLeft = panelStates[panelId].left as number;
+        const currentTop = panelStates[panelId].top as number;
+
+        // Turn off transition during drag so movement is 100% immediate
+        windowElement.style.transition = 'none';
+        windowElement.style.willChange = 'transform';
+
+        dragOffsetRef.current = { 
+            x: e.clientX, 
+            y: e.clientY, 
+            latestX: e.clientX,
+            latestY: e.clientY,
+            panelId, 
+            windowElement,
+            startLeft: currentLeft,
+            startTop: currentTop,
+            rafId: null
+        };
+        targetElement.setPointerCapture(e.pointerId);
+    };
+
+    const handlePointerMoveHeader = (e: React.PointerEvent) => {
+        const dragState = dragOffsetRef.current;
+        if (!dragState) return;
+
+        // Update latest cursor coordinates synchronously
+        dragState.latestX = e.clientX;
+        dragState.latestY = e.clientY;
+
+        if (dragState.rafId) return;
+
+        dragState.rafId = requestAnimationFrame(() => {
+            if (!dragOffsetRef.current) return;
+            const { x, y, latestX, latestY, windowElement } = dragOffsetRef.current;
+            const dx = latestX - x;
+            const dy = latestY - y;
+
+            if (windowElement) {
+                windowElement.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+            }
+            if (dragOffsetRef.current) {
+                dragOffsetRef.current.rafId = null;
+            }
+        });
+    };
+
+    const handlePointerUpHeader = (e: React.PointerEvent) => {
+        const dragState = dragOffsetRef.current;
+        if (!dragState) return;
+
+        if (dragState.rafId) {
+            cancelAnimationFrame(dragState.rafId);
+        }
+
+        const targetElement = e.currentTarget as HTMLElement;
+        try {
+            targetElement.releasePointerCapture(e.pointerId);
+        } catch (_) {}
+
+        const { x, y, latestX, latestY, panelId, windowElement, startLeft, startTop } = dragState;
+        const dx = latestX - x;
+        const dy = latestY - y;
+
+        let nextLeft = startLeft + dx;
+        let nextTop = startTop + dy;
+
+        const winWidth = window.innerWidth;
+        const winHeight = window.innerHeight;
+        const panelWidth = windowElement?.offsetWidth || 280;
+        const panelHeight = windowElement?.offsetHeight || 150;
+
+        const minTop = 50;
+        const minLeft = 10;
+        const maxLeft = Math.max(minLeft, winWidth - panelWidth - 10);
+        const maxTop = Math.max(minTop, winHeight - Math.min(panelHeight, winHeight - 60) - 10);
+
+        nextLeft = Math.max(minLeft, Math.min(nextLeft, maxLeft));
+        nextTop = Math.max(minTop, Math.min(nextTop, maxTop));
+
+        if (windowElement) {
+            windowElement.style.transform = '';
+            windowElement.style.transition = '';
+            windowElement.style.willChange = '';
+        }
+
+        setPanelStates(prev => ({
+            ...prev,
+            [panelId]: {
+                ...prev[panelId],
+                left: nextLeft,
+                top: nextTop
+            }
+        }));
+
+        dragOffsetRef.current = null;
+    };
+
+    useEffect(() => {
+        const handleLayoutAdjustment = () => {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            let sidebarW = 0;
+            if (isQuickToolsSidebarOpen) sidebarW += 64;
+
+            if (height < 820 || width <= 1366) {
+                setStatsLayout('ultraslim');
+            }
+
+            setPanelStates(prev => {
+                const aspectsWidth = panelWidths.aspects || 245;
+                const cuspsWidth = panelWidths.cusps || 245;
+
+                const newAspectsLeft = Math.max(12, width - aspectsWidth - 12 - sidebarW);
+                const newCuspsLeft = Math.max(12, width - cuspsWidth - 12 - sidebarW);
+
+                return {
+                    ...prev,
+                    celestial: { ...prev.celestial, left: 12, top: 60 },
+                    statistics: { ...prev.statistics, left: 12, top: 460 },
+                    aspects: { ...prev.aspects, left: newAspectsLeft, top: 180 },
+                    cusps: { ...prev.cusps, left: newCuspsLeft, top: 550 },
+                };
+            });
+        };
+
+        handleLayoutAdjustment();
+        window.addEventListener('resize', handleLayoutAdjustment);
+        return () => window.removeEventListener('resize', handleLayoutAdjustment);
+    }, [isQuickToolsSidebarOpen, panelWidths.aspects, panelWidths.cusps]);
+    
+    // Docas fixas: a largura vem de panelWidths, não de uma lista de painéis arrastáveis.
+    const leftPanelWidth = 0;
+    const rightPanelWidth = 0;
 
     const handleCelestialWidthChange = useCallback((width: number) => {
-        setPanelWidths(prev => prev.celestial === width ? prev : { ...prev, celestial: width });
+        setPanelWidths(prev => (prev.celestial === width && prev.statistics === width) ? prev : { ...prev, celestial: width, statistics: width });
     }, []);
 
     const handleCuspsWidthChange = useCallback((width: number) => {
-        setPanelWidths(prev => prev.cusps === width ? prev : { ...prev, cusps: width });
+        setPanelWidths(prev => (prev.cusps === width && prev.aspects === width) ? prev : { ...prev, cusps: width, aspects: width });
     }, []);
 
     const handleAspectsWidthChange = useCallback((width: number) => {
-        setPanelWidths(prev => prev.aspects === width ? prev : { ...prev, aspects: width });
+        setPanelWidths(prev => (prev.aspects === width && prev.cusps === width) ? prev : { ...prev, aspects: width, cusps: width });
     }, []);
 
     const handleStatisticsWidthChange = useCallback((width: number) => {
         setPanelWidths(prev => prev.statistics === width ? prev : { ...prev, statistics: width });
+    }, []);
+
+    const handlePanelPositionChange = useCallback((panelId: PanelId, left: number, top: number) => {
+        setPanelStates(prev => ({
+            ...prev,
+            [panelId]: {
+                ...prev[panelId],
+                left,
+                top
+            }
+        }));
     }, []);
 
     type DragItem = { type: 'column', id: 'celestial' | 'chronograph' | 'details' } | { type: 'panel', id: PanelId };
@@ -283,54 +728,9 @@ export const App: React.FC = () => {
                 newOrder.splice(targetIndex, 0, draggedItem.id as any);
                 return newOrder;
             });
-        } else if (draggedItem?.type === 'panel') {
-            const panelId = draggedItem.id as PanelId;
-            if (id === 'celestial') {
-                setRightPanels(prev => prev.filter(p => p !== panelId));
-                setLeftPanels(prev => prev.includes(panelId) ? prev : [...prev, panelId]);
-            } else if (id === 'details') {
-                setLeftPanels(prev => prev.filter(p => p !== panelId));
-                setRightPanels(prev => prev.includes(panelId) ? prev : [...prev, panelId]);
-            }
         }
     };
 
-    const handlePanelDragOver = (e: React.DragEvent, id: PanelId, column: 'left' | 'right') => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (draggedItem?.type === 'panel' && draggedItem.id !== id) {
-            const sourceId = draggedItem.id as PanelId;
-            const isLeft = column === 'left';
-            
-            const updatePanels = (prev: PanelId[]) => {
-                const currentIndex = prev.indexOf(sourceId);
-                const targetIndex = prev.indexOf(id);
-                
-                if (currentIndex === targetIndex) return prev;
-
-                const newPanels = prev.filter(p => p !== sourceId);
-                const newTargetIndex = newPanels.indexOf(id);
-                if (newTargetIndex !== -1) {
-                    newPanels.splice(newTargetIndex, 0, sourceId);
-                } else {
-                    newPanels.push(sourceId);
-                }
-                
-                if (prev.length === newPanels.length && prev.every((v, i) => v === newPanels[i])) {
-                    return prev;
-                }
-                return newPanels;
-            };
-
-            if (isLeft) {
-                setRightPanels(prev => prev.filter(p => p !== sourceId));
-                setLeftPanels(updatePanels);
-            } else {
-                setLeftPanels(prev => prev.filter(p => p !== sourceId));
-                setRightPanels(updatePanels);
-            }
-        }
-    };
 
     const handleDragEnd = () => {
         setDraggedItem(null);
@@ -364,18 +764,45 @@ useEffect(() => {
     const timeControlsHoveredRef = useRef(false);
     // Global Display Settings
     const [houseFormat, setHouseFormat] = useState<'arabic' | 'roman'>('roman');
+    const [houseSystem, setHouseSystem] = useState<HouseSystem>('porphyry');
     const [houseLineFormat, setHouseLineFormat] = useState<'solid' | 'dashed'>('solid');
 
     const [activeMenu, setActiveMenu] = useState<WidgetId | null>(null);
+    const [zodiacSystem, setZodiacSystem] = useState<'sidereal' | 'tropical'>('tropical');
     const [showTransitChart, setShowTransitChart] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'fullscreen'>('grid');
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    const handleToggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {});
+            setIsFullscreen(true);
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+            }
+            setIsFullscreen(false);
+        }
+    };
+
+    useEffect(() => {
+        const onFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', onFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+    }, []);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const [showMoonPopover, setShowMoonPopover] = useState(false);
     const [showCalendarPanel, setShowCalendarPanel] = useState(false);
+    const [calendarConfig, setCalendarConfig] = useState<{ defaultView?: 'year'|'month'|'lunar'; defaultLunarView?: 'annual'|'monthly'|'cycles' }>({});
     const [showChronographMenu, setShowChronographMenu] = useState(false);
     const [activeChronographMenu, setActiveChronographMenu] = useState<'background' | 'display' | 'colors' | null>(null);
 
-    const [timeRingScale, setTimeRingScale] = useState(1.0);
+    const [timeRingScale, setTimeRingScale] = useState(1.2);
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+    const [showToolsMenu, setShowToolsMenu] = useState(false);
+    const [showEnergyChart, setShowEnergyChart] = useState(false);
     
     // --- Settings Modal State (Main Clock) ---
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -387,16 +814,190 @@ useEffect(() => {
     // --- Auth State ---
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [username, setUsername] = useState('');
+    const [username, setUsername] = useState('Astrólogo');
+    const [userEmail, setUserEmail] = useState('');
+    const [userPlan, setUserPlan] = useState<'free' | 'monthly' | 'lifetime'>(() => {
+        try {
+            const stored = localStorage.getItem('cronografo_user_plan');
+            if (stored === 'monthly' || stored === 'lifetime' || stored === 'free') return stored;
+        } catch {}
+        return 'free';
+    });
+    const isFreeTier = !isAdmin && userPlan === 'free';
+    const isFreeTrial = isFreeTier;
     const [isAuthChecking, setIsAuthChecking] = useState(true);
     const [showDashboard, setShowDashboard] = useState(false);
-    const [dashboardTab, setDashboardTab] = useState<'profile' | 'maps' | 'layouts' | 'admin'>('profile');
+    const [showProfileModal, setShowProfileModal] = useState(false);
+    const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+    const [showPaymentPlansModal, setShowPaymentPlansModal] = useState(false);
+    const [allowedFreeTier, setAllowedFreeTier] = useState(true);
+    const [showLoginModal, setShowLoginModal] = useState(false);
+    const [dashboardTab, setDashboardTab] = useState<'profile' | 'maps' | 'layouts' | 'admin'>('maps');
     const [showLogin, setShowLogin] = useState(false);
     const [showLeadGate, setShowLeadGate] = useState(false);
     const [showLeadCheckoutTrial, setShowLeadCheckoutTrial] = useState(false);
     const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
-    const { trialActive, timeLeft, isExpired, startTrial, resetTrial } = useTrialTimer(isAuthenticated);
+    const [savedMaps, setSavedMaps] = useState<any[]>(() => {
+        try { return JSON.parse(localStorage.getItem('savedMaps') || '[]'); } catch { return []; }
+    });
+    const [savedLayouts, setSavedLayouts] = useState<any[]>(() => {
+        try { return JSON.parse(localStorage.getItem('savedLayouts') || '[]'); } catch { return []; }
+    });
+    const [showSaveMapModal, setShowSaveMapModal] = useState(false);
+    const [showSaveLayoutModal, setShowSaveLayoutModal] = useState(false);
+    const [newMapName, setNewMapName] = useState('');
+    const [newMapDesc, setNewMapDesc] = useState('');
+    const [newLayoutName, setNewLayoutName] = useState('');
+    const [newLayoutDesc, setNewLayoutDesc] = useState('');
+
+    const handleSaveMap = () => {
+        if (!newMapName.trim()) return;
+        if (isFreeTier && savedMaps.length >= 2) {
+            setShowSaveMapModal(false);
+            setShowPaymentPlansModal(true);
+            return;
+        }
+        const newMap = {
+            id: Date.now().toString(),
+            name: newMapName,
+            description: newMapDesc,
+            dateSaved: Date.now(),
+            targetDate: currentTime.toISOString(),
+            date: currentTime.toISOString(), // for Dashboard
+            time: `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`, // for Dashboard
+            natalLocation: natalLocation,
+            location: location,
+            natalDate: natalTime ? natalTime.toISOString() : null,
+            layout: {
+                celestialTab,
+                panelWidths,
+                celestialSettings,
+                aspectSettings,
+                showAspectLines,
+                showNatalLines,
+                showHouseLines,
+                zodiacSystem,
+                houseFormat,
+            }
+        };
+        const updated = [...savedMaps, newMap];
+        setSavedMaps(updated);
+        localStorage.setItem('savedMaps', JSON.stringify(updated));
+        if (auth.currentUser) {
+            saveMapToFirestore(auth.currentUser.uid, newMap).catch(console.error);
+        }
+        setShowSaveMapModal(false);
+        setNewMapName('');
+        setNewMapDesc('');
+    };
+
+    const handleSaveLayout = () => {
+        if (!newLayoutName.trim()) return;
+        const newLayout = {
+            id: Date.now().toString(),
+            name: newLayoutName,
+            description: newLayoutDesc,
+            dateSaved: Date.now(),
+            layout: {
+                celestialTab,
+                panelWidths,
+                celestialSettings,
+                aspectSettings,
+                showAspectLines,
+                showNatalLines,
+                showHouseLines,
+                zodiacSystem,
+                houseFormat,
+                showNeedle,
+                showAtmosphere,
+                showConstellations,
+                showStars,
+                showPlanetSpheres,
+                pointerStyle,
+                pointerThickness,
+                pointerOpacity,
+            }
+        };
+        const updated = [...savedLayouts, newLayout];
+        setSavedLayouts(updated);
+        localStorage.setItem('savedLayouts', JSON.stringify(updated));
+        if (auth.currentUser) {
+            saveLayoutToFirestore(auth.currentUser.uid, newLayout).catch(console.error);
+        }
+        setShowSaveLayoutModal(false);
+        setNewLayoutName('');
+        setNewLayoutDesc('');
+    };
+
+    const handleLoadMap = (map: any) => {
+        setIsRealTime(false);
+        setCurrentTime(new Date(map.targetDate || map.date));
+        if (map.location) {
+            setLocation(map.location);
+        }
+        if (map.natalDate) {
+            setNatalTime(new Date(map.natalDate));
+            if (map.natalLocation) {
+                setNatalLocation(map.natalLocation);
+            }
+        } else {
+            setNatalTime(null);
+        }
+        if (map.layout) {
+            handleApplyLayoutProps(map.layout);
+        }
+        setShowDashboard(false);
+        setShowProfileModal(false);
+    };
+
+    const handleLoadLayout = (layout: any) => {
+        if (layout.layout) {
+            handleApplyLayoutProps(layout.layout);
+        }
+        setShowDashboard(false);
+        setShowProfileModal(false);
+    };
+
+    const handleApplyLayoutProps = (layoutProps: any) => {
+        if (layoutProps.celestialTab) setCelestialTab(layoutProps.celestialTab);
+        if (layoutProps.panelWidths) setPanelWidths(layoutProps.panelWidths);
+        if (layoutProps.celestialSettings) setCelestialSettings(layoutProps.celestialSettings);
+        if (layoutProps.aspectSettings) setAspectSettings(layoutProps.aspectSettings);
+        if (layoutProps.showAspectLines !== undefined) setShowAspectLines(layoutProps.showAspectLines);
+        if (layoutProps.showNatalLines !== undefined) setShowNatalLines(layoutProps.showNatalLines);
+        if (layoutProps.showHouseLines !== undefined) setShowHouseLines(layoutProps.showHouseLines);
+        if (layoutProps.zodiacSystem) setZodiacSystem(layoutProps.zodiacSystem);
+        if (layoutProps.houseFormat) setHouseFormat(layoutProps.houseFormat);
+        if (layoutProps.showNeedle !== undefined) setShowNeedle(layoutProps.showNeedle);
+        if (layoutProps.showAtmosphere !== undefined) setShowAtmosphere(layoutProps.showAtmosphere);
+        if (layoutProps.showConstellations !== undefined) setShowConstellations(layoutProps.showConstellations);
+        if (layoutProps.showStars !== undefined) setShowStars(layoutProps.showStars);
+        if (layoutProps.showPlanetSpheres !== undefined) setShowPlanetSpheres(layoutProps.showPlanetSpheres);
+        if (layoutProps.pointerStyle) setPointerStyle(layoutProps.pointerStyle);
+        if (layoutProps.pointerThickness) setPointerThickness(layoutProps.pointerThickness);
+        if (layoutProps.pointerOpacity !== undefined) setPointerOpacity(layoutProps.pointerOpacity);
+    };
+
+    const handleDeleteMap = (id: string) => {
+        const updated = savedMaps.filter((m: any) => m.id !== id);
+        setSavedMaps(updated);
+        localStorage.setItem('savedMaps', JSON.stringify(updated));
+        if (auth.currentUser) {
+            deleteMapFromFirestore(auth.currentUser.uid, id).catch(console.error);
+        }
+    };
+
+    const handleDeleteLayout = (id: string) => {
+        const updated = savedLayouts.filter((l: any) => l.id !== id);
+        setSavedLayouts(updated);
+        localStorage.setItem('savedLayouts', JSON.stringify(updated));
+        if (auth.currentUser) {
+            deleteLayoutFromFirestore(auth.currentUser.uid, id).catch(console.error);
+        }
+    };
+
+    const { trialActive, timeLeft, isExpired, isUnlimited, formattedTimeLeft, resetTrial, startTrial } = useTrialTimer(isAuthenticated, userEmail, isAdmin);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -413,40 +1014,125 @@ useEffect(() => {
             document.body.classList.remove('light-mode');
         } else {
             document.body.classList.add('light-mode');
+            // Auto-disable color settings in light mode for readability
+            setCelestialSettings(prev => ({
+                ...prev,
+                planets: { ...prev.planets, colors: false, namesColors: false },
+                signs: { ...prev.signs, colors: false },
+                degrees_colors: false
+            }));
+            setAspectSettings(prev => ({
+                ...prev,
+                planets: { ...prev.planets, colors: false, nameColors: false },
+                signs: { ...prev.signs, colors: false }
+            }));
         }
     }, [theme]);
 
     useEffect(() => {
-        const checkAuth = async () => {
-            try {
-                const res = await fetch('/api/auth/check');
-                const data = await res.json();
-                setIsAuthenticated(data.authenticated);
-                setIsAdmin(data.isAdmin);
-                if (data.username) setUsername(data.username);
-            } catch (err) {
-                console.error("Auth check failed", err);
+        testFirestoreConnection();
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                setIsAuthenticated(true);
+                setUsername(user.displayName || user.email?.split('@')[0] || 'Astrólogo');
+                setUserEmail(user.email || '');
+                const isUserAdmin = user.email?.toLowerCase() === 'rafael.cm333@gmail.com';
+                setIsAdmin(isUserAdmin);
+                if (isUserAdmin) {
+                    setUserPlan('lifetime');
+                }
+                syncUserProfile(user).then((profile) => {
+                    if (profile?.plan && !isUserAdmin) {
+                        setUserPlan(profile.plan);
+                        try { localStorage.setItem('cronografo_user_plan', profile.plan); } catch {}
+                    }
+                }).catch(console.error);
+
+                // Sincronizar mapas do Firestore
+                loadMapsFromFirestore(user.uid).then(cloudMaps => {
+                    if (cloudMaps && cloudMaps.length > 0) {
+                        setSavedMaps(prev => {
+                            const existingIds = new Set(prev.map((m: any) => m.id));
+                            const merged = [...prev];
+                            cloudMaps.forEach((m: any) => {
+                                if (!existingIds.has(m.id)) {
+                                    merged.push(m);
+                                }
+                            });
+                            localStorage.setItem('savedMaps', JSON.stringify(merged));
+                            return merged;
+                        });
+                    }
+                }).catch(console.error);
+
+                // Sincronizar layouts do Firestore
+                loadLayoutsFromFirestore(user.uid).then(cloudLayouts => {
+                    if (cloudLayouts && cloudLayouts.length > 0) {
+                        setSavedLayouts(prev => {
+                            const existingIds = new Set(prev.map((l: any) => l.id));
+                            const merged = [...prev];
+                            cloudLayouts.forEach((l: any) => {
+                                if (!existingIds.has(l.id)) {
+                                    merged.push(l);
+                                }
+                            });
+                            localStorage.setItem('savedLayouts', JSON.stringify(merged));
+                            return merged;
+                        });
+                    }
+                }).catch(console.error);
+            } else {
                 setIsAuthenticated(false);
-            } finally {
-                setIsAuthChecking(false);
+                setIsAdmin(false);
             }
-        };
-        checkAuth();
+            setIsAuthChecking(false);
+        });
+        return () => unsubscribe();
     }, []);
 
     const handleLogout = async () => {
         try {
-            await fetch('/api/auth/logout', { method: 'POST' });
+            await signOut(auth);
             setIsAuthenticated(false);
-            resetTrial(); // Reset trial state on logout
+            setUserEmail('');
+            setUsername('Astrólogo');
+            setIsAdmin(false);
+            setUserPlan('free');
+            try { localStorage.setItem('cronografo_user_plan', 'free'); } catch {}
+            setShowProfileModal(false);
+            setShowDashboard(false);
+            setShowPaymentPlansModal(false);
+            setAllowedFreeTier(true);
+            setShowLoginModal(false);
         } catch (err) {
             console.error("Logout failed", err);
+        }
+    };
+
+    const handleSwitchAccount = async () => {
+        try {
+            await signOut(auth);
+            setIsAuthenticated(false);
+            setUserEmail('');
+            setUsername('Astrólogo');
+            setIsAdmin(false);
+            setUserPlan('free');
+            try { localStorage.setItem('cronografo_user_plan', 'free'); } catch {}
+            setShowProfileModal(false);
+            setShowDashboard(false);
+            setShowPaymentPlansModal(false);
+            setAllowedFreeTier(true);
+            setShowLoginModal(true);
+        } catch (err) {
+            console.error("Switch account failed", err);
         }
     };
 
     // --- Natal Chart State ---
     const [natalTime, setNatalTime] = useState<Date | null>(null);
     const [natalLocation, setNatalLocation] = useState(DEFAULT_LOCATION);
+    const [showNatalMapSelector, setShowNatalMapSelector] = useState(false);
+
     const [isNatalSettingsOpen, setIsNatalSettingsOpen] = useState(false);
     const [tempNatalDate, setTempNatalDate] = useState('');
     const [tempNatalTime, setTempNatalTime] = useState('');
@@ -464,8 +1150,8 @@ useEffect(() => {
     }, [natalTime]);
 
     // --- Data Calculation ---
-    const celestialData = useCelestialData(currentTime, location, visiblePlanets);
-    const natalData = useCelestialData(natalTime, natalLocation, visiblePlanets);
+    const celestialData = useCelestialData(currentTime, location, visiblePlanets, houseSystem, zodiacSystem);
+    const natalData = useCelestialData(natalTime, natalLocation, visibleNatalPlanets, houseSystem, zodiacSystem);
     const seasonInfo = useMemo(() => {
         const latitudeSouth = location.latitude < 0;
         const info = getSeasonInfo(currentTime, latitudeSouth);
@@ -492,9 +1178,9 @@ useEffect(() => {
     const transitNatalAspects = useMemo(() => {
         if (!natalTime || !natalData || natalData.currentTime.getTime() === 0) return [];
         const transitBodies = getBodiesFromData(celestialData, visiblePlanets);
-        const natalBodies = getBodiesFromData(natalData, visiblePlanets);
+        const natalBodies = getBodiesFromData(natalData, visibleNatalPlanets);
         return calculateTransitNatalAspects(transitBodies, natalBodies);
-    }, [celestialData, natalData, natalTime, visiblePlanets]);
+    }, [celestialData, natalData, natalTime, visiblePlanets, visibleNatalPlanets]);
 
 
     // --- Computed Data for Views (Filtered Aspects & Ghost Planets) ---
@@ -541,23 +1227,24 @@ useEffect(() => {
             return { filteredAspects: activeAspectSource, panelAspects: allAspectSource, ghostPlanets: [] };
         }
 
+        const stripNatal = (id: string) => id.startsWith('natal_') ? id.replace('natal_', '') : id;
+        const hasSelected = (id: string) => selectedPlanets.some(sid => stripNatal(sid) === id);
+
         const relevantAspects = activeAspectSource.filter(aspect => 
-            selectedPlanets.includes(aspect.body1.id) || selectedPlanets.includes(aspect.body2.id)
+            hasSelected(aspect.body1.id) || hasSelected(aspect.body2.id)
         );
 
         const ghosts = new Set<string>();
         relevantAspects.forEach(aspect => {
             if (aspect.isNatal) {
-                // For natal aspects, body1 is transit, body2 is natal
-                if (selectedPlanets.includes(aspect.body1.id) && !selectedPlanets.includes(aspect.body2.id)) {
+                if (hasSelected(aspect.body1.id) && !hasSelected(aspect.body2.id)) {
                     ghosts.add(aspect.body2.id);
                 }
             } else {
-                // For transit aspects, both are transit
-                if (selectedPlanets.includes(aspect.body1.id) && !selectedPlanets.includes(aspect.body2.id)) {
+                if (hasSelected(aspect.body1.id) && !hasSelected(aspect.body2.id)) {
                     ghosts.add(aspect.body2.id);
                 }
-                if (selectedPlanets.includes(aspect.body2.id) && !selectedPlanets.includes(aspect.body1.id)) {
+                if (hasSelected(aspect.body2.id) && !hasSelected(aspect.body1.id)) {
                     ghosts.add(aspect.body1.id);
                 }
             }
@@ -585,6 +1272,50 @@ useEffect(() => {
             highlightedHousesFromAspects: Array.from(houses) 
         };
     }, [selectedAspects, filteredAspects]);
+
+    const exportData = useMemo(() => {
+        const isNatal = celestialTab === 'natal' && natalTime;
+        const currentCelestialData = isNatal ? natalData : celestialData;
+        const currentAspects = filteredAspects || [];
+        
+        return {
+            currentTime: currentTime,
+            location: location,
+            celestialData: currentCelestialData,
+            seasonInfo: seasonInfo,
+            sunriseTime: currentCelestialData?.sunriseTime || '',
+            sunsetTime: currentCelestialData?.sunsetTime || '',
+            moonriseTime: currentCelestialData?.moonriseTime || '',
+            moonsetTime: currentCelestialData?.moonsetTime || '',
+            moonPhase: currentCelestialData?.moonPhase ? getMoonPhaseInfo(currentCelestialData.moonPhase) : { name: '', icon: '' },
+            moonPhaseValue: currentCelestialData?.moonPhase || 0,
+            retrogradeStatus: currentCelestialData?.retrogradeStatus || {},
+            stationaryStatus: currentCelestialData?.stationaryStatus || {},
+            housePlacements: currentCelestialData?.housePlacements || {},
+            houseCusps: currentCelestialData?.houseCusps || [],
+            filteredAspects: currentAspects,
+            clockRef: clockRef,
+            showAspectLines: showAspectLines,
+            setShowAspectLines: setShowAspectLines,
+            theme: theme,
+            onSetTheme: setTheme,
+            showSeasonsRing: showSeasonsRing,
+            setShowSeasonsRing: setShowSeasonsRing,
+            showTimeRing: showTimeRing,
+            setShowTimeRing: setShowTimeRing,
+            showConstellations: showConstellations,
+            setShowConstellations: setShowConstellations,
+            isFreeTier: isFreeTier,
+            onOpenPaymentPlans: () => setShowPaymentPlansModal(true)
+        };
+    }, [
+        celestialTab, natalTime, natalData, celestialData,
+        currentTime, location, seasonInfo, filteredAspects,
+        showAspectLines, setShowAspectLines, theme, setTheme,
+        showSeasonsRing, setShowSeasonsRing, showTimeRing,
+        setShowTimeRing, showConstellations, setShowConstellations,
+        isFreeTier
+    ]);
 
     // --- Time Loop for Smooth Animation ---
     useEffect(() => {
@@ -614,20 +1345,36 @@ useEffect(() => {
                 setSelectedAspects(stillValid);
             }
         }
-    }, [celestialData.aspects, transitNatalAspects]);
+    }, [celestialData.aspects, transitNatalAspects, selectedAspects]);
 
     // --- Handlers ---
-    const handlePlanetClick = useCallback((id: string) => {
-        setSelectedPlanets(prev => 
-            prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
-        );
-    }, []);
+const handlePlanetClick = useCallback((id: string) => {
+    if ((isFreeTier || isFreeTrial) && ['lilith', 'northNode', 'southNode', 'chiron', 'ceres', 'pallas', 'juno', 'vesta', 'partOfFortune'].includes(id)) {
+        setShowPaymentPlansModal(true);
+        return;
+    }
+    const effectiveId = celestialTab === 'natal' && natalTime ? `natal_${id}` : id;
+    setSelectedPlanets(prev => 
+        prev.includes(effectiveId) ? prev.filter(p => p !== effectiveId) : [...prev, effectiveId]
+    );
+}, [celestialTab, natalTime, isFreeTier, isFreeTrial]);
 
     const handlePlanetRightClick = (id: string) => {
-        setVisiblePlanets(prev => ({
-            ...prev,
-            [id]: !prev[id]
-        }));
+        if ((isFreeTier || isFreeTrial) && ['lilith', 'northNode', 'southNode', 'chiron', 'ceres', 'pallas', 'juno', 'vesta', 'partOfFortune'].includes(id)) {
+            setShowPaymentPlansModal(true);
+            return;
+        }
+        if (celestialTab === 'natal' && natalTime) {
+            setVisibleNatalPlanets(prev => ({
+                ...prev,
+                [id]: !prev[id]
+            }));
+        } else {
+            setVisiblePlanets(prev => ({
+                ...prev,
+                [id]: !prev[id]
+            }));
+        }
     };
 
     const handleAspectClick = useCallback((id: string) => {
@@ -662,7 +1409,18 @@ useEffect(() => {
     }, []);
 
     const handleClockClick = useCallback(() => {
+        if (!showCalendarPanel) setCalendarConfig({});
         setShowCalendarPanel(prev => !prev);
+    }, [showCalendarPanel]);
+
+    const handleLunarCalendarClick = useCallback(() => {
+        setCalendarConfig({ defaultView: 'lunar', defaultLunarView: 'cycles' });
+        setShowCalendarPanel(true);
+    }, []);
+
+    const handleSolarCalendarClick = useCallback(() => {
+        setCalendarConfig({ defaultView: 'solar' });
+        setShowCalendarPanel(true);
     }, []);
 
     const togglePlay = () => {
@@ -679,6 +1437,9 @@ useEffect(() => {
         setCurrentTime(prev => {
             const newTime = new Date(prev);
             switch (timeStep) {
+                case 'sec':
+                    newTime.setSeconds(prev.getSeconds() + amount);
+                    break;
                 case 'min':
                     newTime.setMinutes(prev.getMinutes() + amount);
                     break;
@@ -784,21 +1545,23 @@ useEffect(() => {
         setIsSettingsOpen(false);
     };
 
-    const openNatalSettings = () => {
-        const initTime = natalTime || new Date();
-        const year = initTime.getFullYear();
-        const month = String(initTime.getMonth() + 1).padStart(2, '0');
-        const day = String(initTime.getDate()).padStart(2, '0');
-        setTempNatalDate(`${year}-${month}-${day}`);
-        const hours = String(initTime.getHours()).padStart(2, '0');
-        const minutes = String(initTime.getMinutes()).padStart(2, '0');
-        setTempNatalTime(`${hours}:${minutes}`);
-        const locToUse = natalTime ? natalLocation : location;
-        const locIndex = BRAZIL_CAPITALS.findIndex(cap => 
-            Math.abs(cap.latitude - locToUse.latitude) < 0.01 && 
-            Math.abs(cap.longitude - locToUse.longitude) < 0.01
-        );
-        setTempNatalLocationIndex(locIndex !== -1 ? locIndex : 24);
+   const openNatalSettings = () => {
+    const initTime = natalTime || new Date();
+    const year = initTime.getFullYear();
+    const month = String(initTime.getMonth() + 1).padStart(2, '0');
+    const day = String(initTime.getDate()).padStart(2, '0');
+    setTempNatalDate(`${year}-${month}-${day}`);
+    setNatalDateDisplay(`${day}/${month}/${year}`); // ← adiciona
+    const hours = String(initTime.getHours()).padStart(2, '0');
+    const minutes = String(initTime.getMinutes()).padStart(2, '0');
+    setTempNatalTime(`${hours}:${minutes}`);
+    setNatalTimeDisplay(`${hours}:${minutes}`);     // ← adiciona
+    const locToUse = natalTime ? natalLocation : location;
+    const locIndex = BRAZIL_CAPITALS.findIndex(cap => 
+        Math.abs(cap.latitude - locToUse.latitude) < 0.01 && 
+        Math.abs(cap.longitude - locToUse.longitude) < 0.01
+    );
+    setTempNatalLocationIndex(locIndex !== -1 ? locIndex : 24);
         
         // Inicializar displays
         if (natalTime) {
@@ -866,7 +1629,6 @@ useEffect(() => {
         toolbar: useRef<HTMLDivElement>(null),
         calendar: useRef<HTMLDivElement>(null),
     };
-    const clockRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -894,9 +1656,7 @@ useEffect(() => {
                     setActiveToolbarMenu(null);
                 }
             }
-            if (showCalendarPanel && !isInside(menuRefs.calendar)) {
-                setShowCalendarPanel(false);
-            }
+            
         };
 
         document.addEventListener('mousedown', handleClickOutside);
@@ -927,6 +1687,7 @@ useEffect(() => {
         setActiveToolbarMenu(null);
         setShowProfileMenu(false);
         setShowChronographMenu(false);
+        setShowToolsMenu(false);
         setShowOptionsMenu(!showOptionsMenu);
     };
 
@@ -939,1401 +1700,796 @@ useEffect(() => {
     // Gradient Background for the entire app
     const bgClass = "bg-brand-dark";
 
-    const renderPanel = (id: PanelId, position: 'left' | 'right') => {
-        const dragHandle = (
-            <div 
-                draggable 
-                onDragStart={(e) => handleDragStart(e, id, 'panel')}
-                onDragEnd={handleDragEnd}
-                className="cursor-grab active:cursor-grabbing p-1 hover:bg-brand-surface-highlight rounded transition-colors"
-            >
-                <UI_ICONS.DragHandleIcon className="w-3 h-3 text-brand-text-muted" />
-            </div>
-        );
 
-        const handlePanelPositionChange = (pos: 'left' | 'right') => {
-            if (pos === 'left') {
-                setRightPanels(prev => prev.filter(p => p !== id));
-                setLeftPanels(prev => prev.includes(id) ? prev : [...prev, id]);
-            } else {
-                setLeftPanels(prev => prev.filter(p => p !== id));
-                setRightPanels(prev => prev.includes(id) ? prev : [...prev, id]);
-            }
-        };
-
-        const isDragged = draggedItem?.type === 'panel' && draggedItem.id === id;
-        const dragClass = isDragged ? 'border-2 border-dashed border-blue-400 bg-blue-400/10 rounded-3xl scale-95 overflow-hidden relative opacity-50' : '';
-
-        const dropIndicator = isDragged ? (
-            <div className="drop-indicator absolute inset-0 flex items-center justify-center pointer-events-none z-50">
-                <span className="text-blue-400/50 font-medium text-sm">Solte aqui</span>
-            </div>
-        ) : null;
-
-        switch (id) {
-            case 'celestial':
-                return (
-                    <div 
-                        key="celestial" 
-                        className={`panel-wrapper flex-1 min-h-0 max-h-full flex flex-col overflow-hidden ${dragClass}`}
-                        onDragOver={(e) => handlePanelDragOver(e, id, position)}
-                    >
-                        {dropIndicator}
-                        <CelestialBodyPanel 
-                            {...(celestialTab === 'natal' && natalTime ? natalData : celestialData)} 
-                            retrogradeStatus={celestialTab === 'natal' && natalTime ? natalData.retrogradeStatus : celestialData.retrogradeStatus}
-                            housePlacements={celestialTab === 'natal' && natalTime ? natalData.housePlacements : celestialData.housePlacements}
-                            visiblePlanets={visiblePlanets}
-                            onVisibilityChange={setVisiblePlanets}
-                            selectedPlanets={selectedPlanets}
-                            secondarySelectedPlanets={highlightedPlanetsFromAspects}
-                            onPlanetClick={handlePlanetClick}
-                            onPlanetRightClick={handlePlanetRightClick}
-                            onPlanetHover={setHoveredPlanet}
-                            hoveredPlanet={hoveredPlanet}
-                            hoveredHouse={hoveredHouse}
-                            planetDisplayStatus={{}} 
-                            activeMenu={activeMenu}
-                            setActiveMenu={setActiveMenu}
-                            onClearSelections={handleClearSelections}
-                            onWidthChange={handleCelestialWidthChange}
-                            houseFormat={houseFormat}
-                            onHouseFormatChange={setHouseFormat}
-                            showPlanetSpheres={showPlanetSpheres}
-                            setShowPlanetSpheres={setShowPlanetSpheres}
-                            showNeedle={showNeedle}
-                            setShowNeedle={setShowNeedle}
-                            showOrbits={showOrbits}
-                            setShowOrbits={setShowOrbits}
-                            zodiacColorMode={zodiacColorMode}
-                            settings={celestialSettings}
-                            onSettingsChange={setCelestialSettings}
-                            planetSize={panelPlanetSize}
-                            onPlanetSizeChange={setPanelPlanetSize}
-                            zodiacSignSize={panelZodiacSignSize}
-                            onZodiacSignSizeChange={setPanelZodiacSignSize}
-                            panelScale={position === 'left' ? leftPanelScale : rightPanelScale}
-                            onPanelScaleChange={position === 'left' ? setLeftPanelScale : setRightPanelScale}
-                            panelPosition={position}
-                            onPanelPositionChange={handlePanelPositionChange}
-                            dragHandle={dragHandle}
-                            activeTab={celestialTab}
-                            onTabChange={setCelestialTab}
-                            hasNatalDate={!!natalTime}
-                        />
-                    </div>
-                );
-            case 'cusps':
-                return (
-                    <div 
-                        key="cusps" 
-                        className={`panel-wrapper shrink-0 flex flex-col ${dragClass}`}
-                        onDragOver={(e) => handlePanelDragOver(e, id, position)}
-                    >
-                        {dropIndicator}
-                        <HouseCuspsPanel 
-                            ascendantLongitude={celestialTab === 'natal' && natalTime ? natalData.ascendantLongitude : celestialData.ascendantLongitude}
-                            midheavenLongitude={celestialTab === 'natal' && natalTime ? natalData.midheavenLongitude : celestialData.midheavenLongitude}
-                            descendantLongitude={celestialTab === 'natal' && natalTime ? natalData.descendantLongitude : celestialData.descendantLongitude}
-                            imumCoeliLongitude={celestialTab === 'natal' && natalTime ? natalData.imumCoeliLongitude : celestialData.imumCoeliLongitude}
-                            houseCusps={celestialTab === 'natal' && natalTime ? natalData.houseCusps : celestialData.houseCusps}
-                            hoveredHouse={hoveredHouse}
-                            setHoveredHouse={setHoveredHouse}
-                            selectedHouses={selectedHouses}
-                            secondarySelectedHouses={highlightedHousesFromAspects}
-                            onHouseClick={handleHouseClick}
-                            onHouseRightClick={() => {}}
-                            activeMenu={activeMenu}
-                            setActiveMenu={setActiveMenu}
-                            houseFormat={houseFormat}
-                            onHouseFormatChange={setHouseFormat}
-                            scale={position === 'left' ? leftPanelScale : rightPanelScale}
-                            showHouseLines={showHouseLines}
-                            setShowHouseLines={setShowHouseLines}
-                            zodiacColorMode={zodiacColorMode}
-                            showSignLines={showSignLines}
-                            setShowSignLines={setShowSignLines}
-                            layoutMode={houseCuspsLayout}
-                            onLayoutChange={setHouseCuspsLayout}
-                            panelPosition={position}
-                            onWidthChange={handleCuspsWidthChange}
-                            onPanelPositionChange={handlePanelPositionChange}
-                            dragHandle={dragHandle}
-                        />
-                    </div>
-                );
-            case 'aspects':
-                return (
-                    <div 
-                        key="aspects" 
-                       className={`panel-wrapper flex-1 min-h-0 flex flex-col overflow-visible ${dragClass}`}
-                        onDragOver={(e) => handlePanelDragOver(e, id, position)}
-                    >
-                        {dropIndicator}
-                        <AstroInfoPanel 
-                            aspects={panelAspects} 
-                            retrogradeStatus={celestialData.retrogradeStatus}
-                            onAspectHover={setHoveredAspect}
-                            onAspectClick={handleAspectClick}
-                            onAspectRightClick={() => {}}
-                            selectedAspects={selectedAspects}
-                            onClearAllSelections={handleClearSelections}
-                            isAnythingSelected={selectedAspects.length > 0 || selectedPlanets.length > 0}
-                            activeMenu={activeMenu}
-                            setActiveMenu={setActiveMenu}
-                            scale={position === 'left' ? leftPanelScale : rightPanelScale}
-                            showAspectLines={showAspectLines}
-                            setShowAspectLines={handleToggleAspectLines}
-                            showNatalLines={showNatalLines}
-                            setShowNatalLines={handleToggleNatalLines}
-                            hasNatalDate={!!natalTime}
-                            houseFormat={houseFormat}
-                            zodiacColorMode={zodiacColorMode}
-                            showPlanetSpheres={showPlanetSpheres}
-                            settings={aspectSettings}
-                            onSettingsChange={setAspectSettings}
-                            panelScale={position === 'left' ? leftPanelScale : rightPanelScale}
-                            onPanelScaleChange={position === 'left' ? setLeftPanelScale : setRightPanelScale}
-                            panelPosition={position}
-                            onWidthChange={handleAspectsWidthChange}
-                            onPanelPositionChange={handlePanelPositionChange}
-                            dragHandle={dragHandle}
-                        />
-                    </div>
-                );
-            case 'statistics':
-                return (
-                    <div 
-                        key="statistics" 
-                        className={`panel-wrapper shrink-0 flex flex-col ${dragClass}`}
-                        onDragOver={(e) => handlePanelDragOver(e, id, position)}
-                    >
-                        {dropIndicator}
-                        <ChartStatisticsPanel 
-                            celestialData={celestialData}
-                            scale={position === 'left' ? leftPanelScale : rightPanelScale}
-                            zodiacColorMode={zodiacColorMode}
-                            onZodiacColorModeChange={setZodiacColorMode}
-                            highlightFilter={highlightFilter}
-                            onHighlightFilterChange={setHighlightFilter}
-                            layoutMode={statsLayout}
-                            onLayoutChange={setStatsLayout}
-                            activeMenu={activeMenu}
-                            setActiveMenu={setActiveMenu}
-                            panelPosition={position}
-                            onPanelPositionChange={handlePanelPositionChange}
-                            onWidthChange={handleStatisticsWidthChange}
-                            dragHandle={dragHandle}
-                            seasonInfo={seasonInfo}
-                            sunriseTime={celestialData.sunriseTime}
-                            sunsetTime={celestialData.sunsetTime}
-                            moonPhase={celestialData.moonPhase}
-                            moonriseTime={celestialData.moonriseTime}
-                            moonsetTime={celestialData.moonsetTime}
-                            onEclipseClick={() => setShowEclipseModal(true)}
-                        />
-                    </div>
-                );
-        }
-    };
-
-    if (isAuthChecking) {
-        return (
-            <div className={`h-screen w-screen ${bgClass} flex items-center justify-center`}>
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-purple"></div>
-            </div>
-        );
-    }
-
-    if (!isAuthenticated && !trialActive) {
-        if (!showLogin && !showLeadGate) {
-            return <LandingPage onEnter={() => setShowLogin(true)} onRegister={() => setShowLeadGate(true)} />;
-        }
-        if (showLeadGate) {
-            return <LeadGate 
-                onComplete={() => {
-                    setShowLeadGate(false);
-                    startTrial();
-                }} 
-                onBack={() => setShowLeadGate(false)}
-            />;
-        }
-        return <LoginScreen onLoginSuccess={(user) => {
-            setIsAuthenticated(true);
-            resetTrial(); // Remove trial limits on successful login
-            if (user?.username) setUsername(user.username);
-            if (user?.isAdmin !== undefined) setIsAdmin(user.isAdmin);
-            // Re-check admin status after login to be sure
-            fetch('/api/auth/check').then(res => res.json()).then(data => {
-                if (data.authenticated) {
-                    setIsAdmin(data.isAdmin);
-                    if (data.username) setUsername(data.username);
-                }
-            });
-        }} onBack={() => setShowLogin(false)} />;
-    }
-
-    return (
-        <div className={`h-screen w-screen ${bgClass} text-brand-text overflow-hidden flex flex-col font-serif selection:bg-brand-purple/30`}>
-            {!isAuthenticated && trialActive && !isExpired && timeLeft !== null && (
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
-                    <div className="px-5 py-2.5 rounded-full bg-black/80 border border-brand-gold/30 backdrop-blur-md flex items-center gap-3 shadow-lg">
-
-                        {/* Indicador online */}
-                        <div className="relative flex-shrink-0">
-                            <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                            <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-400 animate-ping opacity-75" />
-                        </div>
-
-                        {/* Label + Timer */}
-                        <span className="font-manrope text-[10px] tracking-widest uppercase text-brand-gold whitespace-nowrap">
-                            Acesso gratuito · {Math.floor(timeLeft / 60000).toString().padStart(2, '0')}:{(Math.floor(timeLeft / 1000) % 60).toString().padStart(2, '0')}
-                        </span>
-
-                        {/* Divisor */}
-                        <div className="w-px h-3 bg-brand-gold/30 flex-shrink-0" />
-
-                        {/* Botão */}
-                        <button
-                            onClick={() => setShowLeadCheckoutTrial(true)}
-                            className="font-manrope font-bold uppercase tracking-widest transition-all hover:opacity-80 active:scale-[0.97] whitespace-nowrap flex-shrink-0"
-                            style={{
-                                fontSize: '10px',
-                                color: '#000',
-                                background: '#D4AF37',
-                                border: 'none',
-                                borderRadius: '999px',
-                                padding: '4px 14px',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            Quero ser Fundador
-                        </button>
-
-                    </div>
-
-                    {showLeadCheckoutTrial && (
-                        <LeadCheckoutModal
-                            isOpen={showLeadCheckoutTrial}
-                            onClose={() => setShowLeadCheckoutTrial(false)}
-                        />
-                    )}
+    const renderContent = () => {
+        if (isAuthChecking) {
+            return (
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-purple"></div>
                 </div>
-            )}
-            {!isAuthenticated && isExpired && (
-                <PaywallModal 
-                    onLoginClick={() => {
-                        // Clear trial state and show login screen
+            );
+        }
+
+        if (!isAuthenticated && !trialActive) {
+            return (
+                <LandingPage 
+                    onLoginSuccess={(user) => {
+                        setIsAuthenticated(true);
                         resetTrial();
-                        window.location.hash = '#login';
-                        setShowLogin(true);
-                        setShowLeadGate(false);
+                        if (user?.username) setUsername(user.username);
+                        if (user?.email) setUserEmail(user.email);
+                        setIsAdmin(user?.email?.toLowerCase() === 'rafael.cm333@gmail.com' || !!user?.isAdmin);
                     }} 
-                    onBackToLanding={() => {
-                        resetTrial();
-                        setShowLogin(false);
-                        setShowLeadGate(false);
-                        window.location.hash = '';
+                    onExploreGuest={() => {
+                        startTrial();
                     }}
-                    onFounderClick={() => setShowLeadCheckoutTrial(true)}
                 />
-            )}
-            {showDashboard && (
-                <Dashboard 
-                    onClose={() => setShowDashboard(false)} 
-                    isAdmin={isAdmin}
-                    username={username}
-                    natalDate={tempNatalDate || (natalTime ? natalTime.toISOString().split('T')[0] : '')}
-                    natalTime={tempNatalTime || (natalTime ? natalTime.toTimeString().split(' ')[0].substring(0, 5) : '')}
-                    initialTab={dashboardTab}
-                    onEditNatal={() => {
-                        setIsNatalSettingsOpen(true);
+            );
+        }
+
+        return (
+            <>
+                {/* Modal de Login / Criar Conta / Trocar Conta */}
+                {showLoginModal && (
+                    <LoginModal
+                        isOpen={showLoginModal}
+                        onClose={() => setShowLoginModal(false)}
+                        onSuccess={(u) => {
+                            setIsAuthenticated(true);
+                            resetTrial();
+                            if (u.username) setUsername(u.username);
+                            if (u.email) setUserEmail(u.email);
+                            setIsAdmin(u.email?.toLowerCase() === 'rafael.cm333@gmail.com' || !!u.isAdmin);
+                            setShowLoginModal(false);
+                            setShowPaymentPlansModal(false);
+                        }}
+                    />
+                )}
+
+                {/* Modal de Opções de Pagamento (Mensal R$100/mês, Vitalício & Gratuito Opcional) */}
+                {showPaymentPlansModal && !showLoginModal && (
+                    <PaymentPlansModal
+                        isOpen={showPaymentPlansModal && !showLoginModal}
+                        onClose={() => setShowPaymentPlansModal(false)}
+                        onSelectPlan={(plan) => {
+                            setUserPlan(plan);
+                            try { localStorage.setItem('cronografo_user_plan', plan); } catch {}
+                            if (auth.currentUser && (plan === 'free' || plan === 'monthly' || plan === 'lifetime')) {
+                                updateUserPlanInFirestore(auth.currentUser.uid, plan).catch(console.error);
+                            }
+                            if (plan === 'free') {
+                                setShowPaymentPlansModal(false);
+                            }
+                        }}
+                        reason="user_opened"
+                        userEmail={userEmail}
+                        username={username}
+                        isAuthenticated={isAuthenticated}
+                        onSwitchAccount={handleSwitchAccount}
+                        onLogout={handleLogout}
+                    />
+                )}
+            {(showProfileModal || showDashboard) && (
+                <ProfileModal 
+                    isOpen={showProfileModal || showDashboard}
+                    onClose={() => {
+                        setShowProfileModal(false);
                         setShowDashboard(false);
                     }}
+                    isAdmin={isAdmin}
+                    userPlan={userPlan}
+                    username={username}
+                    userEmail={userEmail}
+                    natalDate={tempNatalDate || (natalTime ? natalTime.toISOString().split('T')[0] : '')}
+                    natalTime={tempNatalTime || (natalTime ? natalTime.toTimeString().split(' ')[0].substring(0, 5) : '')}
+                    natalLocationName={natalLocation?.displayName || (tempNatalLocationText || 'São Paulo, Brasil')}
+                    onEditNatal={() => {
+                        setIsNatalSettingsOpen(true);
+                        setShowProfileModal(false);
+                        setShowDashboard(false);
+                    }}
+                    onOpenAdminDashboard={() => {
+                        setShowProfileModal(false);
+                        setShowDashboard(false);
+                        setShowAdminDashboard(true);
+                    }}
+                    onLogout={handleLogout}
+                    onSwitchAccount={handleSwitchAccount}
+                    onOpenPaymentPlans={() => setShowPaymentPlansModal(true)}
+                    savedMaps={savedMaps}
+                    onLoadMap={handleLoadMap}
+                    onDeleteMap={handleDeleteMap}
+                    onSaveCurrentMap={() => setShowSaveMapModal(true)}
+                    savedLayouts={savedLayouts}
+                    onLoadLayout={handleLoadLayout}
+                    onDeleteLayout={handleDeleteLayout}
+                    onSaveCurrentLayout={() => setShowSaveLayoutModal(true)}
+                    currentPreferences={{
+                        theme,
+                        zodiacSystem,
+                        houseFormat,
+                        showAtmosphere,
+                        showNeedle,
+                        showConstellations,
+                        showStars
+                    }}
+                    onUpdatePreferences={(prefs: any) => {
+                        if (prefs.theme) setTheme(prefs.theme);
+                        if (prefs.zodiacSystem) setZodiacSystem(prefs.zodiacSystem);
+                        if (prefs.houseFormat) setHouseFormat(prefs.houseFormat);
+                        if (prefs.showAtmosphere !== undefined) setShowAtmosphere(prefs.showAtmosphere);
+                        if (prefs.showNeedle !== undefined) setShowNeedle(prefs.showNeedle);
+                        if (prefs.showConstellations !== undefined) setShowConstellations(prefs.showConstellations);
+                        if (prefs.showStars !== undefined) setShowStars(prefs.showStars);
+                    }}
+                    onUpdateUsername={(newName: string) => setUsername(newName)}
                 />
             )}
-            <main className={`flex-grow flex overflow-hidden relative ${immersiveMode ? '' : 'p-1.5 gap-1.5'}`}>
-                {/* Left Panel */}
-                <div className="flex flex-row h-full" style={{ order: sectionOrder.indexOf('celestial') }}>
-                    <aside 
-                        onDragOver={(e) => handleDragOver(e, 'celestial')}
-                        className={`column-wrapper relative group flex flex-col min-h-0 transition-all duration-300 z-20 ${immersiveMode || !isLeftPanelVisible || (leftPanels.length === 0 && draggedItem?.type !== 'panel') ? 'hidden' : ''} ${draggedItem?.type === 'column' && draggedItem.id === 'celestial' ? 'opacity-50 grayscale scale-95' : ''}`}
-                        style={{  
-                            width: leftPanels.length === 0 ? '200px' : `${leftPanelWidth}px`
-                        }}
-                    >
-                       <div className="flex-1 min-h-0 flex flex-col gap-1.5 h-full overflow-hidden">
-                            {leftPanels.length === 0 && draggedItem?.type === 'panel' && (
-                                <div className="flex-1 border-2 border-dashed border-blue-400/50 bg-blue-400/10 rounded-3xl flex items-center justify-center transition-all">
-                                    <span className="text-blue-400/50 font-medium text-sm">Solte aqui</span>
-                                </div>
-                            )}
-                            {leftPanels.map(id => renderPanel(id, 'left'))}
-                        </div>
-                        <button
-                            onClick={() => setIsLeftPanelVisible(!isLeftPanelVisible)}
-                            title={isLeftPanelVisible ? "Recolher painel" : "Expandir painel"}
-                            className="absolute -right-3 top-1/2 -translate-y-1/2 z-30
-                                       w-6 h-14 rounded-r-xl
-                                       bg-brand-surface/90 backdrop-blur-xl
-                                       border border-l-0 border-brand-border/20
-                                       flex items-center justify-center
-                                       text-brand-text-muted hover:text-brand-text
-                                       opacity-0 group-hover:opacity-100
-                                       transition-all duration-200 shadow-md"
-                        >
-                            {isLeftPanelVisible
-                                ? <UI_ICONS.ChevronLeftIcon className="w-3 h-3" />
-                                : <UI_ICONS.ChevronRightIcon className="w-3 h-3" />
-                            }
-                        </button>
-                    </aside>
-                </div>
+            <main className={`h-full min-h-0 flex-grow flex overflow-hidden relative bg-transparent ${immersiveMode ? '' : 'p-1.5 gap-1.5'}`}>
+                {/* Left and Right side panels have been transformed into floating windows */}
 
                 {/* Chronograph Section */}
-                <section 
-                    onDragOver={(e) => handleDragOver(e, 'chronograph')}
-                    className={`column-wrapper flex-1 relative flex flex-col overflow-hidden ${draggedItem?.type === 'column' && draggedItem.id === 'chronograph' ? 'opacity-50' : ''}`}
-                    style={{ order: sectionOrder.indexOf('chronograph') }}
-                >
-                    {!isLeftPanelVisible && !immersiveMode && (
-                        <button
-                            onClick={() => setIsLeftPanelVisible(true)}
-                            title="Expandir painel"
-                            className="absolute left-0 top-1/2 -translate-y-1/2 z-30
-                                       w-5 h-14 rounded-r-xl
-                                       bg-brand-surface/90 backdrop-blur-xl
-                                       border border-brand-border/20
-                                       flex items-center justify-center
-                                       text-brand-text-muted hover:text-brand-text
-                                       transition-all duration-200 shadow-md"
-                        >
-                            <UI_ICONS.ChevronRightIcon className="w-3 h-3" />
-                        </button>
-                    )}
+                {(() => {
+                    const isLeftDockOpen = panelStates.celestial.isOpen || panelStates.statistics.isOpen;
+                    const isRightDockOpen = panelStates.aspects.isOpen || panelStates.cusps.isOpen;
 
-                    {!isRightPanelVisible && !immersiveMode && (
-                        <button
-                            onClick={() => setIsRightPanelVisible(true)}
-                            title="Expandir painel"
-                            className="absolute right-0 top-1/2 -translate-y-1/2 z-30
-                                       w-5 h-14 rounded-l-xl
-                                       bg-brand-surface/90 backdrop-blur-xl
-                                       border border-brand-border/20
-                                       flex items-center justify-center
-                                       text-brand-text-muted hover:text-brand-text
-                                       transition-all duration-200 shadow-md"
+                    const unifiedLeftDockWidth = Math.max(200, panelWidths.celestial || 220, panelWidths.statistics || 220);
+                    const leftDockPixelWidth = Math.max(180, Math.ceil(unifiedLeftDockWidth * uiScale));
+
+                    const unifiedRightDockWidth = Math.max(240, panelWidths.aspects || 245, panelWidths.cusps || 245);
+                    const rightDockPixelWidth = Math.max(200, Math.ceil(unifiedRightDockWidth * uiScale));
+
+                    const DOCK_MARGIN = 16;
+                    const screenLeft = !immersiveMode && isLeftDockOpen ? (12 + leftDockPixelWidth + DOCK_MARGIN) : DOCK_MARGIN;
+                    const rightDockBaseFromScreenRight = isQuickToolsSidebarOpen ? 64 : 8;
+                    const screenRight = !immersiveMode ? (rightDockBaseFromScreenRight + (isRightDockOpen ? rightDockPixelWidth + DOCK_MARGIN : DOCK_MARGIN)) : DOCK_MARGIN;
+
+                    const mainPadX = immersiveMode ? 0 : 6;
+                    const sidebarFlexWidth = isQuickToolsSidebarOpen ? 56 : 0;
+                    const leftOccupied = Math.max(0, screenLeft - mainPadX);
+                    const rightOccupied = Math.max(0, screenRight - (sidebarFlexWidth + mainPadX));
+                    const bottomOccupied = !immersiveMode ? 140 : 0;
+                    const topOccupied = !immersiveMode ? 40 : 0;
+
+                    return (
+                        <section 
+                            className="flex-1 relative flex flex-col overflow-visible"
                         >
-                            <UI_ICONS.ChevronLeftIcon className="w-3 h-3" />
-                        </button>
-                    )}
-                    <div className="flex-1 flex flex-col bg-brand-surface/40 backdrop-blur-xl rounded-3xl border border-white/8 shadow-sm overflow-hidden relative">
-                        {/* Chronograph Header with Drag Handle */}
-                        <div className="px-3 py-2 border-b border-brand-border/5 flex justify-between items-center gap-2 flex-shrink-0 bg-brand-surface-highlight/30 z-10">
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
+
+                            <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-brand-border/10 shadow-sm overflow-visible relative ring-1 ring-white/5 bg-transparent">
+                                {/* Drag Handle (Hidden but functional) */}
                                 <div 
                                     draggable 
                                     onDragStart={(e) => handleDragStart(e, 'chronograph')}
                                     onDragEnd={handleDragEnd}
-                                    className="cursor-grab active:cursor-grabbing p-1 hover:bg-brand-surface-highlight rounded transition-colors"
-                                >
-                                    <UI_ICONS.DragHandleIcon className="w-3 h-3 text-brand-text-muted" />
-                                </div>
-                                <h3 className="text-[10px] font-medium uppercase text-brand-text-muted tracking-wider truncate font-outfit">Cronógrafo</h3>
-                                <div className="h-px bg-brand-border/10 flex-1 ml-2"></div>
-                            </div>
-                        </div>
+                                    className="hidden"
+                                />
 
-                        {/* Background Image */}
-                        <div 
-                            className="absolute inset-0 z-0 opacity-40 pointer-events-none bg-cover bg-center"
-                            style={{ 
-                                backgroundImage: customBackgroundImage ? `url(${customBackgroundImage})` : 'url("https://images.unsplash.com/photo-1506318137071-a8e063b4b4bf?auto=format&fit=crop&w=2000&q=80")',
-                                mixBlendMode: 'overlay'
-                            }}
-                        />
-                        {/* Background Stars */}
-                        {showStars && <StarField opacity={showAtmosphere ? 0.3 : 0.6} className="top-[45px]" />}
-
-                        {/* Header for Sidereal Chronograph */}
-                        {!immersiveMode && (
-                        <div className="absolute top-14 left-4 z-50 flex items-start gap-2">
-                             {/* Profile Button */}
-                             <div className="relative pointer-events-auto" ref={menuRefs.profile}>
-                                <button 
-                                    onClick={toggleProfileMenu}
-                                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors border border-white/10 shadow-lg ${showProfileMenu ? 'bg-brand-surface-highlight text-brand-text' : 'bg-brand-surface/80 backdrop-blur-md text-brand-text-muted hover:text-brand-text hover:bg-brand-surface-highlight/80'}`}
-                                        title="Perfil"
-                                    >
-                                        <UI_ICONS.UserIcon className="w-5 h-5" />
-                                    </button>
-
-                                    {showProfileMenu && (
-                                        <div className="absolute left-0 top-full mt-2 bg-brand-surface/95 backdrop-blur-xl border border-brand-border/10 rounded-2xl p-2 shadow-2xl w-48 flex flex-col gap-1 z-[100] ring-1 ring-brand-border/5 font-manrope animate-in fade-in zoom-in-95 duration-100">
-                                            <button 
-                                                onClick={() => {
-                                                    setDashboardTab('profile');
-                                                    setShowDashboard(true);
-                                                    setShowProfileMenu(false);
-                                                }}
-                                                className="w-full px-3 py-2 rounded-lg flex items-center gap-3 transition-colors hover:bg-brand-surface-highlight text-brand-text-muted hover:text-brand-purple"
-                                            >
-                                                <UI_ICONS.UserIcon className="w-4 h-4" />
-                                                <span className="text-xs font-manrope">{t('app.dashboard')}</span>
-                                            </button>
-
-                                            {isAdmin && (
-                                                <button 
-                                                    onClick={() => {
-                                                        setDashboardTab('admin');
-                                                        setShowDashboard(true);
-                                                        setShowProfileMenu(false);
-                                                    }}
-                                                    className="w-full px-3 py-2 rounded-lg flex items-center gap-3 transition-colors hover:bg-brand-surface-highlight text-brand-text-muted hover:text-brand-purple"
-                                                >
-                                                    <UI_ICONS.LayersIcon className="w-4 h-4" />
-                                                    <span className="text-xs font-manrope">{t('app.adminPanel')}</span>
-                                                </button>
-                                            )}
-                                            
-                                            <button 
-                                                onClick={handleLogout}
-                                                className="w-full px-3 py-2 rounded-lg flex items-center gap-3 transition-colors hover:bg-red-500/10 text-brand-text-muted hover:text-red-400"
-                                            >
-                                                <UI_ICONS.LogoutIcon className="w-4 h-4" />
-                                                <span className="text-xs font-manrope">{t('app.logout')}</span>
-                                            </button>
-                                        </div>
-                                    )}
-                                 </div>
-
-                                 {/* Botão Natal */}
-                                 <div ref={menuRefs.calendar} className="relative pointer-events-auto flex items-center gap-1">
-                                     {natalTime ? (
-                                         <button 
-                                             onClick={openNatalSettings}
-                                             className="h-10 px-3 gap-2 rounded-xl flex items-center justify-center transition-colors border border-white/10 shadow-lg bg-brand-surface/80 backdrop-blur-xl ring-1 ring-brand-orange/30 shadow-[0_0_15px_rgba(249,115,22,0.1)] hover:bg-brand-surface-highlight/50"
-                                             title={t('chrono.searchDate')}
-                                         >
-                                             <div className="flex flex-col justify-center flex-1 overflow-hidden font-manrope">
-                                                 <div className="flex items-center justify-center gap-2">
-                                                     <span className="text-sm font-mono font-bold text-brand-orange tracking-wider">
-                                                         {natalTime.getHours().toString().padStart(2, '0')}:{natalTime.getMinutes().toString().padStart(2, '0')}
-                                                     </span>
-                                                     <span className="text-[10px] text-brand-orange/70 font-medium">
-                                                         {natalTime.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                                     </span>
-                                                 </div>
-                                             </div>
-                                         </button>
-                                     ) : (
-                                         <button
-                                             onClick={openNatalSettings}
-                                             title="Definir Mapa Natal"
-                                             style={{ transition: 'width 300ms ease' }}
-                                             className={`natal-btn h-10 rounded-xl flex items-center overflow-hidden border border-white/10 shadow-lg w-10 hover:w-36
-                                                 ${theme === 'dark'
-                                                     ? 'bg-brand-surface/80 backdrop-blur-md text-brand-text-muted hover:text-brand-text hover:bg-brand-surface-highlight/80'
-                                                     : 'bg-white/90 backdrop-blur-md text-gray-500 hover:text-gray-700 hover:bg-white'
-                                                 }`}
-                                         >
-                                             <span className="flex items-center justify-center w-10 flex-shrink-0">
-                                                 <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                                                     <path d="M10 2l2.09 4.26L17 7.27l-3.5 3.41.83 4.82L10 13.27l-4.33 2.23.83-4.82L3 7.27l4.91-.01L10 2z"/>
-                                                 </svg>
-                                             </span>
-                                             <span className="text-[9px] font-bold uppercase tracking-widest font-technical whitespace-nowrap pr-3">
-                                                 NATAL
-                                             </span>
-                                         </button>
-                                     )}
-                                     {natalTime && (
-                                         <button
-                                             onClick={handleClearNatal}
-                                             className="w-6 h-10 rounded-lg flex items-center justify-center bg-brand-surface/80 backdrop-blur-md border border-white/10 text-brand-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors shadow-lg animate-in fade-in zoom-in duration-200"
-                                             title={t('chrono.clearNatal')}
-                                         >
-                                             <UI_ICONS.CloseIcon className="w-3 h-3" />
-                                         </button>
-                                     )}
-                                     <AnimatePresence>
-                                         {showCalendarPanel && (
-                                             <div className="absolute top-full left-0 mt-2 z-50">
-                                                 <CalendarPanel 
-                                                     isOpen={showCalendarPanel}
-                                                     onClose={() => setShowCalendarPanel(false)}
-                                                     currentDate={currentTime}
-                                                     onDateSelect={(date) => {
-                                                         setCurrentTime(date);
-                                                         setIsRealTime(false);
-                                                     }}
-                                                     locationName={location.displayName}
-                                                     onLocationChange={(loc) => {
-                                                         setLocation({
-                                                             latitude: loc.latitude,
-                                                             longitude: loc.longitude,
-                                                             displayName: loc.displayName,
-                                                         });
-                                                     }}
-                                                     theme={theme}
-                                                 />
-                                             </div>
-                                         )}
-                                     </AnimatePresence>
-                                 </div>
-                            </div>
-                        )}
-                        
-                        {!immersiveMode && (
-                        <div className="absolute top-28 left-4 z-50 flex flex-col items-start gap-2 pointer-events-none">
-
-{/* TOOLBAR INÍCIO */}
-<div
-    className="pointer-events-auto relative"
-    onMouseEnter={() => {
-        toolbarHoveredRef.current = true;
-        setToolbarVisible(true);
-        if (toolbarHideTimer.current) {
-            clearTimeout(toolbarHideTimer.current);
-            toolbarHideTimer.current = null;
-        }
-    }}
-    onMouseLeave={() => {
-        toolbarHoveredRef.current = false;
-        if (activeToolbarMenuRef.current === null) {
-            if (toolbarHideTimer.current) clearTimeout(toolbarHideTimer.current);
-            toolbarHideTimer.current = window.setTimeout(() => {
-                if (!toolbarHoveredRef.current && activeToolbarMenuRef.current === null) {
-                    setToolbarVisible(false);
-                }
-            }, 2500);
-        }
-    }}
-    onClick={() => {
-        setToolbarVisible(true);
-        if (toolbarHideTimer.current) clearTimeout(toolbarHideTimer.current);
-        toolbarHideTimer.current = window.setTimeout(() => {
-            if (!toolbarHoveredRef.current && activeToolbarMenuRef.current === null) {
-                setToolbarVisible(false);
-            }
-        }, 2500);
-    }}
->
-    {/* ESTADO OCULTO — linha vertical estilo iPhone home bar */}
-    {!toolbarVisible && (
-        <div
-            className="flex items-center justify-center cursor-pointer"
-            style={{
-                width: '20px',
-                height: '160px',
-                padding: '4px',
-            }}
-            onClick={() => {
-                setToolbarVisible(true);
-                if (toolbarHideTimer.current) clearTimeout(toolbarHideTimer.current);
-            }}
-        >
-            <div
-                style={{
-                    width: '3px',
-                    height: '100%',
-                    borderRadius: '999px',
-                    background: theme === 'dark'
-                        ? 'rgba(255,255,255,0.15)'
-                        : 'rgba(0,0,0,0.12)',
-                    transition: 'all 0.2s ease',
-                }}
-                className="hover:!bg-purple-400/50 hover:!w-[4px]"
-            />
-        </div>
-    )}
-
-    {/* TOOLBAR EXPANDIDA */}
-    {toolbarVisible && (
-        <div className={`flex flex-col gap-0.5 border ${
-            theme === 'dark'
-                ? 'border-white/10 bg-[rgba(10,10,15,0.75)]'
-                : 'border-black/10 bg-white/80'
-            } rounded-xl py-2 transition-all duration-300 ease-in-out ${
-            activeToolbarMenu !== null ? 'w-40' : 'w-10 hover:w-40 group/toolbar'
-            } backdrop-blur-md`}
-            style={{
-                animation: toolbarVisible ? 'toolbarFadeIn 0.2s ease' : undefined,
-            }}
-        >
-            <style>{`
-                @keyframes toolbarFadeIn {
-                    from { opacity: 0; transform: translateX(-6px); }
-                    to   { opacity: 1; transform: translateX(0); }
-                }
-            `}</style>
-
-            {/* PONTEIRO */}
-            <div className="relative">
-                <button
-                    onClick={() => setActiveToolbarMenu(m => m === 'pointer' ? null : 'pointer')}
-                    className={`flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md transition-colors duration-150 whitespace-nowrap ${activeToolbarMenu === 'pointer' ? (theme === 'dark' ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-600/15 text-purple-700') : (theme === 'dark' ? 'hover:bg-white/[0.07] text-white/60' : 'hover:bg-black/[0.05] text-gray-500')}`}
-                    title="Opções do Ponteiro"
-                >
-                    <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="none">
-                        <path d="M5 15 L14 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                        <path d="M14 4 L8 5.5 M14 4 L12.5 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <span className={`font-manrope text-[11px] tracking-wide transition-opacity duration-200 ${activeToolbarMenu !== null ? 'opacity-100' : 'opacity-0 group-hover/toolbar:opacity-100'} ${activeToolbarMenu === 'pointer' ? (theme === 'dark' ? 'text-purple-300' : 'text-purple-700') : (theme === 'dark' ? 'text-white/60' : 'text-gray-500')}`}>
-                        Ponteiro
-                    </span>
-                </button>
-                {activeToolbarMenu === 'pointer' && (
-                    <div data-submenu="true" className="absolute top-0 left-full ml-2 w-64 bg-brand-surface/95 backdrop-blur-xl rounded-2xl border border-white/10 p-4 shadow-2xl z-50 ring-1 ring-white/5 flex flex-col gap-4 font-manrope">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs text-brand-text-muted font-manrope">Mostrar ponteiro</span>
-                            <button onClick={() => setShowNeedle(!showNeedle)} className={`w-8 h-4 rounded-full relative transition-colors ${showNeedle ? 'bg-brand-purple' : 'bg-brand-surface-highlight'}`}>
-                                <div className="absolute top-0.5 w-3 h-3 rounded-full bg-brand-text transition-all" style={{ left: showNeedle ? 'calc(100% - 14px)' : '2px' }} />
-                            </button>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] uppercase text-brand-text-muted font-bold tracking-wider">Estilo da linha</label>
-                            <div className="flex gap-2">
-                                <button onClick={() => setPointerStyle('solid')} className={`flex-1 py-1.5 rounded-lg text-xs font-manrope border ${pointerStyle === 'solid' ? 'bg-brand-purple/20 border-brand-purple/50 text-white' : 'border-brand-border/10 text-brand-text-muted hover:bg-brand-surface-highlight'}`}>Sólida</button>
-                                <button onClick={() => setPointerStyle('dashed')} className={`flex-1 py-1.5 rounded-lg text-xs font-manrope border ${pointerStyle === 'dashed' ? 'bg-brand-purple/20 border-brand-purple/50 text-white' : 'border-brand-border/10 text-brand-text-muted hover:bg-brand-surface-highlight'}`}>Tracejada</button>
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] uppercase text-brand-text-muted font-bold tracking-wider flex justify-between">
-                                <span>Espessura</span><span>{pointerThickness}px</span>
-                            </label>
-                            <input type="range" min="1" max="5" step="1" value={pointerThickness} onChange={(e) => setPointerThickness(Number(e.target.value))} className="w-full accent-brand-purple" />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] uppercase text-brand-text-muted font-bold tracking-wider">Ponta</label>
-                            <div className="grid grid-cols-3 gap-1">
-                                {[{id:'arrow',label:'Seta'},{id:'circle',label:'Círculo'},{id:'diamond',label:'Diamante'},{id:'square',label:'Quadrado'},{id:'none',label:'Nenhum'}].map(opt => (
-                                    <button key={opt.id} onClick={() => setPointerHead(opt.id as any)} className={`py-1 rounded-lg text-[10px] font-manrope border ${pointerHead === opt.id ? 'bg-brand-purple/20 border-brand-purple/50 text-white' : 'border-white/10 text-brand-text-muted hover:bg-white/5'}`}>{opt.label}</button>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] uppercase text-brand-text-muted font-bold tracking-wider">Cauda</label>
-                            <div className="grid grid-cols-3 gap-1">
-                                {[{id:'arrow',label:'Seta'},{id:'circle',label:'Círculo'},{id:'diamond',label:'Diamante'},{id:'square',label:'Quadrado'},{id:'none',label:'Nenhum'}].map(opt => (
-                                    <button key={opt.id} onClick={() => setPointerTail(opt.id as any)} className={`py-1 rounded-lg text-[10px] font-manrope border ${pointerTail === opt.id ? 'bg-brand-purple/20 border-brand-purple/50 text-white' : 'border-white/10 text-brand-text-muted hover:bg-white/5'}`}>{opt.label}</button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            <div className={`h-px ${theme === 'dark' ? 'bg-white/10' : 'bg-black/10'} my-1 mx-0.5`} />
-
-            {/* ANEL 24H */}
-            <div className="relative">
-                <button
-                    onClick={() => setActiveToolbarMenu(m => m === 'timeRing' ? null : 'timeRing')}
-                    className={`flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md transition-colors duration-150 whitespace-nowrap ${activeToolbarMenu === 'timeRing' ? (theme === 'dark' ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-600/15 text-purple-700') : (theme === 'dark' ? 'hover:bg-white/[0.07] text-white/60' : 'hover:bg-black/[0.05] text-gray-500')}`}
-                    title="Opções do Anel 24h"
-                >
-                    <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="none">
-                        <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.2"/>
-                        <line x1="10" y1="2.8" x2="10" y2="4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                        <line x1="17.2" y1="10" x2="15.5" y2="10" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-                        <line x1="10" y1="17.2" x2="10" y2="15.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-                        <line x1="2.8" y1="10" x2="4.5" y2="10" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-                        <line x1="10" y1="10" x2="10" y2="5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                        <line x1="10" y1="10" x2="10" y2="3.8" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/>
-                        <circle cx="10" cy="10" r="1.1" fill="currentColor"/>
-                    </svg>
-                    <span className={`font-manrope text-[11px] tracking-wide transition-opacity duration-200 ${activeToolbarMenu !== null ? 'opacity-100' : 'opacity-0 group-hover/toolbar:opacity-100'} ${activeToolbarMenu === 'timeRing' ? (theme === 'dark' ? 'text-purple-300' : 'text-purple-700') : (theme === 'dark' ? 'text-white/60' : 'text-gray-500')}`}>
-                        Anel 24h
-                    </span>
-                </button>
-                {activeToolbarMenu === 'timeRing' && (
-                    <div data-submenu="true" className="absolute top-0 left-full ml-2 w-64 bg-brand-surface/95 backdrop-blur-xl rounded-2xl border border-white/10 p-4 shadow-2xl z-50 ring-1 ring-white/5 flex flex-col gap-4 font-manrope">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs text-brand-text-muted font-manrope">Mostrar anel 24h</span>
-                            <button onClick={() => setShowTimeRing(!showTimeRing)} className={`w-8 h-4 rounded-full relative transition-colors ${showTimeRing ? 'bg-brand-purple' : 'bg-brand-surface-highlight'}`}>
-                                <div className="absolute top-0.5 w-3 h-3 rounded-full bg-brand-text transition-all" style={{ left: showTimeRing ? 'calc(100% - 10px)' : '2px' }} />
-                            </button>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] uppercase text-brand-text-muted font-bold tracking-wider flex justify-between">
-                                <span>Escala</span><span>{Math.round(timeRingScale * 100)}%</span>
-                            </label>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setTimeRingScale(s => Math.max(0.5, Number((s - 0.1).toFixed(1))))} className="w-8 h-8 flex items-center justify-center bg-brand-surface-highlight/50 hover:bg-brand-surface-highlight rounded-lg text-brand-text border border-brand-border/5">-</button>
-                                <div className="flex-1 h-1.5 bg-brand-surface-highlight/50 rounded-full overflow-hidden border border-brand-border/5">
-                                    <div className="h-full bg-brand-purple" style={{ width: `${((timeRingScale - 0.5) / (2 - 0.5)) * 100}%` }}></div>
-                                </div>
-                                <button onClick={() => setTimeRingScale(s => Math.min(2, Number((s + 0.1).toFixed(1))))} className="w-8 h-8 flex items-center justify-center bg-brand-surface-highlight/50 hover:bg-brand-surface-highlight rounded-lg text-brand-text border border-brand-border/5">+</button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* ASPECTOS */}
-            <div className="relative">
-                <button
-                    onClick={() => setActiveToolbarMenu(m => m === 'aspects' ? null : 'aspects')}
-                    className={`flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md transition-colors duration-150 whitespace-nowrap ${activeToolbarMenu === 'aspects' || showAspectLines || showNatalLines ? (theme === 'dark' ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-600/15 text-purple-700') : (theme === 'dark' ? 'hover:bg-white/[0.07] text-white/60' : 'hover:bg-black/[0.05] text-gray-500')}`}
-                    title="Linhas de aspectos"
-                >
-                    <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="none">
-                        <circle cx="13.5" cy="5.5" r="2.8" stroke="currentColor" strokeWidth="1.2"/>
-                        <circle cx="13.5" cy="5.5" r="0.8" fill="currentColor"/>
-                        <circle cx="6.5" cy="14.5" r="2.8" stroke="currentColor" strokeWidth="1.2"/>
-                        <circle cx="6.5" cy="14.5" r="0.8" fill="currentColor"/>
-                        <line x1="8.5" y1="12.5" x2="11.5" y2="7.5" stroke="currentColor" strokeWidth="0.8" strokeDasharray="1.5 1.5" opacity="0.6"/>
-                    </svg>
-                    <span className={`font-manrope text-[11px] tracking-wide transition-opacity duration-200 ${activeToolbarMenu !== null ? 'opacity-100' : 'opacity-0 group-hover/toolbar:opacity-100'} ${activeToolbarMenu === 'aspects' || showAspectLines || showNatalLines ? (theme === 'dark' ? 'text-purple-300' : 'text-purple-700') : (theme === 'dark' ? 'text-white/60' : 'text-gray-500')}`}>
-                        Aspectos
-                    </span>
-                </button>
-                {activeToolbarMenu === 'aspects' && (
-                    <div data-submenu="true" className="absolute top-0 left-full ml-2 w-56 bg-brand-surface/95 backdrop-blur-xl rounded-2xl border border-white/10 p-4 shadow-2xl z-50 ring-1 ring-white/5 flex flex-col gap-4 font-manrope">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs text-brand-text-muted font-manrope">Linhas de aspectos</span>
-                            <button onClick={() => handleToggleAspectLines()} className={`w-8 h-4 rounded-full relative transition-colors ${showAspectLines ? 'bg-brand-purple' : 'bg-brand-surface-highlight'}`}>
-                                <div className="absolute top-0.5 w-3 h-3 rounded-full bg-brand-text transition-all" style={{ left: showAspectLines ? 'calc(100% - 14px)' : '2px' }} />
-                            </button>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs text-brand-text-muted font-manrope">Aspectos natais</span>
-                            <button
-                                onClick={() => natalTime && handleToggleNatalLines()}
-                                disabled={!natalTime}
-                                className={`w-8 h-4 rounded-full relative transition-colors ${showNatalLines ? 'bg-brand-purple' : 'bg-brand-surface-highlight'} ${!natalTime ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                <div className="absolute top-0.5 w-3 h-3 rounded-full bg-brand-text transition-all" style={{ left: showNatalLines ? 'calc(100% - 14px)' : '2px' }} />
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* SIGNOS */}
-            <div className="relative">
-                <button
-                    onClick={() => setShowSignLines(!showSignLines)}
-                    className={`flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md transition-colors duration-150 whitespace-nowrap ${showSignLines ? (theme === 'dark' ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-600/15 text-purple-700') : (theme === 'dark' ? 'hover:bg-white/[0.07] text-white/60' : 'hover:bg-black/[0.05] text-gray-500')}`}
-                    title="Linhas de signos"
-                >
-                    <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="none">
-                        <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.2"/>
-                        <circle cx="10" cy="10" r="4.5" stroke="currentColor" strokeWidth="0.8" opacity="0.35"/>
-                        <line x1="10" y1="3" x2="10" y2="4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                        <line x1="13.5" y1="4" x2="12.8" y2="5.2" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-                        <line x1="16" y1="6.5" x2="15" y2="7.4" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-                        <line x1="17" y1="10" x2="15.5" y2="10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                        <line x1="16" y1="13.5" x2="15" y2="12.6" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-                        <line x1="13.5" y1="16" x2="12.8" y2="14.8" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-                        <line x1="10" y1="17" x2="10" y2="15.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                        <line x1="6.5" y1="16" x2="7.2" y2="14.8" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-                        <line x1="4" y1="13.5" x2="5" y2="12.6" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-                        <line x1="3" y1="10" x2="4.5" y2="10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                        <line x1="4" y1="6.5" x2="5" y2="7.4" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-                        <line x1="6.5" y1="4" x2="7.2" y2="5.2" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-                    </svg>
-                    <span className={`font-manrope text-[11px] tracking-wide transition-opacity duration-200 ${activeToolbarMenu !== null ? 'opacity-100' : 'opacity-0 group-hover/toolbar:opacity-100'} ${showSignLines ? (theme === 'dark' ? 'text-purple-300' : 'text-purple-700') : (theme === 'dark' ? 'text-white/60' : 'text-gray-500')}`}>
-                        Signos
-                    </span>
-                </button>
-            </div>
-
-            {/* CASAS */}
-            <div className="relative">
-                <button
-                    onClick={() => setActiveToolbarMenu(m => m === 'house' ? null : 'house')}
-                    className={`flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md transition-colors duration-150 whitespace-nowrap ${activeToolbarMenu === 'house' ? (theme === 'dark' ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-600/15 text-purple-700') : (theme === 'dark' ? 'hover:bg-white/[0.07] text-white/60' : 'hover:bg-black/[0.05] text-gray-500')}`}
-                    title="Opções das casas"
-                >
-                    <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="none">
-                        <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.2" opacity="0.3"/>
-                        <line x1="10" y1="10" x2="10" y2="3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                        <line x1="10" y1="10" x2="17" y2="10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                        <line x1="10" y1="10" x2="10" y2="17" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                        <line x1="10" y1="10" x2="3" y2="10" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.45"/>
-                        <line x1="10" y1="10" x2="14.9" y2="5.1" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.45"/>
-                        <line x1="10" y1="10" x2="5.1" y2="14.9" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.45"/>
-                        <circle cx="10" cy="10" r="1.4" fill="currentColor"/>
-                    </svg>
-                    <span className={`font-manrope text-[11px] tracking-wide transition-opacity duration-200 ${activeToolbarMenu !== null ? 'opacity-100' : 'opacity-0 group-hover/toolbar:opacity-100'} ${activeToolbarMenu === 'house' ? (theme === 'dark' ? 'text-purple-300' : 'text-purple-700') : (theme === 'dark' ? 'text-white/60' : 'text-gray-500')}`}>
-                        Casas
-                    </span>
-                </button>
-                {activeToolbarMenu === 'house' && (
-                    <div data-submenu="true" className="absolute top-0 left-full ml-2 w-64 bg-brand-surface/95 backdrop-blur-xl rounded-2xl border border-white/10 p-4 shadow-2xl z-50 ring-1 ring-white/5 flex flex-col gap-4 font-manrope">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs text-brand-text-muted font-manrope">Mostrar linhas</span>
-                            <button onClick={() => setShowHouseLines(!showHouseLines)} className={`w-8 h-4 rounded-full relative transition-colors ${showHouseLines ? 'bg-brand-purple' : 'bg-brand-surface-highlight'}`}>
-                                <div className="absolute top-0.5 w-3 h-3 rounded-full bg-brand-text transition-all" style={{ left: showHouseLines ? 'calc(100% - 14px)' : '2px' }} />
-                            </button>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs text-brand-text-muted font-manrope">Marcadores</span>
-                            <button onClick={() => setShowHouseMarkers(!showHouseMarkers)} className={`w-8 h-4 rounded-full relative transition-colors ${showHouseMarkers ? 'bg-brand-purple' : 'bg-brand-surface-highlight'}`}>
-                                <div className="absolute top-0.5 w-3 h-3 rounded-full bg-brand-text transition-all" style={{ left: showHouseMarkers ? 'calc(100% - 14px)' : '2px' }} />
-                            </button>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] uppercase text-brand-text-muted font-bold tracking-wider">Estilo da linha</label>
-                            <div className="flex gap-2">
-                                <button onClick={() => setHouseLineFormat('solid')} className={`flex-1 py-1.5 rounded-lg text-xs font-manrope border ${houseLineFormat === 'solid' ? 'bg-brand-purple/20 border-brand-purple/50 text-white' : 'border-brand-border/10 text-brand-text-muted hover:bg-brand-surface-highlight'}`}>Sólida</button>
-                                <button onClick={() => setHouseLineFormat('dashed')} className={`flex-1 py-1.5 rounded-lg text-xs font-manrope border ${houseLineFormat === 'dashed' ? 'bg-brand-purple/20 border-brand-purple/50 text-white' : 'border-brand-border/10 text-brand-text-muted hover:bg-brand-surface-highlight'}`}>Tracejada</button>
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] uppercase text-brand-text-muted font-bold tracking-wider flex justify-between">
-                                <span>Espessura</span><span>{houseLineThickness}px</span>
-                            </label>
-                            <input type="range" min="0.5" max="3" step="0.5" value={houseLineThickness} onChange={(e) => setHouseLineThickness(Number(e.target.value))} className="w-full accent-brand-purple" />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] uppercase text-brand-text-muted font-bold tracking-wider flex justify-between">
-                                <span>Opacidade</span><span>{Math.round(houseLineOpacity * 100)}%</span>
-                            </label>
-                            <input type="range" min="0.1" max="1" step="0.1" value={houseLineOpacity} onChange={(e) => setHouseLineOpacity(Number(e.target.value))} className="w-full accent-brand-purple" />
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* ÓRBITAS */}
-            <div className="relative">
-                <button
-                    onClick={() => setShowOrbits(!showOrbits)}
-                    className={`flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md transition-colors duration-150 whitespace-nowrap ${showOrbits ? (theme === 'dark' ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-600/15 text-purple-700') : (theme === 'dark' ? 'hover:bg-white/[0.07] text-white/60' : 'hover:bg-black/[0.05] text-gray-500')}`}
-                    title="Órbitas"
-                >
-                    <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="none">
-                        <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.1"/>
-                        <circle cx="10" cy="10" r="5" stroke="currentColor" strokeWidth="1"/>
-                        <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1"/>
-                        <circle cx="10" cy="10" r="0.9" fill="currentColor"/>
-                    </svg>
-                    <span className={`font-manrope text-[11px] tracking-wide transition-opacity duration-200 ${activeToolbarMenu !== null ? 'opacity-100' : 'opacity-0 group-hover/toolbar:opacity-100'} ${showOrbits ? (theme === 'dark' ? 'text-purple-300' : 'text-purple-700') : (theme === 'dark' ? 'text-white/60' : 'text-gray-500')}`}>
-                        Órbitas
-                    </span>
-                </button>
-            </div>
-
-            {/* MAGNÉTICO */}
-            <div className="relative">
-                <button
-                    onClick={() => setActiveToolbarMenu(m => m === 'magnetic' ? null : 'magnetic')}
-                    className={`flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md transition-colors duration-150 whitespace-nowrap ${activeToolbarMenu === 'magnetic' || showMagneticField ? (theme === 'dark' ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-600/15 text-purple-700') : (theme === 'dark' ? 'hover:bg-white/[0.07] text-white/60' : 'hover:bg-black/[0.05] text-gray-500')}`}
-                    title="Campo magnético"
-                >
-                    <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="none">
-                        <ellipse cx="10" cy="10" rx="7" ry="3.5" stroke="currentColor" strokeWidth="1.2"/>
-                        <path d="M10 3 C13 3 15 5 15 7" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.7"/>
-                        <path d="M10 3 C7 3 5 5 5 7" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.7"/>
-                        <path d="M10 17 C13 17 15 15 15 13" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.7"/>
-                        <path d="M10 17 C7 17 5 15 5 13" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.7"/>
-                        <line x1="10" y1="3" x2="10" y2="17" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 1.5" opacity="0.4"/>
-                        <circle cx="10" cy="3.5" r="1" fill="currentColor"/>
-                        <circle cx="10" cy="16.5" r="1" fill="currentColor"/>
-                    </svg>
-                    <span className={`font-manrope text-[11px] tracking-wide transition-opacity duration-200 ${activeToolbarMenu !== null ? 'opacity-100' : 'opacity-0 group-hover/toolbar:opacity-100'} ${activeToolbarMenu === 'magnetic' || showMagneticField ? (theme === 'dark' ? 'text-purple-300' : 'text-purple-700') : (theme === 'dark' ? 'text-white/60' : 'text-gray-500')}`}>
-                        Magnético
-                    </span>
-                </button>
-                {activeToolbarMenu === 'magnetic' && (
-                    <div data-submenu="true" className="absolute top-0 left-full ml-2 w-64 bg-brand-surface/95 backdrop-blur-xl rounded-2xl border border-white/10 p-4 shadow-2xl z-50 ring-1 ring-white/5 flex flex-col gap-4 font-manrope">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs text-brand-text-muted font-manrope">Mostrar campo magnético</span>
-                            <button onClick={() => setShowMagneticField(!showMagneticField)} className={`w-8 h-4 rounded-full relative transition-colors ${showMagneticField ? 'bg-brand-purple' : 'bg-brand-surface-highlight'}`}>
-                                <div className="absolute top-0.5 w-3 h-3 rounded-full bg-brand-text transition-all" style={{ left: showMagneticField ? 'calc(100% - 14px)' : '2px' }} />
-                            </button>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] uppercase text-brand-text-muted font-bold tracking-wider flex justify-between">
-                                <span>Tamanho</span><span>{magneticFieldSize.toFixed(1)}x</span>
-                            </label>
-                            <input type="range" min="0.5" max="1.7" step="0.1" value={magneticFieldSize} onChange={(e) => setMagneticFieldSize(Number(e.target.value))} className="w-full accent-brand-purple" />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] uppercase text-brand-text-muted font-bold tracking-wider flex justify-between">
-                                <span>Opacidade</span><span>{Math.round(magneticFieldOpacity * 100)}%</span>
-                            </label>
-                            <input type="range" min="0" max="1" step="0.05" value={magneticFieldOpacity} onChange={(e) => setMagneticFieldOpacity(Number(e.target.value))} className="w-full accent-brand-purple" />
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            <div className={`h-px ${theme === 'dark' ? 'bg-white/10' : 'bg-black/10'} my-1 mx-0.5`} />
-
-            {/* FIXAR ZODÍACO */}
-            <div className="relative">
-                <button
-                    onClick={() => setIsZodiacFixed(!isZodiacFixed)}
-                    className={`flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md transition-colors duration-150 whitespace-nowrap ${isZodiacFixed ? (theme === 'dark' ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-600/15 text-purple-700') : (theme === 'dark' ? 'hover:bg-white/[0.07] text-white/60' : 'hover:bg-black/[0.05] text-gray-500')}`}
-                    title={isZodiacFixed ? 'Zodíaco fixo' : 'Fixar zodíaco'}
-                >
-                    <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="none">
-                      <path d="M10 9 C10 6 9 3.5 7 3 C5 2.5 3 4 3 6 C3 8 5 9 6.5 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                      <path d="M10 9 C10 6 11 3.5 13 3 C15 2.5 17 4 17 6 C17 8 15 9 13.5 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                      <line x1="10" y1="9" x2="10" y2="18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                    <span className={`font-manrope text-[11px] tracking-wide transition-opacity duration-200 ${activeToolbarMenu !== null ? 'opacity-100' : 'opacity-0 group-hover/toolbar:opacity-100'} ${isZodiacFixed ? (theme === 'dark' ? 'text-purple-300' : 'text-purple-700') : (theme === 'dark' ? 'text-white/60' : 'text-gray-500')}`}>
-                        Fixar zodíaco
-                    </span>
-                </button>
-            </div>
-
-        </div>
-    )}
-</div>
-{/* TOOLBAR FIM */}
-                        </div>
-                        )}
-
-                        {!immersiveMode && (
-                        <div className="absolute top-14 right-4 z-50 flex flex-col items-end gap-2 pointer-events-none">
-                            <div className="pointer-events-auto flex items-center bg-brand-surface/80 backdrop-blur-xl border border-brand-border/10 rounded-xl p-1 gap-0.5 shadow-2xl ring-1 ring-white/5" ref={menuRefs.chronograph}>
-                                <div className="relative">
-                                    <button 
-                                        onClick={toggleChronographMenu}
-                                        className={`p-1 rounded-lg transition-colors ${showChronographMenu ? 'bg-brand-surface-highlight text-brand-text' : 'text-brand-text-muted hover:text-brand-text hover:bg-brand-surface-highlight/50'}`}
-                                        title={t('chrono.options')}
-                                    >
-                                        <UI_ICONS.MoreIcon className="w-4 h-4" />
-                                    </button>
-                                    {showChronographMenu && (
-                                        <div className="absolute right-0 top-full mt-2 w-48 bg-brand-surface/95 backdrop-blur-xl rounded-xl border border-brand-border/10 shadow-2xl z-50 p-1 flex flex-col gap-1">
-                                            {[
-                                                { id: 'background', label: t('chrono.bgOptions'), icon: UI_ICONS.ImageIcon },
-                                                { id: 'display', label: t('chrono.displayItems'), icon: UI_ICONS.LayersIcon },
-                                                { id: 'colors', label: t('chrono.signColors'), icon: UI_ICONS.AspectIcon },
-                                            ].map((item) => (
-                                                <button
-                                                    key={item.id}
-                                                    onClick={() => {
-                                                        setActiveChronographMenu(activeChronographMenu === item.id ? null : item.id as any);
-                                                    }}
-                                                    className={`w-full px-3 py-2 rounded-lg flex items-center gap-3 text-xs font-manrope transition-colors ${activeChronographMenu === item.id ? 'bg-brand-purple/20 text-brand-purple' : 'hover:bg-brand-surface-highlight text-brand-text-muted hover:text-brand-text'}`}
-                                                >
-                                                    <item.icon className="w-4 h-4" />
-                                                    <span>{item.label}</span>
-                                                </button>
-                                            ))}
-                                            <div className="h-px bg-brand-border/10 my-1" />
-                                            <button
-                                                onClick={() => {
-                                                    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-                                                    setShowChronographMenu(false);
-                                                }}
-                                                className="w-full px-3 py-2 rounded-lg flex items-center gap-3 text-xs font-manrope transition-colors hover:bg-brand-surface-highlight text-brand-text-muted hover:text-brand-text"
-                                            >
-                                                {theme === 'dark'
-                                                    ? <UI_ICONS.SunIcon className="w-4 h-4" />
-                                                    : <UI_ICONS.MoonIcon className="w-4 h-4" />
-                                                }
-                                                <span>{theme === 'dark' ? t('app.lightMode') : t('app.darkMode')}</span>
-                                            </button>
-                                        </div>
-                                    )}
-                                    
-                                    {/* Submenus for Chronograph Menu */}
-                                    {showChronographMenu && activeChronographMenu === 'background' && (
-                                        <div className="absolute right-full top-0 mr-2 w-56 bg-brand-surface/95 backdrop-blur-xl rounded-2xl border border-brand-border/10 p-2 shadow-2xl z-50 ring-1 ring-brand-border/5 flex flex-col gap-1 font-display">
-                                            {[
-                                                { label: t('chrono.stars'), active: showStars, onClick: () => setShowStars(!showStars) },
-                                                { label: t('chrono.atmosphere'), active: showAtmosphere, onClick: () => setShowAtmosphere(!showAtmosphere) },
-                                                { label: t('chrono.constellations'), active: showConstellations, onClick: () => setShowConstellations(!showConstellations) },
-                                            ].map((opt, i) => (
-                                                <button 
-                                                    key={i}
-                                                    onClick={opt.onClick}
-                                                    className={`w-full px-3 py-2 rounded-lg flex items-center justify-between transition-colors hover:bg-brand-surface-highlight`}
-                                                >
-                                                    <span className={`text-[10px] font-normal capitalize tracking-wider font-manrope ${opt.active ? 'text-brand-text' : 'text-brand-text-muted'}`}>{opt.label}</span>
-                                                    <div className={`w-6 h-3 rounded-full relative transition-colors ${opt.active ? 'bg-brand-purple shadow-[0_0_8px_rgba(124,58,237,0.4)]' : 'bg-brand-surface-highlight'}`}>
-                                                        <div className={`absolute top-0.5 w-2 h-2 rounded-full bg-brand-text transition-all shadow-sm`} style={{ left: opt.active ? 'calc(100% - 10px)' : '2px' }} />
-                                                    </div>
-                                                </button>
-                                            ))}
-                                            <div className="h-px bg-brand-border/10 my-1"></div>
-                                            <label className="w-full px-3 py-2 rounded-lg flex items-center justify-between transition-colors hover:bg-brand-surface-highlight cursor-pointer">
-                                                <span className="text-[10px] font-normal capitalize tracking-wider font-manrope text-brand-text-muted">{t('chrono.uploadImage')}</span>
-                                                <input 
-                                                    type="file" 
-                                                    accept="image/*" 
-                                                    className="hidden" 
-                                                    onChange={(e) => {
-                                                        const file = e.target.files?.[0];
-                                                        if (file) {
-                                                            const reader = new FileReader();
-                                                            reader.onload = (e) => setCustomBackgroundImage(e.target?.result as string);
-                                                            reader.readAsDataURL(file);
-                                                        }
-                                                    }}
-                                                />
-                                            </label>
-                                            {customBackgroundImage && (
-                                                <button 
-                                                    onClick={() => setCustomBackgroundImage(null)}
-                                                    className="w-full px-3 py-2 rounded-lg flex items-center justify-between transition-colors hover:bg-red-500/20 text-red-400"
-                                                >
-                                                    <span className="text-[10px] font-normal capitalize tracking-wider font-manrope">{t('chrono.removeImage')}</span>
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {showChronographMenu && activeChronographMenu === 'display' && (
-                                        <div className="absolute right-full top-0 mr-2 w-56 bg-brand-surface/95 backdrop-blur-xl rounded-2xl border border-brand-border/10 p-2 shadow-2xl z-50 ring-1 ring-brand-border/5 flex flex-col gap-1 font-display">
-                                            {[
-                                                { label: t('chrono.planetSpheres'), active: showPlanetSpheres, onClick: () => setShowPlanetSpheres(!showPlanetSpheres) },
-                                                { label: 'Graus dos planetas', active: showDegreeLabels, onClick: () => setShowDegreeLabels(!showDegreeLabels) },
-                                                { label: t('chrono.seasonsRing'), active: showSeasonsRing, onClick: () => setShowSeasonsRing(!showSeasonsRing) },
-                                                { label: t('chrono.aspectLines'), active: showAspectLines, onClick: () => handleToggleAspectLines() },
-                                                { label: t('chrono.natalAspects'), active: showNatalLines, onClick: () => handleToggleNatalLines(), disabled: !natalTime },
-                                            ].map((opt, i) => (
-                                                <button 
-                                                    key={i}
-                                                    onClick={opt.onClick}
-                                                    disabled={opt.disabled}
-                                                    className={`w-full px-3 py-2 rounded-lg flex items-center justify-between transition-colors ${opt.disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-brand-surface-highlight'}`}
-                                                >
-                                                    <span className={`text-[10px] font-normal capitalize tracking-wider font-manrope ${opt.active ? 'text-brand-text' : 'text-brand-text-muted'}`}>{opt.label}</span>
-                                                    <div className={`w-6 h-3 rounded-full relative transition-colors ${opt.active ? 'bg-brand-purple shadow-[0_0_8px_rgba(124,58,237,0.4)]' : 'bg-brand-surface-highlight/50'}`}>
-                                                        <div className={`absolute top-0.5 w-2 h-2 rounded-full bg-brand-text transition-all shadow-sm`} style={{ left: opt.active ? 'calc(100% - 10px)' : '2px' }} />
-                                                    </div>
-                                                </button>
-                                            ))}
-                                            {showDegreeLabels && (
-                                                <div className="border-t border-brand-border/10 mt-1 pt-1">
-                                                    <SizeControl
-                                                        label="Tamanho"
-                                                        value={degreeLabelSize}
-                                                        onChange={(v) => setDegreeLabelSize(Math.max(7, Math.min(32, v)))}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {showChronographMenu && activeChronographMenu === 'colors' && (
-                                        <div className="absolute right-full top-0 mr-2 w-48 bg-brand-surface/95 backdrop-blur-xl rounded-2xl border border-brand-border/10 p-2 shadow-2xl z-50 ring-1 ring-brand-border/5 flex flex-col gap-1 font-display">
-                                            {[
-                                                { id: 'none', label: t('chrono.disabled') },
-                                                { id: 'element', label: t('chrono.elements') },
-                                                { id: 'modality', label: t('chrono.modalities') },
-                                                { id: 'polarity', label: t('chrono.polarities') },
-                                            ].map((opt) => (
-                                                <button 
-                                                    key={opt.id}
-                                                    onClick={() => setZodiacColorMode(opt.id as any)}
-                                                    className={`w-full px-3 py-2 rounded-lg flex items-center justify-between transition-colors hover:bg-brand-surface-highlight`}
-                                                >
-                                                    <span className={`text-[10px] font-normal capitalize tracking-wider font-manrope ${zodiacColorMode === opt.id ? 'text-brand-purple font-bold' : 'text-brand-text-muted'}`}>{opt.label}</span>
-                                                    {zodiacColorMode === opt.id && <div className="w-1.5 h-1.5 rounded-full bg-brand-purple"></div>}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                </div>
-                            </div>
-                        </div>
-                        )}
-
-                        <div 
-                            className="flex-1 relative z-0 flex items-center justify-center pb-28 pt-16 overflow-hidden"
-                            onClick={() => {
-                                if (immersiveMode) {
-                                    setImmersiveMode(false);
-                                }
-                            }}
-                        >
-                            <div ref={clockRef} className="w-full h-full max-w-4xl max-h-[calc(100vh-220px)] relative flex items-center justify-center" style={{ transform: `scale(${clockScale})`, transformOrigin: 'center center' }}>
-                            <SiderealClock 
-                                celestialData={celestialData}
-                                natalData={natalTime ? natalData : undefined}
-                                filteredAspects={filteredAspects}
-                                ghostPlanets={ghostPlanets}
-                                visiblePlanets={visiblePlanets}
-                                selectedPlanets={selectedPlanets}
-                                selectedAspects={selectedAspects}
-                                selectedHouses={selectedHouses}
-                                hoveredPlanet={hoveredPlanet}
-                                hoveredAspect={hoveredAspect}
-                                hoveredHouse={hoveredHouse}
-                                onPlanetClick={handlePlanetClick}
-                                onAspectClick={handleAspectClick}
-                                onHouseClick={handleHouseClick}
-                                setHoveredHouse={setHoveredHouse}
-                                planetSize={clockPlanetSize}
-                                zodiacSignSize={zodiacSignSize}
-                                showPlanetSpheres={showPlanetSpheres}
-                                showDegreeLabels={showDegreeLabels}
-                                degreeLabelSize={degreeLabelSize}
-                                showAspectLines={showAspectLines}
-                                showNatalLines={showNatalLines}
-                                isNatalMode={!!natalTime}
-                                showNeedle={showNeedle}
-                                isZodiacFixed={isZodiacFixed}
-                                locationName={location.displayName}
-                                showAtmosphere={showAtmosphere}
-                                houseFormat={houseFormat}
-                                houseLineFormat={houseLineFormat}
-                                showHouseLines={showHouseLines}
-                                showHouseMarkers={showHouseMarkers}
-                                showMcIcArrows={showMcIcArrows}
-                                showTimeRing={showTimeRing}
-                                showOrbits={showOrbits}
-                                showStars={false} // Stars are now handled by StarField in App.tsx
-                                showSeasonsRing={showSeasonsRing}
-                                zodiacColorMode={zodiacColorMode}
-                                highlightFilter={highlightFilter}
-                                showSignLines={showSignLines}
-                                signLineThickness={signLineThickness}
-                                signLineOpacity={signLineOpacity}
-                                pointerStyle={pointerStyle}
-                                pointerThickness={pointerThickness}
-                                pointerHead={pointerHead}
-                                pointerTail={pointerTail}
-                                showConstellations={showConstellations}
-                                customBackgroundImage={customBackgroundImage}
-                                showMagneticField={showMagneticField}
-                                magneticFieldSize={magneticFieldSize}
-                                magneticFieldOpacity={magneticFieldOpacity}
-                                seasonIngresses={seasonIngresses}
-                                timeRingScale={timeRingScale}
-                                theme={theme}
-                                onClockClick={handleClockClick}
-                                houseLineThickness={houseLineThickness}
-                                houseLineOpacity={houseLineOpacity}
-                            />
-                        </div>
-                        
-                        {/* Sun and Moon Info Panels — Removed */}
-                        
-                        {/* Bottom Right Fullscreen Button - Removed */}
-                        {/* Bottom Left Fix Zodiac and Pointer Buttons - Removed */}
-                    </div>
-
-                    {!immersiveMode && (
-                    <div className="absolute bottom-2 left-2 right-2 z-50 flex items-center justify-between pointer-events-none font-display">
-                        
-                        {/* Group 1: Left Controls (Pointer & Zodiac & Moon) - Removed */}
-
-                        {/* Group 3: Main Time Controls (Center Absolute) */}
-                        <div
-                            className="absolute left-1/2 bottom-0 -translate-x-1/2 pointer-events-auto flex flex-col items-center"
-                            onMouseEnter={handleTimeControlsMouseEnter}
-                            onMouseLeave={handleTimeControlsMouseLeave}
-                            onClick={() => {
-                                setTimeControlsVisible(true);
-                                if (timeControlsHideTimer.current) clearTimeout(timeControlsHideTimer.current);
-                                timeControlsHideTimer.current = window.setTimeout(() => {
-                                    if (!timeControlsHoveredRef.current) setTimeControlsVisible(false);
-                                }, 2500);
-                            }}
-                        >
-                            {/* ESTADO OCULTO — linha horizontal estilo iPhone home bar */}
-                            {!timeControlsVisible && (
-                                <div
-                                    className="flex items-center justify-center cursor-pointer mb-2"
-                                    style={{ width: '160px', height: '20px', padding: '4px' }}
-                                >
-                                    <div
-                                        style={{
-                                            height: '3px',
-                                            width: '100%',
-                                            borderRadius: '999px',
-                                            background: theme === 'dark'
-                                                ? 'rgba(255,255,255,0.15)'
-                                                : 'rgba(0,0,0,0.12)',
-                                            transition: 'all 0.2s ease',
+                                {/* Background Image */}
+                                {customBackgroundImage && (
+                                    <div 
+                                        className="absolute inset-0 z-0 opacity-40 pointer-events-none bg-cover bg-center"
+                                        style={{ 
+                                            backgroundImage: `url(${customBackgroundImage})`,
+                                            mixBlendMode: 'overlay'
                                         }}
-                                        className="hover:!bg-purple-400/50 hover:!h-[4px]"
+                                    />
+                                )}
+
+                                <div 
+                                    className="absolute inset-0 z-0 flex items-center justify-center overflow-visible bg-transparent transition-all duration-300 ease-out pointer-events-none"
+                                    style={{
+                                        left: `${leftOccupied}px`,
+                                        right: `${rightOccupied}px`,
+                                        top: `${topOccupied}px`,
+                                        bottom: `${bottomOccupied}px`,
+                                    }}
+                                    onClick={() => {
+                                        if (immersiveMode) {
+                                            setImmersiveMode(false);
+                                        }
+                                    }}
+                                >
+                                    <div 
+                                        ref={clockRef} 
+                                        className="sidereal-clock-capture-container relative flex items-center justify-center overflow-visible pointer-events-auto w-full h-full max-w-full max-h-full" 
+                                        style={{ 
+                                            aspectRatio: '1 / 1',
+                                            transform: `scale(${clockScale})`, 
+                                            transformOrigin: 'center center' 
+                                        }}
+                                    >
+                                        {isHeliocentricMode ? (
+                                            <HeliocentricView
+                                                celestialData={celestialData}
+                                                visiblePlanets={visiblePlanets}
+                                                theme={theme}
+                                            />
+                                        ) : (
+                                            <SiderealClock 
+                                                celestialData={celestialData}
+                                                natalData={natalTime ? natalData : undefined}
+                                                filteredAspects={filteredAspects}
+                                                ghostPlanets={ghostPlanets}
+                                                visiblePlanets={visiblePlanets}
+                                                visibleNatalPlanets={natalTime ? visibleNatalPlanets : undefined}
+                                                selectedPlanets={selectedPlanets}
+                                                selectedAspects={selectedAspects}
+                                                selectedHouses={selectedHouses}
+                                                hoveredPlanet={hoveredPlanet}
+                                                hoveredAspect={hoveredAspect}
+                                                hoveredHouse={hoveredHouse}
+                                                onPlanetClick={handlePlanetClick}
+                                                onAspectClick={handleAspectClick}
+                                                onHouseClick={handleHouseClick}
+                                                setHoveredHouse={setHoveredHouse}
+                                                planetSize={clockPlanetSize}
+                                                zodiacSignSize={zodiacSignSize}
+                                                termsGlyphSize={termsGlyphSize}
+                                                decanGlyphSize={decanGlyphSize}
+                                                graduationRingWidth={graduationRingWidth}
+                                                zodiacRingScale={zodiacRingScale}
+                                                seasonsRingScale={seasonsRingScale}
+                                                decanRingScale={decanRingScale}
+                                                termsRingScale={termsRingScale}
+                                                ringLineColor={ringLineColor}
+                                                showPlanetSpheres={showPlanetSpheres}
+                                                showDegreeLabels={showDegreeLabels}
+                                                degreeLabelSize={degreeLabelSize}
+                                                degreeLabelPosition={degreeLabelPosition}
+                                                degreeLabelFormat={degreeLabelFormat}
+                                                showAspectLines={showAspectLines}
+                                                showNatalLines={showNatalLines}
+                                                isNatalMode={!!natalTime}
+                                                showNeedle={showNeedle}
+                                                isZodiacFixed={isZodiacFixed}
+                                                locationName={location.displayName}
+                                                showAtmosphere={showAtmosphere}
+                                                houseFormat={houseFormat}
+                                                houseLineFormat={houseLineFormat}
+                                                showHouseLines={showHouseLines}
+                                                showHouseMarkers={showHouseMarkers}
+                                                showMcIcArrows={showMcIcArrows}
+                                                showTimeRing={showTimeRing}
+                                                showOrbits={showOrbits}
+                                                allPlanetsSameOrbit={allPlanetsSameOrbit}
+                                                planetColorMode={planetColorMode}
+                                                natalColorMode={natalColorMode}
+                                                showStars={showStars}
+                                                showSeasonsRing={showSeasonsRing}
+                                                showDecanRing={showDecanRing}
+                                                showTermsRing={showTermsRing}
+                                                zodiacColorMode={zodiacColorMode}
+                                                highlightFilter={highlightFilter}
+                                                showSignLines={showSignLines}
+                                                showSignColors={showSignColors}
+                                                signLineThickness={signLineThickness}
+                                                signLineOpacity={signLineOpacity}
+                                                pointerStyle={pointerStyle}
+                                                pointerShowGradLine={pointerShowGradLine}
+                                                pointerFull={pointerFull}
+                                                pointerThickness={pointerThickness}
+                                                pointerOpacity={pointerOpacity}
+                                                pointerHead={pointerHead}
+                                                pointerTail={pointerTail}
+                                                showConstellations={showConstellations}
+                                                customBackgroundImage={customBackgroundImage}
+                                                showMagneticField={showMagneticField}
+                                                magneticFieldSize={magneticFieldSize}
+                                                magneticFieldOpacity={magneticFieldOpacity}
+                                                seasonIngresses={seasonIngresses}
+                                                timeRingScale={timeRingScale}
+                                                theme={theme}
+                                                onClockClick={handleClockClick}
+                                                houseLineThickness={houseLineThickness}
+                                                houseLineOpacity={houseLineOpacity}
+                                                houseLineColor={houseLineColor}
+                                                mainHouseLineThickness={mainHouseLineThickness}
+                                                mainHouseLineOpacity={mainHouseLineOpacity}
+                                                mainHouseLineColor={mainHouseLineColor}
+                                                houseMarkerRingColor={houseMarkerRingColor}
+                                                houseMarkerRingOpacity={houseMarkerRingOpacity}
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {!immersiveMode && (
+                                <TimeControls 
+                                    currentTime={currentTime}
+                                    onTimeChange={(newTime) => {
+                                        setIsRealTime(false);
+                                        setCurrentTime(newTime);
+                                    }}
+                                    isRealTime={isRealTime}
+                                    onSetRealTime={setIsRealTime}
+                                    speedMultiplier={speedMultiplier}
+                                    onSpeedMultiplierChange={setSpeedMultiplier}
+                                    timeStep={timeStep}
+                                    onTimeStepChange={setTimeStep}
+                                    isZodiacFixed={isZodiacFixed}
+                                    onToggleZodiacFixed={() => setIsZodiacFixed(!isZodiacFixed)}
+                                    onToggleFullscreen={() => setImmersiveMode(!immersiveMode)}
+                                    isFullscreen={immersiveMode}
+                                    onOpenSettings={() => { setCalendarConfig({}); setShowCalendarPanel(true); }}
+                                    onOpenNatalSettings={() => setIsNatalSettingsOpen(true)}
+                                    onOpenLunarCalendar={handleLunarCalendarClick}
+                                    celestialData={celestialData}
+                                    location={location}
+                                    theme={theme}
+                                    isQuickToolsSidebarOpen={isQuickToolsSidebarOpen}
+                                    isOptionsRailOpen={isOptionsRailOpen}
+                                    leftDockOffset={screenLeft}
+                                    rightDockOffset={screenRight}
+                                    isFreeTier={isFreeTier}
+                                    onOpenPaymentPlans={() => setShowPaymentPlansModal(true)}
+                                />
+                            )}
+
+                            {showTransitChart && (
+                                <div className="absolute bottom-[80px] left-0 right-0 h-64 bg-[#06060a]/95 backdrop-blur-md border-t border-white/10 z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] transition-transform transform translate-y-0">
+                                    <TransitChart 
+                                        currentTime={currentTime} 
+                                        natalCelestialData={natalTime ? natalData : null} 
+                                        onClose={() => setShowTransitChart(false)}
                                     />
                                 </div>
                             )}
+                            <AnimatePresence>
+                                {showEnergyChart && energyChartProps && (
+                                    <EnergyChartPanel
+                                        aspects={energyChartProps.aspects}
+                                        lunarCycle={energyChartProps.lunarCycle}
+                                        currentDate={energyChartProps.currentDate}
+                                        onClose={() => setShowEnergyChart(false)}
+                                        natalCelestialData={natalTime ? natalData : null}
+                                    />
+                                )}
+                            </AnimatePresence>
+                        </section>
+                    );
+                })()}
 
-                            {/* CONTROLES VISÍVEIS */}
-                            {timeControlsVisible && (
-                                <div
-                                    className="flex items-center gap-2 mb-4"
-                                    style={{ animation: 'timeControlsFadeIn 0.2s ease' }}
-                                >
-                                    <style>{`
-                                        @keyframes timeControlsFadeIn {
-                                            from { opacity: 0; transform: translateY(6px); }
-                                            to   { opacity: 1; transform: translateY(0); }
-                                        }
-                                    `}</style>
-                                    <div className="relative group">
-                                        <TimeControls 
-                                            isMinimized={isTimeControlsMinimized}
-                                            timeStep={timeStep}
-                                            onTimeStepChange={setTimeStep}
-                                            onStepStart={handleTimeChangeStart}
-                                            onStepEnd={handleTimeChangeEnd}
-                                            onTogglePlay={togglePlay}
-                                            isRealTime={isRealTime}
-                                            speedMultiplier={speedMultiplier}
-                                            onSpeedMultiplierChange={setSpeedMultiplier}
-                                            onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                                            isDarkMode={theme === 'dark'}
-                                            onToggleFullscreen={() => setImmersiveMode(!immersiveMode)}
-                                            isFullscreen={immersiveMode}
-                                            onToggleOptions={toggleOptionsMenu}
-                                        />
-
-                                        {/* Botão ancorado na borda direita do TimeControls */}
-                                        <button
-                                            onClick={() => setIsTimeControlsMinimized(!isTimeControlsMinimized)}
-                                            title={isTimeControlsMinimized ? "Expandir" : "Recolher"}
-                                            className="absolute -right-3 top-1/2 -translate-y-1/2 z-30
-                                                       w-6 h-10 rounded-r-xl
-                                                       bg-brand-surface/90 backdrop-blur-xl
-                                                       border border-l-0 border-brand-border/20
-                                                       flex items-center justify-center
-                                                       text-brand-text-muted hover:text-brand-text
-                                                       opacity-0 group-hover:opacity-100
-                                                       transition-all duration-200 shadow-md"
-                                        >
-                                            {isTimeControlsMinimized
-                                                ? <UI_ICONS.ChevronRightIcon className="w-3 h-3" />
-                                                : <UI_ICONS.ChevronLeftIcon className="w-3 h-3" />
+                {/* Doca de Painéis Esquerda Fixa (Barra Lateral Esquerda) */}
+                {(() => {
+                    const unifiedLeftDockWidth = Math.max(240, panelWidths.celestial || 265, panelWidths.statistics || 265);
+                    const dockPixelWidth = Math.max(220, Math.ceil(unifiedLeftDockWidth * uiScale));
+                    return (
+                        <aside 
+                            style={{ width: `${dockPixelWidth}px` }}
+                            className="fixed left-3 top-2 sm:top-3 bottom-2 z-50 flex flex-col gap-1.5 pointer-events-none max-h-[calc(100vh-16px)] sm:max-h-[calc(100vh-24px)] overflow-hidden select-none transition-[width] duration-200"
+                        >
+                            {/* Painel ASTROS (Superior Esquerdo) */}
+                            {panelStates.celestial.isOpen && (
+                                <div className="pointer-events-auto flex-1 min-h-[140px] flex flex-col overflow-hidden">
+                                    <PanelFrame
+                                        title={t ? t('Astros') : 'Astros'}
+                                        isOpen={panelStates.celestial.isOpen}
+                                        isCollapsed={panelStates.celestial.isCollapsed}
+                                        onClose={() => setPanelStates(prev => ({ ...prev, celestial: { ...prev.celestial, isOpen: false } }))}
+                                        onToggleCollapse={() => setPanelStates(prev => ({ ...prev, celestial: { ...prev.celestial, isCollapsed: !prev.celestial.isCollapsed } }))}
+                                        onResetLayout={resetAllPanelLayouts}
+                                        onFocus={() => focusPanel('celestial')}
+                                        zIndex={panelStates.celestial.zIndex}
+                                        width={dockPixelWidth}
+                                        menuButtonRef={celestialMenuRef}
+                                        onMenuToggle={(e) => {
+                                            e.stopPropagation();
+                                            if (isFreeTier || isFreeTrial) {
+                                                setShowPaymentPlansModal(true);
+                                                return;
                                             }
-                                        </button>
-                                    </div>
+                                            setActiveMenu(activeMenu === 'planets' ? null : 'planets');
+                                        }}
+                                        isMenuOpen={activeMenu === 'planets'}
+                                        isLocked={isFreeTier || isFreeTrial}
+                                        onLockedClick={() => setShowPaymentPlansModal(true)}
+                                        theme={theme}
+                                        hideBottomResizeHandle={true}
+                                    >
+                                        <CelestialBodyPanel 
+                                            {...(celestialTab === 'natal' && natalTime ? natalData : celestialData)} 
+                                            retrogradeStatus={celestialTab === 'natal' && natalTime ? natalData.retrogradeStatus : celestialData.retrogradeStatus}
+                                            stationaryStatus={celestialTab === 'natal' && natalTime ? natalData.stationaryStatus : celestialData.stationaryStatus}
+                                            housePlacements={celestialTab === 'natal' && natalTime ? natalData.housePlacements : celestialData.housePlacements}
+                                            visiblePlanets={celestialTab === 'natal' && natalTime ? visibleNatalPlanets : visiblePlanets}
+                                            onVisibilityChange={celestialTab === 'natal' && natalTime ? setVisibleNatalPlanets : setVisiblePlanets}
+                                            selectedPlanets={selectedPlanets}
+                                            secondarySelectedPlanets={highlightedPlanetsFromAspects}
+                                            onPlanetClick={handlePlanetClick}
+                                            onPlanetRightClick={handlePlanetRightClick}
+                                            onPlanetHover={(id) => setHoveredPlanet(celestialTab === 'natal' && natalTime ? `natal_${id}` : id)}
+                                            hoveredPlanet={hoveredPlanet}
+                                            hoveredHouse={hoveredHouse}
+                                            planetDisplayStatus={{}} 
+                                            activeMenu={activeMenu}
+                                            setActiveMenu={setActiveMenu}
+                                            onClearSelections={handleClearSelections}
+                                            onWidthChange={handleCelestialWidthChange}
+                                            houseFormat={houseFormat}
+                                            onHouseFormatChange={setHouseFormat}
+                                            showPlanetSpheres={showPlanetSpheres}
+                                            setShowPlanetSpheres={setShowPlanetSpheres}
+                                            showNeedle={showNeedle}
+                                            setShowNeedle={setShowNeedle}
+                                            showOrbits={showOrbits}
+                                            setShowOrbits={setShowOrbits}
+                                            zodiacColorMode={zodiacColorMode}
+                                            settings={celestialSettings}
+                                            onSettingsChange={setCelestialSettings}
+                                            planetSize={panelPlanetSize}
+                                            onPlanetSizeChange={setPanelPlanetSize}
+                                            zodiacSignSize={panelZodiacSignSize}
+                                            onZodiacSignSizeChange={setPanelZodiacSignSize}
+                                            panelScale={leftPanelScale}
+                                            onPanelScaleChange={setLeftPanelScale}
+                                            panelPosition="left"
+                                            onPanelPositionChange={() => {}}
+                                            dragHandle={null}
+                                            activeTab={celestialTab}
+                                            onTabChange={setCelestialTab}
+                                            hasNatalDate={!!natalTime}
+                                            theme={theme}
+                                            hideHeader={true}
+                                            menuButtonRef={celestialMenuRef}
+                                            isFreeTier={isFreeTier}
+                                            isFreeTrial={isFreeTrial}
+                                            onOpenPaymentPlans={() => setShowPaymentPlansModal(true)}
+                                        />
+                                    </PanelFrame>
                                 </div>
                             )}
-                        </div>
-                    
-                        {/* Group 4: Right Controls (Fullscreen & Options) */}
-                        <div className="pointer-events-auto flex items-center gap-4 ml-auto relative" ref={menuRefs.options}>
-                            {showOptionsMenu && (
-                                <div className="absolute bottom-full right-0 mb-4 w-64 bg-brand-surface/95 backdrop-blur-xl rounded-2xl border border-brand-border/10 p-4 shadow-2xl z-50 ring-1 ring-white/5 flex flex-col gap-2 font-display">
-                                    <h3 className="text-xs font-bold uppercase text-brand-text-muted mb-2 tracking-wider">Tamanhos (Relógio)</h3>
-                                    <SizeControl label="Planetas" value={clockPlanetSize} onChange={setClockPlanetSize} />
-                                    <SizeControl label="Signos" value={zodiacSignSize} onChange={setZodiacSignSize} />
-                                    
-                                    <div className="h-px bg-brand-border/10 my-2"></div>
-                                    <h3 className="text-xs font-bold uppercase text-brand-text-muted mb-2 tracking-wider">Zoom (Relógio)</h3>
-                                    <div className="flex items-center justify-between gap-2">
-                                        <button
-                                            onClick={() => setClockScale(s => Math.max(0.7, parseFloat((s - 0.05).toFixed(2))))}
-                                            className="w-8 h-8 rounded-lg bg-brand-surface-highlight/50 border border-brand-border/10 flex items-center justify-center text-brand-text hover:bg-brand-surface-highlight transition-colors"
-                                        >
-                                            <span className="text-lg font-bold">−</span>
-                                        </button>
-                                        <div className="flex-1 px-2">
-                                            <input 
-                                                type="range" 
-                                                min="0.7" 
-                                                max="1.5" 
-                                                step="0.05" 
-                                                value={clockScale} 
-                                                onChange={(e) => setClockScale(Number(e.target.value))} 
-                                                className="w-full accent-brand-purple" 
-                                            />
-                                            <div className="flex justify-between text-[10px] text-brand-text-muted mt-1 font-manrope">
-                                                <span>70%</span>
-                                                <span className="text-brand-purple font-bold">{Math.round(clockScale * 100)}%</span>
-                                                <span>150%</span>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => setClockScale(s => Math.min(1.5, parseFloat((s + 0.05).toFixed(2))))}
-                                            className="w-8 h-8 rounded-lg bg-brand-surface-highlight/50 border border-brand-border/10 flex items-center justify-center text-brand-text hover:bg-brand-surface-highlight transition-colors"
-                                        >
-                                            <span className="text-lg font-bold">+</span>
-                                        </button>
-                                    </div>
 
-                                    <div className="h-px bg-brand-border/10 my-2"></div>
-                                
-                                    <ExportPDFButton
-                                        currentTime={currentTime}
-                                        location={{ ...location, latitude: location.latitude, longitude: location.longitude }}
-                                        celestialData={celestialData}
-                                        seasonInfo={seasonInfo}
-                                        sunriseTime={celestialData.sunriseTime}
-                                        sunsetTime={celestialData.sunsetTime}
+                            {/* Resizer interativo unificado entre Astros e Status - Hairline Elegante */}
+                            {panelStates.celestial.isOpen && panelStates.statistics.isOpen && !panelStates.statistics.isCollapsed && (
+                                <div
+                                    onPointerDown={handleSidebarSplitResizePointerDown}
+                                    className="h-2 w-full cursor-ns-resize py-0.5 flex items-center justify-center shrink-0 -my-0.5 z-30 group select-none pointer-events-auto"
+                                    title="Arraste para ajustar a altura relativa entre os painéis Astros e Status"
+                                >
+                                    <div className="w-8 h-[2px] rounded-full bg-white/20 group-hover:bg-cyan-300 group-hover:w-12 group-hover:h-[3px] group-active:bg-cyan-400 transition-all duration-150 shadow-sm" />
+                                </div>
+                            )}
+
+                            {/* Painel STATUS (Diretamente abaixo de Astros) */}
+                            {panelStates.statistics.isOpen && (
+                                <div 
+                                    ref={statusPanelRef}
+                                    className="pointer-events-auto flex-shrink-0 flex flex-col overflow-hidden"
+                                    style={{ height: panelStates.statistics.isCollapsed ? 'auto' : sidebarStatusHeight ? `${sidebarStatusHeight}px` : 'auto' }}
+                                >
+                                    <PanelFrame
+                                        title={t ? t('Status') : 'Status'}
+                                        isOpen={panelStates.statistics.isOpen}
+                                        isCollapsed={panelStates.statistics.isCollapsed}
+                                        onClose={() => setPanelStates(prev => ({ ...prev, statistics: { ...prev.statistics, isOpen: false } }))}
+                                        onToggleCollapse={() => setPanelStates(prev => ({ ...prev, statistics: { ...prev.statistics, isCollapsed: !prev.statistics.isCollapsed } }))}
+                                        onResetLayout={resetAllPanelLayouts}
+                                        onFocus={() => focusPanel('statistics')}
+                                        zIndex={panelStates.statistics.zIndex}
+                                        width={dockPixelWidth}
+                                        menuButtonRef={statisticsMenuRef}
+                                        onMenuToggle={(e) => {
+                                            e.stopPropagation();
+                                            if (isFreeTier || isFreeTrial) {
+                                                setShowPaymentPlansModal(true);
+                                                return;
+                                            }
+                                            setActiveMenu(activeMenu === 'statistics' as any ? null : 'statistics' as any);
+                                        }}
+                                        isMenuOpen={activeMenu === 'statistics' as any}
+                                        isLocked={isFreeTier || isFreeTrial}
+                                        onLockedClick={() => setShowPaymentPlansModal(true)}
+                                        theme={theme}
+                                        hideBottomResizeHandle={true}
+                                    >
+                                <ChartStatisticsPanel 
+                                    celestialData={celestialData}
+                                    visiblePlanets={visiblePlanets}
+                                    scale={leftPanelScale}
+                                    zodiacColorMode={zodiacColorMode}
+                                    onZodiacColorModeChange={setZodiacColorMode}
+                                    highlightFilter={highlightFilter}
+                                    onHighlightFilterChange={setHighlightFilter}
+                                    layoutMode={statsLayout}
+                                    onLayoutChange={setStatsLayout}
+                                    activeMenu={activeMenu}
+                                    setActiveMenu={setActiveMenu}
+                                    panelPosition="right"
+                                    onPanelPositionChange={() => {}}
+                                    onWidthChange={handleStatisticsWidthChange}
+                                    dragHandle={null}
+                                    seasonInfo={seasonInfo}
+                                    sunriseTime={celestialData.sunriseTime}
+                                    sunsetTime={celestialData.sunsetTime}
+                                    moonPhase={celestialData.moonPhase}
+                                    moonriseTime={celestialData.moonriseTime}
+                                    moonsetTime={celestialData.moonsetTime}
+                                    onEclipseClick={() => setShowEclipseModal(true)}
+                                    onLunarCalendarClick={handleLunarCalendarClick}
+                                    hideHeader={true}
+                                    menuButtonRef={statisticsMenuRef}
+                                    isFreeTier={isFreeTier}
+                                    isFreeTrial={isFreeTrial}
+                                    onOpenPaymentPlans={() => setShowPaymentPlansModal(true)}
+                                />
+                            </PanelFrame>
+                        </div>
+                    )}
+                </aside>
+                    );
+                })()}
+
+                {/* Doca de Painéis Direita Fixa (Barra Lateral Direita) */}
+                {(() => {
+                    const unifiedRightDockWidth = Math.max(240, panelWidths.aspects || 245, panelWidths.cusps || 245);
+                    const dockPixelWidth = Math.max(200, unifiedRightDockWidth * uiScale);
+                    return (
+                        <aside 
+                            className="fixed top-2 sm:top-3 bottom-2 z-50 flex flex-col gap-1.5 pointer-events-none max-h-[calc(100vh-16px)] sm:max-h-[calc(100vh-24px)] overflow-hidden transition-[right,width] duration-300 ease-out select-none"
+                            style={{
+                                width: `${dockPixelWidth}px`,
+                                right: isQuickToolsSidebarOpen ? '64px' : '8px'
+                            }}
+                        >
+                            {/* Card de Lua (Topo Superior Direito) */}
+                            {celestialData && currentTime && (
+                                <div className="pointer-events-auto flex-shrink-0 w-full">
+                                    <MoonInfoPanel
+                                        moonPhase={celestialData.moonPhase}
+                                        moonIllumination={celestialData.moonIllumination}
+                                        moonEclipticLongitude={celestialData.moonEclipticLongitude}
                                         moonriseTime={celestialData.moonriseTime}
                                         moonsetTime={celestialData.moonsetTime}
-                                        moonPhase={getMoonPhaseInfo(celestialData.moonPhase)}
-                                        moonPhaseValue={celestialData.moonPhase}
-                                        retrogradeStatus={celestialData.retrogradeStatus}
-                                        housePlacements={celestialData.housePlacements}
-                                        houseCusps={celestialData.houseCusps}
-                                        filteredAspects={filteredAspects}
-                                        clockRef={clockRef}
-                                        showAspectLines={showAspectLines}
-                                        setShowAspectLines={setShowAspectLines}
+                                        currentDate={currentTime}
+                                        latitude={location?.latitude ?? 0}
+                                        onDateSelect={(date) => { setCurrentTime(date); setIsRealTime(false); }}
                                         theme={theme}
-                                        onSetTheme={setTheme}
-                                        showSeasonsRing={showSeasonsRing}
-                                        setShowSeasonsRing={setShowSeasonsRing}
-                                        showTimeRing={showTimeRing}
-                                        setShowTimeRing={setShowTimeRing}
-                                        showConstellations={showConstellations}
-                                        setShowConstellations={setShowConstellations}
+                                        isOpen={showMoonPopover}
+                                        onTogglePopover={() => setShowMoonPopover(prev => !prev)}
+                                        onClosePopover={() => setShowMoonPopover(false)}
                                     />
                                 </div>
                             )}
+
+                            {/* Painel ASPECTOS (Abaixo do Card da Lua) */}
+                            {panelStates.aspects.isOpen && (
+                                <div className="pointer-events-auto flex-1 min-h-[140px] flex flex-col overflow-hidden">
+                                    <PanelFrame
+                                        title={t ? t('Aspectos') : 'Aspectos'}
+                                        isOpen={panelStates.aspects.isOpen}
+                                        isCollapsed={panelStates.aspects.isCollapsed}
+                                        onClose={() => setPanelStates(prev => ({ ...prev, aspects: { ...prev.aspects, isOpen: false } }))}
+                                        onToggleCollapse={() => setPanelStates(prev => ({ ...prev, aspects: { ...prev.aspects, isCollapsed: !prev.aspects.isCollapsed } }))}
+                                        onResetLayout={resetAllPanelLayouts}
+                                        onFocus={() => focusPanel('aspects')}
+                                        zIndex={panelStates.aspects.zIndex}
+                                        width={dockPixelWidth}
+                                        menuButtonRef={aspectsMenuRef}
+                                        onMenuToggle={(e) => {
+                                            e.stopPropagation();
+                                            if (isFreeTier || isFreeTrial) {
+                                                setShowPaymentPlansModal(true);
+                                                return;
+                                            }
+                                            setActiveMenu(activeMenu === 'aspects' ? null : 'aspects');
+                                        }}
+                                        isMenuOpen={activeMenu === 'aspects'}
+                                        isLocked={isFreeTier || isFreeTrial}
+                                        onLockedClick={() => setShowPaymentPlansModal(true)}
+                                        theme={theme}
+                                        hideBottomResizeHandle={true}
+                                    >
+                                <AstroInfoPanel 
+                                    aspects={panelAspects} 
+                                    retrogradeStatus={celestialData.retrogradeStatus}
+                                    onAspectHover={setHoveredAspect}
+                                    onAspectClick={handleAspectClick}
+                                    onAspectRightClick={() => {}}
+                                    selectedAspects={selectedAspects}
+                                    onClearAllSelections={handleClearSelections}
+                                    isAnythingSelected={selectedAspects.length > 0 || selectedPlanets.length > 0}
+                                    activeMenu={activeMenu}
+                                    setActiveMenu={setActiveMenu}
+                                    scale={rightPanelScale}
+                                    showAspectLines={showAspectLines}
+                                    setShowAspectLines={handleToggleAspectLines}
+                                    showNatalLines={showNatalLines}
+                                    setShowNatalLines={handleToggleNatalLines}
+                                    hasNatalDate={!!natalTime}
+                                    houseFormat={houseFormat}
+                                    zodiacColorMode={zodiacColorMode}
+                                    showPlanetSpheres={showPlanetSpheres}
+                                    settings={aspectSettings}
+                                    onSettingsChange={setAspectSettings}
+                                    currentTime={currentTime}
+                                    panelScale={rightPanelScale}
+                                    onPanelScaleChange={setRightPanelScale}
+                                    panelPosition="right"
+                                    onWidthChange={handleAspectsWidthChange}
+                                    onPanelPositionChange={() => {}}
+                                    dragHandle={null}
+                                    theme={theme}
+                                    hideHeader={true}
+                                    menuButtonRef={aspectsMenuRef}
+                                    isFreeTier={isFreeTier}
+                                    isFreeTrial={isFreeTrial}
+                                    onOpenPaymentPlans={() => setShowPaymentPlansModal(true)}
+                                />
+                            </PanelFrame>
                         </div>
-                    </div>
                     )}
 
-                    </div>
-
-                    {showTransitChart && (
-                        <div className="absolute bottom-[52px] left-0 right-0 h-64 bg-[#131129]/95 backdrop-blur-md border-t border-white/10 z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] transition-transform transform translate-y-0">
-                            <TransitChart 
-                                currentTime={currentTime} 
-                                natalCelestialData={natalTime ? natalData : null} 
-                                onClose={() => setShowTransitChart(false)}
-                            />
-                        </div>
-                    )}
-                    
-
-                </section>
-
-                {/* Right Panel */}
-                <div className="flex flex-row h-full" style={{ order: sectionOrder.indexOf('details') }}>
-                    <aside 
-                        onDragOver={(e) => handleDragOver(e, 'details')}
-                        className={`column-wrapper relative group flex flex-col items-stretch transition-all duration-300 z-10 gap-1.5 ${immersiveMode || !isRightPanelVisible || (rightPanels.length === 0 && draggedItem?.type !== 'panel') ? 'hidden' : ''} ${draggedItem?.type === 'column' && draggedItem.id === 'details' ? 'opacity-50 grayscale scale-95' : ''}`}
-                        style={{
-                            width: rightPanels.length === 0 ? '200px' : 'fit-content',
-                            minWidth: 'fit-content'
-                        }}
-                    >
-                        {rightPanels.length === 0 && draggedItem?.type === 'panel' && (
-                            <div className="flex-1 border-2 border-dashed border-blue-400/50 bg-blue-400/10 rounded-3xl flex items-center justify-center transition-all">
-                                <span className="text-blue-400/50 font-medium text-sm">Solte aqui</span>
-                            </div>
-                        )}
-                        {rightPanels.map(id => renderPanel(id, 'right'))}
-                        <button
-                            onClick={() => setIsRightPanelVisible(!isRightPanelVisible)}
-                            title={isRightPanelVisible ? "Recolher painel" : "Expandir painel"}
-                            className="absolute -left-3 top-1/2 -translate-y-1/2 z-30
-                                       w-6 h-14 rounded-l-xl
-                                       bg-brand-surface/90 backdrop-blur-xl
-                                       border border-r-0 border-brand-border/20
-                                       flex items-center justify-center
-                                       text-brand-text-muted hover:text-brand-text
-                                       opacity-0 group-hover:opacity-100
-                                       transition-all duration-200 shadow-md"
+                    {/* Resizer interativo unificado entre Aspectos e Casas - Hairline Elegante */}
+                    {panelStates.aspects.isOpen && panelStates.cusps.isOpen && !panelStates.cusps.isCollapsed && (
+                        <div
+                            onPointerDown={handleRightSidebarSplitResizePointerDown}
+                            className="h-2 w-full cursor-ns-resize py-0.5 flex items-center justify-center shrink-0 -my-0.5 z-30 group select-none pointer-events-auto"
+                            title="Arraste para ajustar a altura relativa entre os painéis Aspectos e Casas"
                         >
-                            {isRightPanelVisible
-                                ? <UI_ICONS.ChevronRightIcon className="w-3 h-3" />
-                                : <UI_ICONS.ChevronLeftIcon className="w-3 h-3" />
-                            }
-                        </button>
-                    </aside>
-                </div>
+                            <div className="w-8 h-[2px] rounded-full bg-white/20 group-hover:bg-cyan-300 group-hover:w-12 group-hover:h-[3px] group-active:bg-cyan-400 transition-all duration-150 shadow-sm" />
+                        </div>
+                    )}
+
+                    {/* Painel CASAS (Abaixo de Aspectos) */}
+                    {panelStates.cusps.isOpen && (
+                        <div 
+                            className="pointer-events-auto flex-shrink-0 flex flex-col overflow-hidden"
+                            style={{ height: panelStates.cusps.isCollapsed ? 'auto' : `${sidebarCuspsHeight}px` }}
+                        >
+                            <PanelFrame
+                                title={t ? t('Casas') : 'Casas'}
+                                isOpen={panelStates.cusps.isOpen}
+                                isCollapsed={panelStates.cusps.isCollapsed}
+                                onClose={() => setPanelStates(prev => ({ ...prev, cusps: { ...prev.cusps, isOpen: false } }))}
+                                onToggleCollapse={() => setPanelStates(prev => ({ ...prev, cusps: { ...prev.cusps, isCollapsed: !prev.cusps.isCollapsed } }))}
+                                onResetLayout={resetAllPanelLayouts}
+                                onFocus={() => focusPanel('cusps')}
+                                zIndex={panelStates.cusps.zIndex}
+                                width={dockPixelWidth}
+                                menuButtonRef={cuspsMenuRef}
+                                onMenuToggle={(e) => {
+                                    e.stopPropagation();
+                                    setActiveMenu(activeMenu === 'cusps' ? null : 'cusps');
+                                }}
+                                isMenuOpen={activeMenu === 'cusps'}
+                                theme={theme}
+                                hideBottomResizeHandle={true}
+                            >
+                                <HouseCuspsPanel 
+                                    ascendantLongitude={celestialTab === 'natal' && natalTime ? natalData.ascendantLongitude : celestialData.ascendantLongitude}
+                                    midheavenLongitude={celestialTab === 'natal' && natalTime ? natalData.midheavenLongitude : celestialData.midheavenLongitude}
+                                    descendantLongitude={celestialTab === 'natal' && natalTime ? natalData.descendantLongitude : celestialData.descendantLongitude}
+                                    imumCoeliLongitude={celestialTab === 'natal' && natalTime ? natalData.imumCoeliLongitude : celestialData.imumCoeliLongitude}
+                                    houseCusps={celestialTab === 'natal' && natalTime ? natalData.houseCusps : celestialData.houseCusps}
+                                    housePlacements={celestialTab === 'natal' && natalTime ? natalData.housePlacements : celestialData.housePlacements}
+                                    visiblePlanets={celestialTab === 'natal' && natalTime ? visibleNatalPlanets : visiblePlanets}
+                                    celestialData={celestialTab === 'natal' && natalTime ? natalData : celestialData}
+                                    hoveredHouse={hoveredHouse}
+                                    setHoveredHouse={setHoveredHouse}
+                                    selectedHouses={selectedHouses}
+                                    secondarySelectedHouses={highlightedHousesFromAspects}
+                                    onHouseClick={handleHouseClick}
+                                    onHouseRightClick={() => {}}
+                                    activeMenu={activeMenu}
+                                    setActiveMenu={setActiveMenu}
+                                    houseFormat={houseFormat}
+                                    onHouseFormatChange={setHouseFormat}
+                                    scale={rightPanelScale}
+                                    showHouseLines={showHouseLines}
+                                    setShowHouseLines={setShowHouseLines}
+                                    zodiacColorMode={zodiacColorMode}
+                                    showSignLines={showSignLines}
+                                    setShowSignLines={setShowSignLines}
+                                    layoutMode={houseCuspsLayout}
+                                    onLayoutChange={setHouseCuspsLayout}
+                                    columns={houseCuspsColumns}
+                                    onColumnsChange={setHouseCuspsColumns}
+                                    showCuspDegrees={showCuspDegrees}
+                                    onToggleCuspDegrees={() => setShowCuspDegrees(!showCuspDegrees)}
+                                    panelPosition="left"
+                                    onWidthChange={handleCuspsWidthChange}
+                                    onPanelPositionChange={() => {}}
+                                    dragHandle={null}
+                                    hideHeader={true}
+                                    menuButtonRef={cuspsMenuRef}
+                                    theme={theme}
+                                />
+                            </PanelFrame>
+                        </div>
+                    )}
+                </aside>
+                    );
+                })()}
+
             </main>
+            {showSaveMapModal && (
+                <div className="absolute inset-0 z-[110] flex items-center justify-center bg-brand-dark/80 backdrop-blur-md">
+                    <div className="bg-brand-surface border border-brand-border/10 rounded-2xl shadow-2xl w-full max-w-sm p-6 relative overflow-hidden">
+                        <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-brand-purple/5 to-transparent"></div>
+                        <div className="flex justify-between items-center mb-6 relative z-10">
+                            <h2 className="text-lg font-bold uppercase text-brand-text tracking-wide">Salvar Mapa</h2>
+                            <button onClick={() => setShowSaveMapModal(false)} className="text-brand-text-muted hover:text-brand-text transition-colors">
+                                <UI_ICONS.CloseIcon className="w-6 h-6" />
+                            </button>
+                        </div>
+                        <div className="space-y-4 relative z-10">
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-brand-text-muted mb-1">Nome do Mapa</label>
+                                <input 
+                                    type="text" 
+                                    className="w-full bg-brand-surface-highlight/50 border border-brand-border/10 rounded-lg px-3 py-2 text-brand-text focus:ring-2 focus:ring-brand-purple outline-none"
+                                    placeholder="Ex: Trânsito de Hoje, Mapa Natal..."
+                                    value={newMapName}
+                                    onChange={(e) => setNewMapName(e.target.value)}
+                                    autoFocus
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-brand-text-muted mb-1">Descrição (Opcional)</label>
+                                <textarea 
+                                    className="w-full bg-brand-surface-highlight/50 border border-brand-border/10 rounded-lg px-3 py-2 text-brand-text focus:ring-2 focus:ring-brand-purple outline-none resize-none"
+                                    placeholder="Observações sobre este mapa..."
+                                    rows={3}
+                                    value={newMapDesc}
+                                    onChange={(e) => setNewMapDesc(e.target.value)}
+                                />
+                            </div>
+                            <button 
+                                onClick={handleSaveMap}
+                                disabled={!newMapName.trim()}
+                                className="w-full bg-brand-purple hover:bg-brand-purple/90 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold py-3 rounded-lg mt-4 transition-colors uppercase tracking-wider text-sm"
+                            >
+                                Salvar Mapa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {showSaveLayoutModal && (
+                <div className="absolute inset-0 z-[110] flex items-center justify-center bg-brand-dark/80 backdrop-blur-md">
+                    <div className="bg-brand-surface border border-brand-border/10 rounded-2xl shadow-2xl w-full max-w-sm p-6 relative overflow-hidden">
+                        <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-brand-purple/5 to-transparent"></div>
+                        <div className="flex justify-between items-center mb-6 relative z-10">
+                            <h2 className="text-lg font-bold uppercase text-brand-text tracking-wide">Salvar Layout</h2>
+                            <button onClick={() => setShowSaveLayoutModal(false)} className="text-brand-text-muted hover:text-brand-text transition-colors">
+                                <UI_ICONS.CloseIcon className="w-6 h-6" />
+                            </button>
+                        </div>
+                        <div className="space-y-4 relative z-10">
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-brand-text-muted mb-1">Nome do Layout</label>
+                                <input 
+                                    type="text" 
+                                    className="w-full bg-brand-surface-highlight/50 border border-brand-border/10 rounded-lg px-3 py-2 text-brand-text focus:ring-2 focus:ring-brand-purple outline-none"
+                                    placeholder="Ex: Minimalista Dark, Completo..."
+                                    value={newLayoutName}
+                                    onChange={(e) => setNewLayoutName(e.target.value)}
+                                    autoFocus
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-brand-text-muted mb-1">Descrição (Opcional)</label>
+                                <textarea 
+                                    className="w-full bg-brand-surface-highlight/50 border border-brand-border/10 rounded-lg px-3 py-2 text-brand-text focus:ring-2 focus:ring-brand-purple outline-none resize-none"
+                                    placeholder="Observações sobre este layout..."
+                                    rows={3}
+                                    value={newLayoutDesc}
+                                    onChange={(e) => setNewLayoutDesc(e.target.value)}
+                                />
+                            </div>
+                            <button 
+                                onClick={handleSaveLayout}
+                                disabled={!newLayoutName.trim()}
+                                className="w-full bg-brand-purple hover:bg-brand-purple/90 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold py-3 rounded-lg mt-4 transition-colors uppercase tracking-wider text-sm"
+                            >
+                                Salvar Layout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {isSettingsOpen && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-brand-dark/80 backdrop-blur-md">
                     <div className="bg-brand-surface border border-brand-border/10 rounded-2xl shadow-2xl w-full max-w-md p-6 m-4 transform transition-all scale-100 relative overflow-hidden">
@@ -2436,6 +2592,91 @@ useEffect(() => {
                                 </button>
                             </div>
 
+                            {/* Botão de Mapas Salvos */}
+                            <button
+                                onClick={() => setShowNatalMapSelector(!showNatalMapSelector)}
+                                className="w-full py-2.5 px-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5 text-yellow-400 font-bold text-[10px] uppercase tracking-widest hover:bg-yellow-500/10 transition-all flex items-center justify-center gap-2"
+                            >
+                                <UI_ICONS.BookIcon className="w-4 h-4" />
+                                Selecionar de Mapas Salvos
+                            </button>
+
+                            {/* Seletor de Mapas Salvos */}
+                            <AnimatePresence>
+                                {showNatalMapSelector && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="bg-brand-surface-highlight/50 border border-brand-border/10 rounded-xl overflow-hidden mb-2"
+                                    >
+                                        <div className="p-2 border-b border-brand-border/10 bg-brand-surface flex justify-between items-center">
+                                            <span className="text-[9px] font-bold uppercase text-brand-text-muted tracking-tight">Meus Mapas</span>
+                                            <button onClick={() => setShowNatalMapSelector(false)}>
+                                                <UI_ICONS.CloseIcon className="w-3 h-3 text-brand-text-muted hover:text-white" />
+                                            </button>
+                                        </div>
+                                        <div className="max-h-48 overflow-y-auto p-1 custom-scrollbar">
+                                            {savedMaps.length === 0 ? (
+                                                <div className="p-4 text-center">
+                                                    <p className="text-[10px] text-brand-text-muted">Nenhum mapa salvo.</p>
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 gap-1">
+                                                    {savedMaps.map(map => (
+                                                        <button
+                                                            key={map.id}
+                                                            onClick={() => {
+                                                                const birthDate = map.natalDate || map.targetDate || map.date;
+                                                                const birthLocation = map.natalLocation || map.location;
+
+                                                                if (birthDate) {
+                                                                    const d = new Date(birthDate);
+                                                                    const y = d.getFullYear();
+                                                                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                                                                    const day = String(d.getDate()).padStart(2, '0');
+                                                                    setTempNatalDate(`${y}-${m}-${day}`);
+                                                                    setNatalDateDisplay(`${day}/${m}/${y}`);
+                                                                    const h = String(d.getHours()).padStart(2, '0');
+                                                                    const min = String(d.getMinutes()).padStart(2, '0');
+                                                                    setTempNatalTime(`${h}:${min}`);
+                                                                    setNatalTimeDisplay(`${h}:${min}`);
+                                                                }
+                                                                if (birthLocation) {
+                                                                    setTempNatalLocationText(birthLocation.displayName);
+                                                                    (window as any).__pendingNatalLocation = birthLocation;
+                                                                }
+                                                                setShowNatalMapSelector(false);
+                                                            }}
+                                                            className="w-full p-2.5 text-left hover:bg-white/5 rounded-lg transition-colors flex flex-col group border-b border-white/5 last:border-0"
+                                                        >
+                                                            <span className="text-xs font-bold text-brand-text group-hover:text-yellow-400 transition-colors uppercase tracking-tight">{map.name}</span>
+                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                {(map.natalDate || map.targetDate || map.date) && (
+                                                                    <span className="text-[9px] text-brand-text-muted">
+                                                                        {new Date(map.natalDate || map.targetDate || map.date).toLocaleDateString('pt-BR')} 
+                                                                        {' '}
+                                                                        {new Date(map.natalDate || map.targetDate || map.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                    </span>
+                                                                )}
+                                                                {(map.natalLocation || map.location) && (
+                                                                    <>
+                                                                        <span className="text-[8px] text-brand-text-muted/30">|</span>
+                                                                        <span className="text-[9px] text-brand-text-muted truncate flex-1">
+                                                                            {(map.natalLocation || map.location).displayName}
+                                                                        </span>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
                             <div className="space-y-4">
 
                             {/* Campo Data com máscara */}
@@ -2537,39 +2778,567 @@ useEffect(() => {
                             </div>
                         </div>
 
-                        {/* COLUNA DIREITA — calendário */}
-                        <div className="flex-1 overflow-hidden relative z-10 flex flex-col min-w-0 min-h-0">
-                            <CalendarPanel
-                                isOpen={true}
-                                onClose={() => setIsNatalSettingsOpen(false)}
-                                variant="gold"
-                                currentDate={(() => {
-                                    try {
-                                        const dateStr = tempNatalDate || '2000-01-01';
-                                        const timeStr = (tempNatalTime && tempNatalTime.length >= 4) ? tempNatalTime : '12:00';
-                                        const d = new Date(`${dateStr}T${timeStr}`);
-                                        return isNaN(d.getTime()) ? new Date(2000, 0, 1, 12, 0) : d;
-                                    } catch { return new Date(2000, 0, 1, 12, 0); }
-                                })()}
-                                onDateSelect={(date) => {
-                                    const y = date.getFullYear();
-                                    const m = String(date.getMonth() + 1).padStart(2, '0');
-                                    const d = String(date.getDate()).padStart(2, '0');
-                                    setTempNatalDate(`${y}-${m}-${d}`);
-                                    setNatalDateDisplay(`${d}/${m}/${y}`);
-                                    const h = String(date.getHours()).padStart(2, '0');
-                                    const min = String(date.getMinutes()).padStart(2, '0');
-                                    setTempNatalTime(`${h}:${min}`);
-                                    setNatalTimeDisplay(`${h}:${min}`);
-                                }}
-                                defaultView="year"
-                                onlyYearView={true}
-                            />
-                        </div>
-                    </div>
+{/* COLUNA DIREITA — calendário */}
+<div className="flex-1 overflow-hidden relative z-10 flex flex-col min-w-0 min-h-0">
+    <CalendarPanel
+        isOpen={true}
+        onClose={() => setIsNatalSettingsOpen(false)}
+        variant="gold"
+        currentDate={(() => {
+            try {
+                const dateStr = tempNatalDate || '2000-01-01';
+                const timeStr = (tempNatalTime && tempNatalTime.length >= 4) ? tempNatalTime : '12:00';
+                const d = new Date(`${dateStr}T${timeStr}`);
+                return isNaN(d.getTime()) ? new Date(2000, 0, 1, 12, 0) : d;
+            } catch { return new Date(2000, 0, 1, 12, 0); }
+        })()}
+        onDateSelect={(date) => {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            setTempNatalDate(`${y}-${m}-${d}`);
+            setNatalDateDisplay(`${d}/${m}/${y}`);
+            const h = String(date.getHours()).padStart(2, '0');
+            const min = String(date.getMinutes()).padStart(2, '0');
+            setTempNatalTime(`${h}:${min}`);
+            setNatalTimeDisplay(`${h}:${min}`);
+        }}
+        defaultView="year"
+        onlyYearView={true}
+        embedded={true}
+        latitude={natalLocation.latitude}
+    />
+</div>
                 </div>
-            )}
 
+            </div>
+        )}
+        </>
+        );
+    };
+
+    const energyChartProps = useMemo(() => {
+        if (!showEnergyChart) return null;
+        let searchDate = new Date(currentTime.getTime() - 35 * 24 * 60 * 60 * 1000);
+        let newMoonDate = searchDate;
+        let count = 0;
+        while (count < 10) {
+            const next = SearchMoonPhase(0, searchDate, 40);
+            if (!next || next.date > currentTime) break;
+            newMoonDate = next.date;
+            searchDate = new Date(next.date.getTime() + 1000);
+            count++;
+        }
+        const fullMoon = SearchMoonPhase(180, newMoonDate, 35)?.date || new Date(newMoonDate.getTime() + 14 * 24 * 60 * 60 * 1000);
+        const nextNewMoon = SearchMoonPhase(0, new Date(newMoonDate.getTime() + 24 * 60 * 60 * 1000), 35)?.date || new Date(newMoonDate.getTime() + 29.5 * 24 * 60 * 60 * 1000);
+
+        const aspectData = (celestialData as any)?.filteredAspects || celestialData?.aspects || [];
+        const aspectsForEnergy = aspectData.map((a: any) => ({
+            planet1: a.body1?.name || a.body1?.id || a.planet1 || '',
+            planet2: a.body2?.name || a.body2?.id || a.planet2 || '',
+            type: (a.type === 'conjunction' ? 'CON' : 
+                   a.type === 'opposition' ? 'OPO' : 
+                   a.type === 'trine' ? 'TRI' : 
+                   a.type === 'sextile' ? 'SXT' : 
+                   a.type === 'square' ? 'QUA' : 
+                   a.type === 'inconjunct' ? 'INC' : 
+                   a.type === 'semisextile' ? 'SSX' : 
+                   a.type === 'semisquare' ? 'SSQ' : 
+                   a.type === 'sesquiquadrate' ? 'SES' : 'CON'),
+            orb: a.orb
+        }));
+
+        const illumination = Math.round((1 - Math.cos(2 * Math.PI * (celestialData?.moonPhase || 0))) / 2 * 100);
+
+        return {
+            aspects: aspectsForEnergy,
+            lunarCycle: {
+                newMoonDate,
+                fullMoonDate: fullMoon,
+                nextNewMoonDate: nextNewMoon,
+                phase: getMoonPhaseInfo(celestialData?.moonPhase || 0)?.name || '',
+                illumination
+            },
+            currentDate: currentTime
+        };
+    }, [currentTime, showEnergyChart, celestialData]);
+    const starOpacityForBg = showStars ? 1 : 0;
+
+    if (isAuthChecking) {
+        return (
+            <div className="h-screen w-screen bg-[#03030a] flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#D4AF37]"></div>
+            </div>
+        );
+    }
+
+    if (!isAuthenticated && !trialActive) {
+        return (
+            <>
+                <LandingPage 
+                    onLoginSuccess={(user) => {
+                        setIsAuthenticated(true);
+                        resetTrial();
+                        if (user?.username) setUsername(user.username);
+                        if (user?.email) setUserEmail(user.email);
+                        setIsAdmin(user?.email?.toLowerCase() === 'rafael.cm333@gmail.com' || !!user?.isAdmin);
+                        setShowLoginModal(false);
+                        setShowPaymentPlansModal(false);
+                    }} 
+                />
+                {showLoginModal && (
+                    <LoginModal
+                        isOpen={showLoginModal}
+                        onClose={() => setShowLoginModal(false)}
+                        onSuccess={(user) => {
+                            setIsAuthenticated(true);
+                            resetTrial();
+                            if (user?.username) setUsername(user.username);
+                            if (user?.email) setUserEmail(user.email);
+                            setIsAdmin(user?.email?.toLowerCase() === 'rafael.cm333@gmail.com' || !!user?.isAdmin);
+                            setShowLoginModal(false);
+                            setShowPaymentPlansModal(false);
+                        }}
+                    />
+                )}
+            </>
+        );
+    }
+
+    return (
+        <div className={`h-screen w-screen ${bgClass} text-brand-text overflow-hidden flex flex-col font-sans selection:bg-brand-purple/30 relative`}>
+            <GlobalSvgDefs />
+        {showStars && (
+            <StarfieldBackground
+                isLight={theme === 'light'}
+                opacity={starOpacityForBg}
+                starCount={starCount}
+                twinkleIntensity={starTwinkleIntensity}
+                twinkleSpeed={starTwinkleSpeed}
+                twinkleMode={starTwinkleMode}
+                showMeteors={starMeteors}
+                meteorFrequency={starMeteorFrequency}
+                showNebulaGlow={starNebulaGlow}
+                starBrightness={starBrightness}
+            />
+        )}
+            <div className="relative z-10 flex flex-row h-full w-full">
+                <div className="flex-1 relative h-full min-w-0">
+                    {renderContent()}
+                </div>
+                <TopBar 
+                    // Moon Card & Date Actions
+                    celestialData={celestialData}
+                    currentTime={currentTime}
+                    location={location}
+                    onOpenLunarCalendar={handleLunarCalendarClick}
+                    onSetTime={(date) => { setCurrentTime(date); setIsRealTime(false); }}
+                    onSetNatalTime={(date) => {
+                        setNatalTime(date);
+                        setShowNatalLines(true);
+                        setCelestialTab('natal');
+                    }}
+                    onOpenNatal={() => setIsNatalSettingsOpen(true)}
+                    natalTime={natalTime}
+                    onClearNatal={() => setNatalTime(null)}
+
+                    // Background & Theme
+                    onOpenBackground={() => {}}
+                    showConstellations={showConstellations}
+                    setShowConstellations={setShowConstellations}
+                    showStars={showStars}
+                    setShowStars={setShowStars}
+                    starCount={starCount}
+                    setStarCount={setStarCount}
+                    starTwinkleIntensity={starTwinkleIntensity}
+                    setStarTwinkleIntensity={setStarTwinkleIntensity}
+                    starTwinkleSpeed={starTwinkleSpeed}
+                    setStarTwinkleSpeed={setStarTwinkleSpeed}
+                    starTwinkleMode={starTwinkleMode}
+                    setStarTwinkleMode={setStarTwinkleMode}
+                    starMeteors={starMeteors}
+                    setStarMeteors={setStarMeteors}
+                    starMeteorFrequency={starMeteorFrequency}
+                    setStarMeteorFrequency={setStarMeteorFrequency}
+                    starNebulaGlow={starNebulaGlow}
+                    setStarNebulaGlow={setStarNebulaGlow}
+                    starBrightness={starBrightness}
+                    setStarBrightness={setStarBrightness}
+                    theme={theme}
+                    setTheme={setTheme}
+                    customBackgroundImage={customBackgroundImage}
+                    setCustomBackgroundImage={setCustomBackgroundImage}
+                    backgroundBrightness={backgroundBrightness}
+                    setBackgroundBrightness={setBackgroundBrightness}
+                    backgroundImageOpacity={backgroundImageOpacity}
+                    setBackgroundImageOpacity={setBackgroundImageOpacity}
+
+                    // Atmosfera
+                    showAtmosphere={showAtmosphere}
+                    onToggleAtmosphere={() => setShowAtmosphere(prev => !prev)}
+
+                    // Avançado
+                    showDecanRing={showDecanRing}
+                    setShowDecanRing={setShowDecanRing}
+                    showTermsRing={showTermsRing}
+                    setShowTermsRing={setShowTermsRing}
+                    showSeasonsRing={showSeasonsRing}
+                    setShowSeasonsRing={setShowSeasonsRing}
+                    showTimeRing={showTimeRing}
+                    setShowTimeRing={setShowTimeRing}
+                    timeRingScale={timeRingScale}
+                    setTimeRingScale={setTimeRingScale}
+                    ringLineColor={ringLineColor}
+                    setRingLineColor={setRingLineColor}
+                    graduationRingWidth={graduationRingWidth}
+                    setGraduationRingWidth={setGraduationRingWidth}
+                    zodiacRingScale={zodiacRingScale}
+                    setZodiacRingScale={setZodiacRingScale}
+                    seasonsRingScale={seasonsRingScale}
+                    setSeasonsRingScale={setSeasonsRingScale}
+                    decanRingScale={decanRingScale}
+                    setDecanRingScale={setDecanRingScale}
+                    decanGlyphSize={decanGlyphSize}
+                    setDecanGlyphSize={setDecanGlyphSize}
+                    termsRingScale={termsRingScale}
+                    setTermsRingScale={setTermsRingScale}
+                    termsGlyphSize={termsGlyphSize}
+                    setTermsGlyphSize={setTermsGlyphSize}
+                    zodiacSignSize={zodiacSignSize}
+                    setZodiacSignSize={setZodiacSignSize}
+                    zodiacColorMode={zodiacColorMode}
+                    setZodiacColorMode={setZodiacColorMode}
+                    showSignColors={showSignColors}
+                    setShowSignColors={setShowSignColors}
+                    zodiacSystem={zodiacSystem}
+                    setZodiacSystem={setZodiacSystem}
+
+                    // Agulha (Ponteiro)
+                    pointerEnabled={showNeedle}
+                    setPointerEnabled={setShowNeedle}
+                    pointerStyle={pointerStyle}
+                    setPointerStyle={setPointerStyle}
+                    pointerThickness={pointerThickness}
+                    setPointerThickness={setPointerThickness}
+                    pointerOpacity={pointerOpacity}
+                    setPointerOpacity={setPointerOpacity}
+                    pointerHead={pointerHead}
+                    setPointerHead={setPointerHead}
+                    pointerTail={pointerTail}
+                    setPointerTail={setPointerTail}
+                    pointerShowGradLine={pointerShowGradLine}
+                    setPointerShowGradLine={setPointerShowGradLine}
+                    pointerFull={pointerFull}
+                    setPointerFull={setPointerFull}
+
+                    // Aspectos
+                    showAspectLines={showAspectLines}
+                    setShowAspectLines={setShowAspectLines}
+                    aspectSettings={aspectSettings}
+                    setAspectSettings={setAspectSettings}
+                    visibleSecondaryAspects={visibleSecondaryAspects}
+                    setVisibleSecondaryAspects={setVisibleSecondaryAspects}
+
+                    // Planetas & Órbitas
+                    showOrbits={showOrbits}
+                    setShowOrbits={setShowOrbits}
+                    allPlanetsSameOrbit={allPlanetsSameOrbit}
+                    setAllPlanetsSameOrbit={setAllPlanetsSameOrbit}
+
+                    // Graus
+                    showDegreeLabels={showDegreeLabels}
+                    setShowDegreeLabels={setShowDegreeLabels}
+                    degreeLabelSize={degreeLabelSize}
+                    setDegreeLabelSize={setDegreeLabelSize}
+                    degreeLabelPosition={degreeLabelPosition}
+                    setDegreeLabelPosition={setDegreeLabelPosition}
+                    degreeLabelFormat={degreeLabelFormat}
+                    setDegreeLabelFormat={setDegreeLabelFormat}
+
+                    // Casas
+                    showHouseLines={showHouseLines}
+                    setShowHouseLines={setShowHouseLines}
+                    showHouseMarkers={showHouseMarkers}
+                    setShowHouseMarkers={setShowHouseMarkers}
+                    houseLineThickness={houseLineThickness}
+                    setHouseLineThickness={setHouseLineThickness}
+                    houseLineOpacity={houseLineOpacity}
+                    setHouseLineOpacity={setHouseLineOpacity}
+                    houseLineColor={houseLineColor}
+                    setHouseLineColor={setHouseLineColor}
+                    mainHouseLineThickness={mainHouseLineThickness}
+                    setMainHouseLineThickness={setMainHouseLineThickness}
+                    mainHouseLineOpacity={mainHouseLineOpacity}
+                    setMainHouseLineOpacity={setMainHouseLineOpacity}
+                    mainHouseLineColor={mainHouseLineColor}
+                    setMainHouseLineColor={setMainHouseLineColor}
+                    houseMarkerRingColor={houseMarkerRingColor}
+                    setHouseMarkerRingColor={setHouseMarkerRingColor}
+                    houseMarkerRingOpacity={houseMarkerRingOpacity}
+                    setHouseMarkerRingOpacity={setHouseMarkerRingOpacity}
+                    houseFormat={houseFormat}
+                    setHouseFormat={setHouseFormat}
+                    houseLineFormat={houseLineFormat}
+                    setHouseLineFormat={setHouseLineFormat}
+                    houseCuspsColumns={houseCuspsColumns}
+                    setHouseCuspsColumns={setHouseCuspsColumns}
+
+                    // Views
+                    showTransitChart={showTransitChart}
+                    setShowTransitChart={setShowTransitChart}
+                    isHeliocentricMode={isHeliocentricMode}
+                    setIsHeliocentricMode={setIsHeliocentricMode}
+
+                    // Escala & Tamanho
+                    uiScale={uiScale}
+                    setUiScale={setUiScale}
+                    clockScale={clockScale}
+                    setClockScale={setClockScale}
+                    leftPanelScale={leftPanelScale}
+                    setLeftPanelScale={setLeftPanelScale}
+                    rightPanelScale={rightPanelScale}
+                    setRightPanelScale={setRightPanelScale}
+                    leftPanelWidth={leftPanelWidth}
+                    rightPanelWidth={rightPanelWidth}
+                    clockPlanetSize={clockPlanetSize}
+                    setClockPlanetSize={setClockPlanetSize}
+
+                    // Docks layout
+                    leftDockWidth={Math.max(220, (panelWidths.celestial || leftPanelWidth) * uiScale)}
+                    rightDockWidth={Math.max(200, (Math.max(240, panelWidths.aspects || 245, panelWidths.cusps || 245)) * uiScale)}
+                    isLeftDockOpen={panelStates.celestial.isOpen || panelStates.statistics.isOpen}
+                    panelStates={panelStates}
+                    onReopenPanel={openPanel}
+
+                    // Action buttons
+                    onOpenSettings={() => setIsOptionsRailOpen(prev => !prev)}
+                    onSave={() => setShowSaveMapModal(true)}
+                    exportData={exportData}
+                    onOpenAccount={() => setShowProfileModal(true)}
+                    isFullscreen={isFullscreen}
+                    onToggleFullscreen={handleToggleFullscreen}
+                    isOptionsRailOpen={isOptionsRailOpen}
+                    isQuickToolsSidebarOpen={isQuickToolsSidebarOpen}
+                    onToggleQuickToolsSidebar={() => setIsQuickToolsSidebarOpen(prev => !prev)}
+                    isFreeTier={isFreeTier}
+                    userPlan={userPlan}
+                    isAdmin={isAdmin}
+                    isAuthenticated={isAuthenticated}
+                    onOpenLogin={() => setShowLoginModal(true)}
+                    onOpenPaymentPlans={() => setShowPaymentPlansModal(true)}
+                />
+                <QuickToolsSidebar 
+                    isOpen={isQuickToolsSidebarOpen}
+                    onToggle={() => setIsQuickToolsSidebarOpen(prev => !prev)}
+                    theme={theme}
+                    setTheme={setTheme}
+                    isFreeTier={isFreeTier}
+                    onOpenAccount={() => setShowProfileModal(true)}
+                    isAdmin={isAdmin}
+                    onOpenAdminDashboard={() => setShowAdminDashboard(true)}
+                    onSave={() => setShowSaveMapModal(true)}
+                    exportData={exportData}
+                    onOpenPaymentPlans={() => setShowPaymentPlansModal(true)}
+                    onOpenSettings={() => setIsOptionsRailOpen(prev => !prev)}
+                    isOptionsRailOpen={isOptionsRailOpen}
+                    currentTime={currentTime}
+                    onSetTime={(date) => { setCurrentTime(date); setIsRealTime(false); }}
+                    showAtmosphere={showAtmosphere}
+                    onToggleAtmosphere={() => setShowAtmosphere(prev => !prev)}
+                    pointerEnabled={showNeedle}
+                    setPointerEnabled={setShowNeedle}
+                    pointerStyle={pointerStyle}
+                    setPointerStyle={setPointerStyle}
+                    pointerThickness={pointerThickness}
+                    setPointerThickness={setPointerThickness}
+                    pointerOpacity={pointerOpacity}
+                    setPointerOpacity={setPointerOpacity}
+                    pointerHead={pointerHead}
+                    setPointerHead={setPointerHead}
+                    pointerTail={pointerTail}
+                    setPointerTail={setPointerTail}
+                    pointerShowGradLine={pointerShowGradLine}
+                    setPointerShowGradLine={setPointerShowGradLine}
+                    pointerFull={pointerFull}
+                    setPointerFull={setPointerFull}
+                    showOrbits={showOrbits}
+                    setShowOrbits={setShowOrbits}
+                    allPlanetsSameOrbit={allPlanetsSameOrbit}
+                    setAllPlanetsSameOrbit={setAllPlanetsSameOrbit}
+                    showPlanetSpheres={showPlanetSpheres}
+                    setShowPlanetSpheres={setShowPlanetSpheres}
+                    planetColorMode={planetColorMode}
+                    setPlanetColorMode={setPlanetColorMode}
+                    natalTime={natalTime}
+                    onSetNatalTime={(date) => {
+                        setNatalTime(date);
+                        setShowNatalLines(true);
+                        setCelestialTab('natal');
+                    }}
+                    onClearNatal={() => setNatalTime(null)}
+                    onOpenNatal={() => setIsNatalSettingsOpen(true)}
+                    showNatalLines={showNatalLines}
+                    setShowNatalLines={setShowNatalLines}
+                    natalColorMode={natalColorMode}
+                    setNatalColorMode={setNatalColorMode}
+                    showHouseLines={showHouseLines}
+                    setShowHouseLines={setShowHouseLines}
+                    showHouseMarkers={showHouseMarkers}
+                    setShowHouseMarkers={setShowHouseMarkers}
+                    houseLineThickness={houseLineThickness}
+                    setHouseLineThickness={setHouseLineThickness}
+                    houseLineOpacity={houseLineOpacity}
+                    setHouseLineOpacity={setHouseLineOpacity}
+                    houseLineColor={houseLineColor}
+                    setHouseLineColor={setHouseLineColor}
+                    mainHouseLineThickness={mainHouseLineThickness}
+                    setMainHouseLineThickness={setMainHouseLineThickness}
+                    mainHouseLineOpacity={mainHouseLineOpacity}
+                    setMainHouseLineOpacity={setMainHouseLineOpacity}
+                    mainHouseLineColor={mainHouseLineColor}
+                    setMainHouseLineColor={setMainHouseLineColor}
+                    houseMarkerRingColor={houseMarkerRingColor}
+                    setHouseMarkerRingColor={setHouseMarkerRingColor}
+                    houseMarkerRingOpacity={houseMarkerRingOpacity}
+                    setHouseMarkerRingOpacity={setHouseMarkerRingOpacity}
+                    houseFormat={houseFormat}
+                    setHouseFormat={setHouseFormat}
+                    houseLineFormat={houseLineFormat}
+                    setHouseLineFormat={setHouseLineFormat}
+                    showAspectLines={showAspectLines}
+                    setShowAspectLines={setShowAspectLines}
+                    aspectSettings={aspectSettings}
+                    setAspectSettings={setAspectSettings}
+                    visibleSecondaryAspects={visibleSecondaryAspects}
+                    setVisibleSecondaryAspects={setVisibleSecondaryAspects}
+                    showDegreeLabels={showDegreeLabels}
+                    setShowDegreeLabels={setShowDegreeLabels}
+                    degreeLabelSize={degreeLabelSize}
+                    setDegreeLabelSize={setDegreeLabelSize}
+                    degreeLabelPosition={degreeLabelPosition}
+                    setDegreeLabelPosition={setDegreeLabelPosition}
+                    degreeLabelFormat={degreeLabelFormat}
+                    setDegreeLabelFormat={setDegreeLabelFormat}
+                    showDecanRing={showDecanRing}
+                    setShowDecanRing={setShowDecanRing}
+                    showTermsRing={showTermsRing}
+                    setShowTermsRing={setShowTermsRing}
+                    showSeasonsRing={showSeasonsRing}
+                    setShowSeasonsRing={setShowSeasonsRing}
+                    showTimeRing={showTimeRing}
+                    setShowTimeRing={setShowTimeRing}
+                    timeRingScale={timeRingScale}
+                    setTimeRingScale={setTimeRingScale}
+                    ringLineColor={ringLineColor}
+                    setRingLineColor={setRingLineColor}
+                    graduationRingWidth={graduationRingWidth}
+                    setGraduationRingWidth={setGraduationRingWidth}
+                    zodiacRingScale={zodiacRingScale}
+                    setZodiacRingScale={setZodiacRingScale}
+                    zodiacSignSize={zodiacSignSize}
+                    setZodiacSignSize={setZodiacSignSize}
+                    seasonsRingScale={seasonsRingScale}
+                    setSeasonsRingScale={setSeasonsRingScale}
+                    decanRingScale={decanRingScale}
+                    setDecanRingScale={setDecanRingScale}
+                    decanGlyphSize={decanGlyphSize}
+                    setDecanGlyphSize={setDecanGlyphSize}
+                    termsRingScale={termsRingScale}
+                    setTermsRingScale={setTermsRingScale}
+                    termsGlyphSize={termsGlyphSize}
+                    setTermsGlyphSize={setTermsGlyphSize}
+                    uiScale={uiScale}
+                    setUiScale={setUiScale}
+                    clockScale={clockScale}
+                    setClockScale={setClockScale}
+                    leftPanelScale={leftPanelScale}
+                    setLeftPanelScale={setLeftPanelScale}
+                    rightPanelScale={rightPanelScale}
+                    setRightPanelScale={setRightPanelScale}
+                    leftPanelWidth={leftPanelWidth}
+                    rightPanelWidth={rightPanelWidth}
+                    clockPlanetSize={clockPlanetSize}
+                    setClockPlanetSize={setClockPlanetSize}
+                    isHeliocentricMode={isHeliocentricMode}
+                    setIsHeliocentricMode={setIsHeliocentricMode}
+                    showEnergyChart={showEnergyChart}
+                    setShowEnergyChart={setShowEnergyChart}
+                    zodiacColorMode={zodiacColorMode}
+                    setZodiacColorMode={setZodiacColorMode}
+                    zodiacSystem={zodiacSystem}
+                    setZodiacSystem={setZodiacSystem}
+                    showStars={showStars}
+                    setShowStars={setShowStars}
+                    showConstellations={showConstellations}
+                    setShowConstellations={setShowConstellations}
+                    starCount={starCount}
+                    setStarCount={setStarCount}
+                    starTwinkleIntensity={starTwinkleIntensity}
+                    setStarTwinkleIntensity={setStarTwinkleIntensity}
+                    starTwinkleSpeed={starTwinkleSpeed}
+                    setStarTwinkleSpeed={setStarTwinkleSpeed}
+                    starTwinkleMode={starTwinkleMode}
+                    setStarTwinkleMode={setStarTwinkleMode}
+                    starMeteors={starMeteors}
+                    setStarMeteors={setStarMeteors}
+                    starMeteorFrequency={starMeteorFrequency}
+                    setStarMeteorFrequency={setStarMeteorFrequency}
+                    starNebulaGlow={starNebulaGlow}
+                    setStarNebulaGlow={setStarNebulaGlow}
+                    starBrightness={starBrightness}
+                    setStarBrightness={setStarBrightness}
+                    onResetAllLayouts={resetAllPanelLayouts}
+                />
+            </div>
+
+            {/* Modal de Calendário (Acessado pelo Card da Lua ou Ações de Data) */}
+            <AnimatePresence>
+                {showCalendarPanel && (
+                    <div 
+                        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-sm p-2 sm:p-4" 
+                        onMouseDown={e => { if (e.target === e.currentTarget) setShowCalendarPanel(false); }}
+                    >
+                        <CalendarPanel 
+                            isOpen={showCalendarPanel}
+                            onClose={() => setShowCalendarPanel(false)}
+                            currentDate={currentTime}
+                            defaultView={calendarConfig.defaultView}
+                            defaultLunarView={calendarConfig.defaultLunarView}
+                            onDateSelect={(date) => { setCurrentTime(date); setIsRealTime(false); }}
+                            locationName={location.displayName}
+                            latitude={location.latitude}
+                            onLocationChange={(loc) => { setLocation({ latitude: loc.latitude, longitude: loc.longitude, displayName: loc.displayName }); }}
+                            theme={theme}
+                            savedMaps={savedMaps}
+                            onLoadMap={handleLoadMap}
+                            isFreeTier={isFreeTier}
+                            onOpenPaymentPlans={() => setShowPaymentPlansModal(true)}
+                        />
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Painel Administrativo Standalone Exclusivo para Super Admin */}
+            <AdminDashboard
+                isOpen={showAdminDashboard}
+                onClose={() => setShowAdminDashboard(false)}
+                adminEmail={userEmail}
+            />
+
+            {/* Modal de Login / Cadastro */}
+            <LoginModal
+                isOpen={showLoginModal}
+                onClose={() => setShowLoginModal(false)}
+                onSuccess={(user) => {
+                    setIsAuthenticated(true);
+                    resetTrial();
+                    if (user?.username) setUsername(user.username);
+                    if (user?.email) setUserEmail(user.email);
+                    setIsAdmin(user?.email?.toLowerCase() === 'rafael.cm333@gmail.com' || !!user?.isAdmin);
+                    setShowLoginModal(false);
+                    setShowPaymentPlansModal(false);
+                }}
+            />
         </div>
     );
 };

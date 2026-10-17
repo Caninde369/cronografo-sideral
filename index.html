@@ -2,12 +2,28 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cronógrafo Sideral</title>
+    <script>
+      window.addEventListener('unhandledrejection', function(event) {
+        if (event.reason && (
+          String(event.reason).includes('WebSocket') ||
+          String(event.reason.message || '').includes('WebSocket') ||
+          String(event.reason).includes('vite')
+        )) {
+          event.preventDefault();
+        }
+      });
+      window.addEventListener('error', function(event) {
+        if (event.message && (
+          event.message.includes('WebSocket') ||
+          event.message.includes('vite')
+        )) {
+          event.preventDefault();
+        }
+      });
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -31,7 +47,7 @@
             fontFamily: {
               display: ['Playfair Display', 'Georgia', 'serif'],
               sans:    ['DM Sans', 'system-ui', 'sans-serif'],
-              mono:    ['DM Mono', 'ui-monospace', 'monospace'],
+              mono:    ['Azeret Mono', 'Space Mono', 'ui-monospace', 'monospace'],
             },
             borderRadius: {
               '3xl': '1.5rem',
@@ -44,29 +60,55 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:ital,wght@0,100..900;1,100..900&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <link
-      href="https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,300;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=DM+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Infant:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Michroma&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Syne:wght@700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=DM+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     >
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 
     <style>
       /* ── Base ─────────────────────────────────────────────────── */
       body { font-family: 'DM Sans', sans-serif; }
 
       /* ── Utilitários de fonte (TSX usa esses nomes via Tailwind) ─ */
-      .font-michroma  { font-family: 'DM Mono', monospace; letter-spacing: 0.06em; }
-      .font-cormorant { font-family: 'Playfair Display', serif; }
+      .font-michroma  { font-family: 'Michroma', sans-serif; letter-spacing: 0.06em; }
+      .font-cormorant { font-family: 'Cormorant Garamond', serif; }
+      .font-cormorant-infant { font-family: 'Cormorant Infant', 'Cormorant Garamond', serif; }
+      .font-neue      { font-family: 'Syne', 'Michroma', sans-serif; font-weight: 800; }
       .font-manrope   { font-family: 'DM Sans', sans-serif; }
       .font-martel    { font-family: 'DM Sans', sans-serif; }
-      .font-outfit    { font-family: 'DM Sans', sans-serif; } /* redirecionado → DM Sans */
+      .font-outfit    { font-family: 'DM Sans', sans-serif; }
+
+      /* ── DS v2 ────────────────────────────────────────────────── */
+      /* Playfair grava: horas cardinais do anel e títulos de painel.
+         Michroma nomeia territórios (mín. 12px). DM Sans opera. DM Mono conta. */
+      .font-playfair  { font-family: 'Playfair Display', Georgia, serif; }
+      .ds-panel-title { font-family: 'Playfair Display', Georgia, serif; font-weight: 600; letter-spacing: .005em; }
+      .ds-section     { font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: #D4AF37; }
+
+      /* Título de popover: Playfair 600 em creme. O ícone conserva a cor própria
+         do popover (âmbar, índigo, esmeralda…) — é o que identifica a seção. */
+      .ds-pop-title {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-weight: 600;
+        font-size: 16.5px;
+        line-height: 1.1;
+        letter-spacing: .005em;
+        color: #F5F2EB;
+        text-transform: none;
+      }
+      .light-mode .ds-pop-title { color: #231714; }
 
       /* ── Aliases semânticos (manutenção / legado) ─────────────── */
-      .font-display   { font-family: 'Playfair Display', serif; }
-      .font-garamond  { font-family: 'Playfair Display', serif; }
-      .font-technical { font-family: 'DM Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+      .font-display   { font-family: 'Cormorant Garamond', serif; }
+      .font-garamond  { font-family: 'Cormorant Garamond', serif; }
+      .font-technical { font-family: 'Azeret Mono', 'Space Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+      .font-space-mono { font-family: 'Space Mono', monospace; font-variant-numeric: tabular-nums; }
+      .font-azeret-mono { font-family: 'Azeret Mono', monospace; font-variant-numeric: tabular-nums; }
       .font-body      { font-family: 'DM Sans', sans-serif; }
       .font-ui        { font-family: 'DM Sans', sans-serif; }
-      .font-mono      { font-family: 'DM Mono', monospace; font-variant-numeric: tabular-nums; }
+      .font-mono      { font-family: 'Azeret Mono', 'Space Mono', monospace; font-variant-numeric: tabular-nums; }
 
       /* ── Aliases redundantes (mapeados para DM Sans) ──────────── */
       .font-orbitron        { font-family: 'DM Sans', sans-serif; }

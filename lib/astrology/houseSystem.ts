@@ -145,8 +145,11 @@ export const calculatePlacidusHouseCusps = (lst: number, lat: number, mc: number
         for (let i = 0; i < 50; i++) {
             const lonRad = toRad(lon);
             const ra = toDeg(Math.atan2(Math.sin(lonRad) * Math.cos(eps), Math.cos(lonRad)));
-            const dec = toDeg(Math.asin(Math.sin(lonRad) * Math.sin(eps)));
-            const ad = toDeg(Math.asin(Math.tan(phi) * Math.tan(toRad(dec))));
+            const decVal = Math.sin(lonRad) * Math.sin(eps);
+            const dec = toDeg(Math.asin(Math.max(-1, Math.min(1, decVal))));
+            const tanProduct = Math.tan(phi) * Math.tan(toRad(dec));
+            const clampedTanProduct = Math.max(-1, Math.min(1, tanProduct));
+            const ad = toDeg(Math.asin(clampedTanProduct));
             const oa = normalizeAngle(ra - ad);
             let diff = targetOA - oa;
             if (diff > 180) diff -= 360;
@@ -163,8 +166,10 @@ export const calculatePlacidusHouseCusps = (lst: number, lat: number, mc: number
     // Oblique Ascension of ASC
     const ascRad = toRad(asc);
     const ra_asc = toDeg(Math.atan2(Math.sin(ascRad) * Math.cos(eps), Math.cos(ascRad)));
-    const dec_asc = toDeg(Math.asin(Math.sin(ascRad) * Math.sin(eps)));
-    const ad_asc = toDeg(Math.asin(Math.tan(phi) * Math.tan(toRad(dec_asc))));
+    const dec_ascVal = Math.sin(ascRad) * Math.sin(eps);
+    const dec_asc = toDeg(Math.asin(Math.max(-1, Math.min(1, dec_ascVal))));
+    const tanProduct_asc = Math.tan(phi) * Math.tan(toRad(dec_asc));
+    const ad_asc = toDeg(Math.asin(Math.max(-1, Math.min(1, tanProduct_asc))));
     const OA_asc = normalizeAngle(ra_asc - ad_asc);
 
     // Semidiurnal arc and seminocturnal arc
@@ -198,6 +203,10 @@ export const calculatePlacidusHouseCusps = (lst: number, lat: number, mc: number
     cusps[9]  = mc;
     cusps[10] = cusp11;
     cusps[11] = cusp12;
+
+    if (cusps.some(c => isNaN(c))) {
+        return calculatePorphyryHouseCusps(asc, mc);
+    }
 
     return cusps;
 };

@@ -213,6 +213,9 @@ const translations: Record<Language, Record<string, string>> = {
     'chrono.showTimeRing': 'Mostrar Relógio 24h',
     'chrono.timeRingScale': 'Tamanho dos Marcadores',
     'chrono.houseMarkers': 'Marcadores de Casas',
+    'chrono.exportMap': 'Mapa Sideral (A3 PDF)',
+    'chrono.exportFull': 'Relatório Completo (A4 PDF)',
+    'chrono.generating': 'Gerando...',
   },
   'EN': {
     'nav.resources': 'FEATURES',
@@ -357,6 +360,9 @@ const translations: Record<Language, Record<string, string>> = {
     'chrono.showTimeRing': 'Show 24h Clock',
     'chrono.timeRingScale': 'Marker Size',
     'chrono.houseMarkers': 'House Markers',
+    'chrono.exportMap': 'Sidereal Map (A3 PDF)',
+    'chrono.exportFull': 'Full Report (A4 PDF)',
+    'chrono.generating': 'Generating...',
   },
   'ES': {
     'nav.resources': 'RECURSOS',
@@ -501,6 +507,9 @@ const translations: Record<Language, Record<string, string>> = {
     'chrono.showTimeRing': 'Mostrar Reloj 24h',
     'chrono.timeRingScale': 'Tamaño de Marcadores',
     'chrono.houseMarkers': 'Marcadores de Casas',
+    'chrono.exportMap': 'Mapa Sideral (A3 PDF)',
+    'chrono.exportFull': 'Informe Completo (A4 PDF)',
+    'chrono.generating': 'Generando...',
   },
   'FR': {
     'nav.resources': 'FONCTIONNALITÉS',

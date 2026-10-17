@@ -1,5 +1,6 @@
 {
-  "name": "V2.9.17 Cronografo Sideral",
-  "description": "An interactive sidereal chronograph that displays time, date, location, and visually represents day and night cycles on a 24-hour dial. The clock updates in real-time based on the user\u0027s system clock.",
-  "requestFramePermissions": []
+  "name": "Remix: V3 Cronografo Sideral",
+  "description": "An advanced sidereal chronograph and astrological visualization tool with a dynamic atmospheric engine, real-time astronomical precision, and bi-wheel natal chart support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

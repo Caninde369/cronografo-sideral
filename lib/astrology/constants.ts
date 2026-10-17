@@ -20,7 +20,8 @@ export const PLANET_COLORS: Record<string, string> = {
     ceres: '#FACC15', // Harvest Gold (Brighter)
     pallas: '#818CF8', // Wisdom Blue
     juno: '#F472B6', // Union Pink
-    vesta: '#FB923C' // Hearth Orange
+    vesta: '#FB923C', // Hearth Orange
+    partOfFortune: '#FDE047' // Fortune Gold
 };
 
 // Map for glyph colors inside spheres to ensure contrast
@@ -42,7 +43,8 @@ export const SPHERE_GLYPH_COLORS: Record<string, string> = {
     ceres: '#3f6212', // Dark Yellow/Green
     pallas: '#1e3a8a', // Dark Blue
     juno: '#831843', // Dark Pink
-    vesta: '#7c2d12' // Dark Orange
+    vesta: '#7c2d12', // Dark Orange
+    partOfFortune: '#422006' // Dark Brown
 };
 
 export const HOUSE_RULERS: Record<number, string> = {
@@ -73,6 +75,7 @@ export const getPlanetRadialIndex = (id: string): number => {
         case 'juno': return 3.5;
         case 'ceres': return 3.5;
         case 'pallas': return 3.5;
+        case 'partOfFortune': return 0.5;
         case 'jupiter': return 4;
         case 'saturn': return 5;
         case 'chiron': return 5.5;
@@ -88,5 +91,5 @@ export const DEFAULT_VISIBLE_PLANETS: Record<string, boolean> = {
     sun: true, moon: true, mercury: true, venus: true, mars: true,
     jupiter: true, saturn: true, uranus: true, neptune: true, pluto: true,
     lilith: false, northNode: false, southNode: false,
-    chiron: false, ceres: false, pallas: false, juno: false, vesta: false
+    chiron: false, ceres: false, pallas: false, juno: false, vesta: false, partOfFortune: false
 };

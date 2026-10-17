@@ -16,10 +16,11 @@ interface ZodiacRingProps {
     iconSize?: number;
     colorMode?: 'none' | 'element' | 'modality' | 'polarity';
     highlightFilter?: HighlightFilter;
+    isBrightSky?: boolean;
 }
 
 export const ZodiacRing: React.FC<ZodiacRingProps> = ({
-    cx, cy, innerRadius, outerRadius, rotation, onHover, onLeave, iconSize = 24, colorMode = 'element', highlightFilter
+    cx, cy, innerRadius, outerRadius, rotation, onHover, onLeave, iconSize = 24, colorMode = 'element', highlightFilter, isBrightSky = false
 }) => {
     
     const getAngle = (longitude: number) => {
@@ -49,6 +50,9 @@ export const ZodiacRing: React.FC<ZodiacRingProps> = ({
             "Z"
         ].join(" ");
     };
+
+    const adaptiveStroke = isBrightSky ? "rgba(15, 23, 42, 0.55)" : "rgba(255, 255, 255, 0.25)";
+    const adaptiveIconColor = isBrightSky ? "text-slate-900" : "text-white dark:text-gray-300";
 
     return (
         <g transform={`rotate(${rotation}, ${cx}, ${cy})`}>
@@ -97,7 +101,7 @@ export const ZodiacRing: React.FC<ZodiacRingProps> = ({
                 };
 
                 let iconFill = 'currentColor';
-                let iconColor = 'text-white dark:text-gray-300';
+                let iconColor = adaptiveIconColor;
                 if (colorMode === 'element') {
                     iconFill = getIconGradientId(sign.element);
                     iconColor = ''; // Clear color class to use fill
@@ -133,7 +137,7 @@ export const ZodiacRing: React.FC<ZodiacRingProps> = ({
                                         ? ({ cardinal: '#a78bfa', fixed: '#60a5fa', mutable: '#34d399' } as Record<string,string>)[sign.modality] || 'transparent'
                                         : 'transparent'
                             }
-                            fillOpacity={colorMode === 'element' || colorMode === 'modality' ? "0.12" : "0"}
+                            fillOpacity={colorMode === 'element' || colorMode === 'modality' ? (isBrightSky ? "0.08" : "0.12") : "0"}
                             stroke="none"
                             className="hover:brightness-150 cursor-pointer"
                         />
@@ -144,24 +148,28 @@ export const ZodiacRing: React.FC<ZodiacRingProps> = ({
                             y1={polarToCartesian(cx, cy, innerRadius, startAngle).y}
                             x2={polarToCartesian(cx, cy, outerRadius, startAngle).x}
                             y2={polarToCartesian(cx, cy, outerRadius, startAngle).y}
-                            stroke="currentColor"
-                            className="text-brand-border"
-                            strokeOpacity="0.1"
-                            strokeWidth="0.5"
+                            stroke={adaptiveStroke}
+                            strokeWidth="0.8"
+                            strokeLinecap="round"
+                            shapeRendering="geometricPrecision"
                         />
 
                         {/* Icon Container - Symbols Upright, Scalable */}
-                        <g transform={`translate(${pos.x}, ${pos.y}) rotate(${-rotation})`}>
-                            <g className="opacity-80 group-hover:opacity-100 transition-opacity duration-200 drop-shadow-2xl">
+                        <g transform={`translate(${pos.x}, ${pos.y}) rotate(${-rotation})`} shapeRendering="geometricPrecision">
+                            <g 
+                                className="opacity-80 group-hover:opacity-100 transition-opacity duration-200"
+                                style={{ filter: isBrightSky ? 'drop-shadow(0 1px 1px rgba(15,23,42,0.3))' : 'drop-shadow(0 1px 1px rgba(0,0,0,0.2))' }}
+                            >
                                 <SignIcon 
                                     className={iconColor} 
                                     width={iconSize} 
                                     height={iconSize} 
                                     x={-iconSize / 2} 
-                                    y={-iconSize / 2}
+                                    y={-iconSize / 2} 
                                     fill={iconFill}
                                     stroke={iconFill === 'currentColor' ? 'currentColor' : 'none'}
                                     strokeWidth="8" 
+                                    shapeRendering="geometricPrecision"
                                 />
                             </g>
                         </g>
@@ -169,8 +177,8 @@ export const ZodiacRing: React.FC<ZodiacRingProps> = ({
                 );
             })}
             {/* Outer Border Ring */}
-             <circle cx={cx} cy={cy} r={innerRadius} fill="none" stroke="currentColor" strokeOpacity="0.2" strokeWidth="1" className="text-brand-border" />
-             <circle cx={cx} cy={cy} r={outerRadius} fill="none" stroke="currentColor" strokeOpacity="0.2" strokeWidth="1" className="text-brand-border" />
+             <circle cx={cx} cy={cy} r={innerRadius} fill="none" stroke={adaptiveStroke} strokeWidth="1" shapeRendering="geometricPrecision" />
+             <circle cx={cx} cy={cy} r={outerRadius} fill="none" stroke={adaptiveStroke} strokeWidth="1" shapeRendering="geometricPrecision" />
         </g>
     );
 };

@@ -3,12 +3,11 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import emailjs from '@emailjs/browser';
+import { PAYMENT_CONFIG } from '../lib/paymentConfig';
 
 const EMAILJS_SERVICE  = import.meta.env.VITE_EMAILJS_SERVICE;
 const EMAILJS_TEMPLATE = import.meta.env.VITE_EMAILJS_TEMPLATE;
 const EMAILJS_KEY      = import.meta.env.VITE_EMAILJS_KEY;
-const NU_CHECKOUT_URL  = 'https://checkout.nubank.com.br/WYxT1HYG5fay6s65';
-const WA_DUVIDAS_URL   = 'https://wa.me/55SEUNUMERO?text=Ol%C3%A1%2C%20tenho%20uma%20d%C3%BAvida%20antes%20de%20garantir%20minha%20cota%20de%20Fundador.';
 
 const SUPERNOVA = 'linear-gradient(135deg, #6366F1 0%, #22D3EE 25%, #818cf8 45%, #f472b6 65%, #fb923c 80%, #EF4444 100%)';
 
@@ -36,7 +35,7 @@ export const LeadCheckoutModal: React.FC<LeadCheckoutModalProps> = ({ isOpen, on
     } catch (_) {}
     finally {
       setLoading(false);
-      window.open(NU_CHECKOUT_URL, '_blank');
+      window.open(PAYMENT_CONFIG.checkoutUrlLifetime, '_blank');
       onClose();
     }
   };
@@ -186,7 +185,7 @@ export const LeadCheckoutModal: React.FC<LeadCheckoutModalProps> = ({ isOpen, on
                 }}>
                   <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '13px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, margin: 0 }}>
                     {'O pagamento é processado por Rafael C. Medeiros — criador do Cronógrafo Sideral. Dúvidas antes de pagar? '}
-                    <a href={WA_DUVIDAS_URL} target="_blank" rel="noopener noreferrer"
+                    <a href={PAYMENT_CONFIG.whatsappSupportUrl} target="_blank" rel="noopener noreferrer"
                        style={{ color: 'rgba(212,175,55,0.8)', textDecoration: 'none' }}>
                       {'Fale diretamente comigo.'}
                     </a>

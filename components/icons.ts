@@ -2,48 +2,58 @@
 import React from 'react';
 
 // Generic Icon Component for UI Icons
-const UIIcon: React.FC<{ paths: string[], viewBox?: string, className?: string, pathProps?: React.SVGProps<SVGPathElement>[] }> = ({ paths, viewBox = "0 0 24 24", className, pathProps = [] }) => (
+interface IconProps extends React.SVGProps<SVGSVGElement> {
+    paths?: string[];
+    viewBox?: string;
+    className?: string;
+    style?: React.CSSProperties;
+    pathProps?: React.SVGProps<SVGPathElement>[];
+}
+
+const UIIcon: React.FC<{ paths: string[], viewBox?: string, className?: string, style?: React.CSSProperties, pathProps?: React.SVGProps<SVGPathElement>[] }> = ({ paths, viewBox = "0 0 24 24", className, style, pathProps = [] }) => (
     React.createElement('svg', {
         xmlns: "http://www.w3.org/2000/svg",
         width: "24",
         height: "24",
         fill: "currentColor",
         viewBox: viewBox,
-        className: className
+        className: className,
+        style: style
     }, ...paths.map((d, i) => React.createElement('path', { key: i, d: d, ...(pathProps[i] || {}) })))
 );
 
 export const UI_ICONS = {
-    StepBackIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"]}),
-    StepForwardIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"]}),
-    PlayIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M8 5v14l11-7z"]}),
-    PauseIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M6 19h4V5H6v14zm8-14v14h4V5h-4z"]}),
-    FastRewindIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"]}),
-    FastForwardIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"]}),
-    MoreIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, viewBox: "0 0 16 16", paths: ["M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"]}),
-    AspectIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, viewBox: "0 0 16 16", paths: ["M7.379 1.227a.5.5 0 0 1 1.242 0l1.25 2.527a.5.5 0 0 0 .445.274l2.783.405a.5.5 0 0 1 .277.853l-2.015 1.964a.5.5 0 0 0-.144.498l.476 2.772a.5.5 0 0 1-.726.527L8 10.205l-2.489 1.309a.5.5 0 0 1-.726-.527l.476-2.772a.5.5 0 0 0-.144-.498L3.102 5.286a.5.5 0 0 1 .277-.853l2.783-.405a.5.5 0 0 0 .445.274l1.25-2.527z"]}),
-    NatalAspectIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, viewBox: "0 0 24 24", paths: ["M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2M12 15.5C13.93 15.5 15.5 13.93 15.5 12C15.5 10.07 13.93 8.5 12 8.5C10.07 8.5 8.5 10.07 8.5 12C8.5 13.93 10.07 15.5 12 15.5Z"], pathProps: [{opacity: "0.3"}, {}] }),
-    FullscreenIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 2h-2v3h-3v2h5v-5zm-3-4V7h-2V5h5v5h-3z"]}),
+    StepBackIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"]}),
+    StepForwardIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"]}),
+    PlayIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M8 5v14l11-7z"]}),
+    PauseIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M6 19h4V5H6v14zm8-14v14h4V5h-4z"]}),
+    FastRewindIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"]}),
+    FastForwardIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"]}),
+    MoreIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, viewBox: "0 0 16 16", paths: ["M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"]}),
+    AspectIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, viewBox: "0 0 16 16", paths: ["M7.379 1.227a.5.5 0 0 1 1.242 0l1.25 2.527a.5.5 0 0 0 .445.274l2.783.405a.5.5 0 0 1 .277.853l-2.015 1.964a.5.5 0 0 0-.144.498l.476 2.772a.5.5 0 0 1-.726.527L8 10.205l-2.489 1.309a.5.5 0 0 1-.726-.527l.476-2.772a.5.5 0 0 0-.144-.498L3.102 5.286a.5.5 0 0 1 .277-.853l2.783-.405a.5.5 0 0 0 .445.274l1.25-2.527z"]}),
+    NatalAspectIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, viewBox: "0 0 24 24", paths: ["M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2M12 15.5C13.93 15.5 15.5 13.93 15.5 12C15.5 10.07 13.93 8.5 12 8.5C10.07 8.5 8.5 10.07 8.5 12C8.5 13.93 10.07 15.5 12 15.5Z"], pathProps: [{opacity: "0.3"}, {}] }),
+    FullscreenIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 2h-2v3h-3v2h5v-5zm-3-4V7h-2V5h5v5h-3z"]}),
 
-ExitFullscreenIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"]}),ChevronDownIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, viewBox: "0 0 16 16", pathProps: [{fillRule: "evenodd"}], paths: ["M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"]}),
-    ChevronLeftIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, viewBox: "0 0 16 16", pathProps: [{fillRule: "evenodd"}], paths: ["M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"]}),
-    ChevronRightIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, viewBox: "0 0 16 16", pathProps: [{fillRule: "evenodd"}], paths: ["M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"]}),
-    ArrowRightIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"]}),
-    SearchIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"] }),
-    BookIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9-2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"]}),
-    ImageIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9-2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"]}),
-    CloseIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"]}),
-    DragHandleIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, viewBox: "0 0 16 16", paths: ["M10 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm4 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm4 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"]}),
-    DisplayModeIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, viewBox: "0 0 16 16", paths: ["M8.235 1.559a.5.5 0 0 0-.47 0l-7.5 4a.5.5 0 0 0 0 .882L3.188 8 .264 9.559a.5.5 0 0 0 0 .882l7.5 4a.5.5 0 0 0 .47 0l7.5-4a.5.5 0 0 0 0-.882L12.813 8l2.922-1.559a.5.5 0 0 0 0-.882l-7.5-4zM8 9.433 1.562 6 8 2.567 14.438 6 8 9.433z"]}),
-    AstriaIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2", "M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9-2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"], pathProps: [{opacity: "0.4", fill: "currentColor"}, {fill: "currentColor"}] }),
-    CalendarIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5z"] }),
-    LockIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"] }),
-    UnlockIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z"] }),
-    StarIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"] }),
-    LayersIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M11.99 18.54l-7.37-5.73L3 14.07l9 7l9-7l-1.63-1.27l-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7l-9 7l1.63 1.27L12 16z"] }),
-    OrbitIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z", "M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"], pathProps: [{opacity: "0.5"}, {}] }),
-    SphereIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z"] }),
-    NeedleIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M12 2L8 22h8L12 2z"] }),
+    ExitFullscreenIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"]}),
+    ChevronDownIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, viewBox: "0 0 16 16", pathProps: [{fillRule: "evenodd"}], paths: ["M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"]}),
+    ChevronLeftIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, viewBox: "0 0 16 16", pathProps: [{fillRule: "evenodd"}], paths: ["M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"]}),
+    ChevronRightIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, viewBox: "0 0 16 16", pathProps: [{fillRule: "evenodd"}], paths: ["M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"]}),
+    ArrowRightIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"]}),
+    SearchIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"] }),
+    BookIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9-2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"]}),
+    ImageIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9-2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"]}),
+    CloseIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"]}),
+    DragHandleIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, viewBox: "0 0 16 16", paths: ["M10 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm4 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm4 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"]}),
+    DisplayModeIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, viewBox: "0 0 16 16", paths: ["M8.235 1.559a.5.5 0 0 0-.47 0l-7.5 4a.5.5 0 0 0 0 .882L3.188 8 .264 9.559a.5.5 0 0 0 0 .882l7.5 4a.5.5 0 0 0 .47 0l7.5-4a.5.5 0 0 0 0-.882L12.813 8l2.922-1.559a.5.5 0 0 0 0-.882l-7.5-4zM8 9.433 1.562 6 8 2.567 14.438 6 8 9.433z"]}),
+    AstriaIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2", "M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9-2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"], pathProps: [{opacity: "0.4", fill: "currentColor"}, {fill: "currentColor"}] }),
+    CalendarIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5z"] }),
+    LockIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"] }),
+    UnlockIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z"] }),
+    StarIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"] }),
+    LayersIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M11.99 18.54l-7.37-5.73L3 14.07l9 7l9-7l-1.63-1.27l-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7l-9 7l1.63 1.27L12 16z"] }),
+    OrbitIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z", "M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"], pathProps: [{opacity: "0.5"}, {}] }),
+    SphereIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z"] }),
+    NeedleIcon: (props: IconProps) => React.createElement(UIIcon, { ...props, paths: ["M12 2L8 22h8L12 2z"] }),
     SignLinesIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93"], pathProps: [{stroke: "currentColor", strokeWidth: "2", fill: "none"}, {stroke: "currentColor", strokeWidth: "2", fill: "none"}, {stroke: "currentColor", strokeWidth: "2", fill: "none"}, {stroke: "currentColor", strokeWidth: "2", fill: "none"}] }),
     HouseLinesIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"] }),
     HouseFormatIcon: (props: { className?: string; }) => React.createElement(UIIcon, { ...props, paths: ["M9 4v3h5v12h3V7h5V4H9zm-6 8h3v7h3v-7h3V9H3v3z"] }),
@@ -248,6 +258,7 @@ export const CELESTIAL_GLYPHS: Record<string, string> = {
     pallas: '⚴',
     juno: '⚵',
     vesta: '⚶',
+    partOfFortune: '⊗',
     ascendant: 'AC',
     midheaven: 'MC',
 };

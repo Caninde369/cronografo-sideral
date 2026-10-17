@@ -34,7 +34,7 @@ export const NeedlesLayer: React.FC<NeedlesLayerProps> = ({
     const sortedPlanetIds = Object.keys(planetPositions).sort(); // Order doesn't matter much for needles
 
     return (
-        <g className="needles-layer pointer-events-none">
+        <g className="needles-layer pointer-events-none" shapeRendering="geometricPrecision">
             {sortedPlanetIds.map(planetId => {
                 if (!visiblePlanets[planetId]) return null;
                 const { angle } = planetPositions[planetId];
@@ -58,31 +58,29 @@ export const NeedlesLayer: React.FC<NeedlesLayerProps> = ({
                             const baseAngleDelta = 0.8; 
                             const baseLeft = polarToCartesian(cx, cy, baseRadius, angle - baseAngleDelta);
                             const baseRight = polarToCartesian(cx, cy, baseRadius, angle + baseAngleDelta);
-                            return <polygon points={`${pos.x},${pos.y} ${baseLeft.x},${baseLeft.y} ${baseRight.x},${baseRight.y}`} fill={color} />;
+                            return <polygon points={`${pos.x},${pos.y} ${baseLeft.x},${baseLeft.y} ${baseRight.x},${baseRight.y}`} fill={color} shapeRendering="geometricPrecision" />;
                         case 'circle':
-                            return <circle cx={pos.x} cy={pos.y} r={size/2} fill={color} />;
+                            return <circle cx={pos.x} cy={pos.y} r={size/2} fill={color} shapeRendering="geometricPrecision" />;
                         case 'diamond':
                             const dSize = size * 0.7;
-                            const p1 = polarToCartesian(cx, cy, radius + (isHead ? 0 : dSize), angle); // Tip
-                            const p2 = polarToCartesian(cx, cy, radius - (isHead ? dSize : 0), angle); // Base
-                            // Diamond logic simplified:
-                            // Actually let's just draw a diamond shape
-                            return <rect x={pos.x - dSize/2} y={pos.y - dSize/2} width={dSize} height={dSize} fill={color} transform={`rotate(${angle + 45}, ${pos.x}, ${pos.y})`} />;
+                            return <rect x={pos.x - dSize/2} y={pos.y - dSize/2} width={dSize} height={dSize} fill={color} transform={`rotate(${angle + 45}, ${pos.x}, ${pos.y})`} shapeRendering="geometricPrecision" />;
                         case 'square':
-                            return <rect x={pos.x - size/2} y={pos.y - size/2} width={size} height={size} fill={color} transform={`rotate(${angle}, ${pos.x}, ${pos.y})`} />;
+                            return <rect x={pos.x - size/2} y={pos.y - size/2} width={size} height={size} fill={color} transform={`rotate(${angle}, ${pos.x}, ${pos.y})`} shapeRendering="geometricPrecision" />;
                         default:
                             return null;
                     }
                 };
 
                 return (
-                    <g key={`needle-${planetId}`}>
+                    <g key={`needle-${planetId}`} shapeRendering="geometricPrecision">
                         <line 
                             x1={innerPos.x} y1={innerPos.y} 
                             x2={outerPos.x} y2={outerPos.y} 
                             stroke={color} 
                             strokeWidth={pointerThickness} 
                             strokeDasharray={pointerStyle === 'dashed' ? "4 4" : "none"}
+                            strokeLinecap="round"
+                            shapeRendering="geometricPrecision"
                             opacity={0.6}
                         />
                         {pointerHead !== 'none' && renderMarker(pointerHead, outerRadius, headSize, true)}

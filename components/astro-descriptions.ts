@@ -71,6 +71,10 @@ export const PLANET_DESCRIPTIONS: Record<string, { title: string, description: s
         title: "Vesta",
         description: "Representa a devoção, o foco, a pureza e a chama sagrada interior. Simboliza aquilo ao que nos dedicamos com total comprometimento e sacrifício."
     },
+    partOfFortune: {
+        title: "Roda",
+        description: "Também conhecida como Parte da Fortuna, é um ponto matemático sensível que indica prosperidade, sorte, saúde e onde encontramos a verdadeira felicidade."
+    },
 };
 
 export const SIGN_DESCRIPTIONS: Record<string, { title: string, description: string }> = {

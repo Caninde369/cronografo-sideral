@@ -177,24 +177,30 @@ app.get('/api/admin/stats', authenticate, requireAdmin, (req, res) => {
 });
 
 async function startServer() {
-    // Vite middleware for development
-    if (process.env.NODE_ENV !== 'production') {
-        const vite = await createViteServer({
-            server: { middlewareMode: true },
-            appType: 'spa',
-        });
-        app.use(vite.middlewares);
-    } else {
-        // Serve static files in production
-        app.use(express.static(path.join(__dirname, 'dist')));
-        app.get('*', (req, res) => {
-            res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-        });
-    }
+    try {
+        // Vite middleware for development
+        if (process.env.NODE_ENV !== 'production') {
+            const vite = await createViteServer({
+                server: { middlewareMode: true },
+                appType: 'spa',
+            });
+            app.use(vite.middlewares);
+        } else {
+            // Serve static files in production
+            const distPath = path.resolve(process.cwd(), 'dist');
+            app.use(express.static(distPath));
+            app.get('*all', (req, res) => {
+                res.sendFile(path.join(distPath, 'index.html'));
+            });
+        }
 
-    app.listen(PORT, '0.0.0.0', () => {
-        console.log(`Server running on http://localhost:${PORT}`);
-    });
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`Server running on http://localhost:${PORT}`);
+        });
+    } catch (err) {
+        console.error('Failed to start server:', err);
+        process.exit(1);
+    }
 }
 
 startServer();

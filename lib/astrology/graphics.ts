@@ -1,28 +1,31 @@
 import { normalizeAngle, polarToCartesian } from './utils';
 
-// --- PALETTE DEFINITIONS BASED ON REFERENCE IMAGES ---
-// Stops: 0% (Sun Center), 35% (Halo), 70% (Mid Sky), 100% (Far/Dark)
+
 export const ATMOSPHERE_PALETTE = {
     NIGHT: {
-        sky: ['#0a0502', '#0f0c1b', '#080510', '#020105'], // Atmospheric dark luxury
-        ground: ['#050302', '#0a0805']
+        sky:    ['#080d1e', '#05091a', '#030612', '#010208'],
+        ground: ['#04060f', '#020308'],
     },
-    DAWN: { 
-        sky: ['#fceabb', '#f8b500', '#5e2563', '#0f0c1b'], // Gold to deep purple
-        ground: ['#1a100c', '#2a1b15'] 
+    DAWN: {
+        // Nascer: magenta profundo → laranja dourado → violeta → azul noturno
+        sky:    ['#f5a623', '#d4502a', '#7b2d6e', '#0d1030'],
+        ground: ['#0e0806', '#060404'],
     },
     DAY: {
-        sky: ['#ffecd2', '#fcb69f', '#1e3c72', '#0f0c1b'], // Soft light to deep space blue
-        ground: ['#1c2315', '#2a3b1c']
+        // Transição: amarelo claro → laranja suave → azul diurno inicial
+        sky:    ['#fef3d0', '#f5c87a', '#3a7ec8', '#0f2248'],
+        ground: ['#18220f', '#0e160a'],
     },
     FULL_DAY: {
-        sky: ['#f0f9ff', '#7dd3fc', '#075985', '#0f172a'], // Celeste/Sky blue luxury
-        ground: ['#2d3a28', '#1a2414']
+        // Azul pleno de céu limpo
+        sky:    ['#daf0ff', '#4db8f0', '#0a6eb8', '#063260'],
+        ground: ['#1e2a14', '#131c0c'],
     },
     DUSK: {
-        sky: ['#ff7e5f', '#feb47b', '#5e2563', '#0f0c1b'], // Peach/orange to deep purple
-        ground: ['#150d12', '#0a0508']
-    }
+        // Pôr: laranja-vermelho → róseo → violeta → quase preto
+        sky:    ['#ff6b35', '#c8304a', '#561870', '#08061a'],
+        ground: ['#140a08', '#080404'],
+    },
 };
 
 // --- COLOR HELPERS ---

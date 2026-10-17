@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email != null && (
+          request.auth.token.email.lower() == 'rafael.cm333@gmail.com' ||
+          request.auth.token.email == 'Rafael.cm333@gmail.com'
+        )) ||
+        request.auth.uid == 'admin'
+      );
+    }
+
+    function isValidUserProfile(data) {
+      return (data.uid == request.auth.uid || isAdmin())
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'role', 'plan', 'createdAt', 'updatedAt', 'lastLoginAt', 'loginCount', 'trialUsedToday', 'totalActiveTimeSeconds', 'lastLoginDate'])
+        && (!('email' in data) || (data.email is string && data.email.size() <= 256))
+        && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 200))
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 2048))
+        && (!('role' in data) || data.role == 'user' || (data.role == 'admin' && isAdmin()))
+        && (!('plan' in data) || data.plan in ['free', 'monthly', 'lifetime']);
+    }
+
+    function isValidSavedMap(data, userId) {
+      return data.keys().hasAll(['id', 'userId', 'name', 'createdAt'])
+        && data.keys().hasOnly(['id', 'userId', 'name', 'description', 'targetDate', 'natalDate', 'createdAt', 'updatedAt', 'layout', 'location', 'natalLocation'])
+        && data.userId == userId
+        && data.name is string
+        && data.name.size() <= 200;
+    }
+
+    function isValidSavedLayout(data, userId) {
+      return data.keys().hasAll(['id', 'userId', 'name', 'createdAt'])
+        && data.keys().hasOnly(['id', 'userId', 'name', 'description', 'layout', 'createdAt', 'updatedAt'])
+        && data.userId == userId
+        && data.name is string
+        && data.name.size() <= 200;
+    }
+
+    // Connection test doc
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // User profile documents
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if (isOwner(userId) || isAdmin()) && isValidId(userId) && isValidUserProfile(request.resource.data);
+      allow update: if (isOwner(userId) || isAdmin()) && isValidId(userId) && isValidUserProfile(request.resource.data)
+        && (!('uid' in resource.data) || request.resource.data.uid == resource.data.uid)
+        && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role || isAdmin());
+      allow delete: if isOwner(userId) || isAdmin();
+
+      // User saved maps subcollection
+      match /savedMaps/{mapId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(mapId) && isValidSavedMap(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidId(mapId) && isValidSavedMap(request.resource.data, userId)
+          && request.resource.data.userId == resource.data.userId;
+        allow delete: if isOwner(userId) && isValidId(mapId);
+      }
+
+      // User saved layouts subcollection
+      match /savedLayouts/{layoutId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(layoutId) && isValidSavedLayout(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidId(layoutId) && isValidSavedLayout(request.resource.data, userId)
+          && request.resource.data.userId == resource.data.userId;
+        allow delete: if isOwner(userId) && isValidId(layoutId);
+      }
+    }
+  }
+}
