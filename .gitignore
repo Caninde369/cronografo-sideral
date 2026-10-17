@@ -31,3 +31,7 @@ temp_dist
 *.njsproj
 *.sln
 *.sw?
+
+# Credenciais do Firebase Admin — NUNCA versionar
+service-account*.json
+*firebase-adminsdk*.json
