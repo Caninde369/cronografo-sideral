@@ -1137,43 +1137,9 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                                     width: '100%',
                                                     minWidth: `${50 + maxCols * 44}px`
                                                 }}>
-                                                    {/* Subcabeçalho de Dias da Semana / Planetas */}
-                                                    <div style={{
-                                                        background: 'rgba(0,0,0,0.3)',
-                                                        borderRight: '1px solid rgba(255,255,255,0.10)',
-                                                        borderBottom: '1px solid rgba(255,255,255,0.12)'
-                                                    }} />
-                                                    {Array.from({ length: maxCols }, (_, di) => {
-                                                        const colDate = new Date(cycle.start);
-                                                        colDate.setDate(cycle.start.getDate() + di);
-                                                        const dow = colDate.getDay();
-                                                        const pConfig = WEEKDAY_PLANET_CONFIG[dow];
-                                                        const isTodayCol = colDate.toDateString() === new Date().toDateString();
-
-                                                        return (
-                                                            <div
-                                                                key={`weekday-head-${di}`}
-                                                                style={{
-                                                                    display: 'flex',
-                                                                    flexDirection: 'column',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    padding: '6px 2px 5px 2px',
-                                                                    gap: '3px',
-                                                                    background: isTodayCol ? 'rgba(251,146,60,0.12)' : 'rgba(0,0,0,0.25)',
-                                                                    borderRight: di === maxCols - 1 ? 'none' : '0.5px solid rgba(255,255,255,0.06)',
-                                                                    borderBottom: '1px solid rgba(255,255,255,0.12)',
-                                                                }}
-                                                            >
-                                                                <PlanetSphereIcon dow={dow} size={18} />
-                                                                <span className={`text-[9px] font-bold tracking-wider font-manrope uppercase ${
-                                                                    isTodayCol ? 'text-amber-400 font-extrabold' : 'text-brand-text-muted/80'
-                                                                }`}>
-                                                                    {pConfig.abbr}
-                                                                </span>
-                                                            </div>
-                                                        );
-                                                    })}
+                                                    {/* Dia da semana fica dentro de cada célula (não num cabeçalho
+                                                        único): cada fase tem 6–8 dias e começa num dia da semana
+                                                        diferente, então uma linha de cabeçalho só acertaria a 1ª fase. */}
 
                                                     {/* Exatamente 4 Fases (Nova, Crescente, Cheia, Minguante) */}
                                                     {phases.map(phase => (
@@ -1212,6 +1178,8 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                                                 const ec = ELEMENT_COLORS[solarSign.element];
                                                                 const isToday = date.toDateString() === new Date().toDateString();
                                                                 const isSel = date.getDate() === selDay && date.getMonth() === selMonth && date.getFullYear() === selYear;
+                                                                const dow = date.getDay();
+                                                                const dowConfig = WEEKDAY_PLANET_CONFIG[dow];
 
                                                                 return (
                                                                     <div key={`${phase.name}-${lunarDay}`}
@@ -1226,7 +1194,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                                                             outline: isSel ? '1.5px solid rgb(var(--color-brand-purple))' : isToday ? '1.5px solid #FB923C' : 'none',
                                                                             outlineOffset: '-1px',
                                                                             transition: 'filter 0.1s',
-                                                                            minHeight: '56px',
+                                                                            minHeight: '68px',
                                                                             boxSizing: 'border-box',
                                                                         }}
                                                                         onMouseEnter={e => (e.currentTarget as HTMLElement).style.filter='brightness(1.2)'}
@@ -1243,6 +1211,14 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                                                         </div>
                                                                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '2px 0' }}>
                                                                             <MoonPhaseDisk lunarDay={lunarDay} size={22} />
+                                                                        </div>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+                                                                            <PlanetSphereIcon dow={dow} size={11} />
+                                                                            <span className={`text-[8.5px] font-bold tracking-wider font-manrope uppercase leading-none ${
+                                                                                isToday ? 'text-amber-400 font-extrabold' : 'text-brand-text-muted/80'
+                                                                            }`}>
+                                                                                {dowConfig.abbr}
+                                                                            </span>
                                                                         </div>
                                                                     </div>
                                                                 );

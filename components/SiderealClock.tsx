@@ -2480,16 +2480,12 @@ const horizonStrokePath = `
     ? "drop-shadow(0 1px 2px rgba(255,255,255,0.4))"
     : "drop-shadow(0 2px 4px rgba(0,0,0,0.6))";
 
-  // Retorna se um ângulo SVG está na metade "céu" ou "terra" do mapa
-  // O horizonte é a linha ASC-DSC (ângulo 180° no SVG = esquerda = ASC)
-  // Ângulos 0°-180° = metade superior = céu diurno
-  // Ângulos 180°-360° = metade inferior = terra
-  const getElementColor = (angleDeg: number): string => {
-    const norm = ((angleDeg % 360) + 360) % 360;
-    const isSkyHalf = norm > 180 && norm < 360;
-    if (showAtmosphere && isLightBackground) {
-      return isSkyHalf ? "#1a2e44" : "#e2e8f0";
-    } else if (theme === "light") {
+  // Cor dos marcadores de hora (anel 24h).
+  // Os números ficam no anel único, fora do disco da atmosfera, então a cor
+  // depende só do tema — não escurece mais a metade superior quando a
+  // atmosfera está ligada (regra antiga, de quando os números ficavam sobre o céu).
+  const getElementColor = (_angleDeg: number): string => {
+    if (theme === "light") {
       return "#2d4a6a";
     } else {
       return "#e2e8f0";
