@@ -23,6 +23,7 @@ import { Tooltip } from "./Tooltip";
 import { getDecanRuler } from "../lib/astrology/dignities";
 import { getMoonPhaseInfo } from "../lib/astrology/moon";
 import { getMoonAge, getCelticMoonCycle } from "../lib/astrology/calendars";
+import { getEclipseOnLocalDate } from "../lib/astrology/eclipses";
 import { MoonPhaseDisk } from "./CalendarPanel";
 import { CelestialGlyphSvg } from "./chart/CelestialGlyphSvg";
 
@@ -477,37 +478,16 @@ export const HOUSE_RULERS: Record<number, string> = {
   12: "neptune",
 };
 
+// Eclipse no dia local da data — calculado pela astronomy-engine (lib/astrology/eclipses).
+// Antes era uma lista fixa até 2027.
 export const checkIsEclipse = (date: Date): { type: "solar" | "lunar"; name: string } | null => {
   if (!date) return null;
-  const day = date.getDate();
-  const month = date.getMonth() + 1; // 1-based
-  const year = date.getFullYear();
-  
-  if (day === 12 && month === 8 && year === 2026) {
-    return { type: "solar", name: "Eclipse Solar Total" };
+  try {
+    const ev = getEclipseOnLocalDate(date);
+    return ev ? { type: ev.type, name: ev.name } : null;
+  } catch {
+    return null;
   }
-  if (day === 17 && month === 2 && year === 2026) {
-    return { type: "solar", name: "Eclipse Solar Anular" };
-  }
-  if (day === 3 && month === 3 && year === 2026) {
-    return { type: "lunar", name: "Eclipse Lunar Total" };
-  }
-  if (day === 28 && month === 8 && year === 2026) {
-    return { type: "lunar", name: "Eclipse Lunar Parcial" };
-  }
-  if (day === 6 && month === 2 && year === 2027) {
-    return { type: "solar", name: "Eclipse Solar Anular" };
-  }
-  if (day === 20 && month === 2 && year === 2027) {
-    return { type: "lunar", name: "Eclipse Lunar Penumbral" };
-  }
-  if (day === 2 && month === 8 && year === 2027) {
-    return { type: "solar", name: "Eclipse Solar Total" };
-  }
-  if (day === 18 && month === 8 && year === 2027) {
-    return { type: "lunar", name: "Eclipse Lunar Penumbral" };
-  }
-  return null;
 };
 
 export const SiderealClock: React.FC<SiderealClockProps> = ({

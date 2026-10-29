@@ -38,6 +38,7 @@ import StarfieldBackground from './components/StarfieldBackground';
 import { GlobalSvgDefs } from './components/GlobalSvgDefs';
 import { ProfileModal } from './components/ProfileModal';
 import { PaymentPlansModal } from './components/PaymentPlansModal';
+import { EclipsePanel } from './components/EclipsePanel';
 import { LoginModal } from './components/LoginModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { 
@@ -2256,6 +2257,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                         isOpen={showMoonPopover}
                                         onTogglePopover={() => setShowMoonPopover(prev => !prev)}
                                         onClosePopover={() => setShowMoonPopover(false)}
+                                        onEclipseClick={() => setShowEclipseModal(true)}
                                     />
                                 </div>
                             )}
@@ -3297,6 +3299,16 @@ const handlePlanetClick = useCallback((id: string) => {
                     onResetAllLayouts={resetAllPanelLayouts}
                 />
             </div>
+
+            {/* Janela de Eclipse (card "Eclipse" no card da Lua) */}
+            <EclipsePanel
+                isOpen={showEclipseModal}
+                onClose={() => setShowEclipseModal(false)}
+                referenceDate={currentTime}
+                location={location}
+                onGoToTime={(date) => { setCurrentTime(date); setIsRealTime(false); }}
+                containerRef={menuRefs.eclipses}
+            />
 
             {/* Modal de Calendário (Acessado pelo Card da Lua ou Ações de Data) */}
             <AnimatePresence>

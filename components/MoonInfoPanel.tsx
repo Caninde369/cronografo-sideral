@@ -6,6 +6,7 @@ import { getMoonPhaseInfo } from '../lib/astrology/moon';
 import { getYearCycles } from '../lib/astrology/lunarCycles';
 import { CalendarPanel, MoonPhaseDisk } from './CalendarPanel';
 import { checkIsEclipse } from './SiderealClock';
+import { getUpcomingEclipse } from '../lib/astrology/eclipses';
 
 export interface MoonInfoPanelProps {
     moonPhase: number;
@@ -23,6 +24,8 @@ export interface MoonInfoPanelProps {
     isOpen?: boolean;
     onTogglePopover?: () => void;
     onClosePopover?: () => void;
+    /** Abre a janela de eclipse (card "Eclipse detectado" / "Eclipse em N dias") */
+    onEclipseClick?: () => void;
 }
 
 const PHASE_ABBR: Record<string, string> = {
@@ -51,7 +54,8 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
     theme = 'dark',
     isOpen,
     onTogglePopover,
-    onClosePopover
+    onClosePopover,
+    onEclipseClick
 }) => {
     const isLight = theme === 'light';
     const [localShowPopover, setLocalShowPopover] = useState(false);
@@ -80,6 +84,16 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
     });
 
     const eclipse = useMemo(() => checkIsEclipse(currentDate), [currentDate]);
+    // Próximo eclipse em até 15 dias (aviso antecipado quando não é o dia do eclipse)
+    const upcomingEclipse = useMemo(() => {
+        if (eclipse) return null;
+        try {
+            const up = getUpcomingEclipse(currentDate);
+            return up && up.daysUntil >= 1 && up.daysUntil <= 15 ? up : null;
+        } catch {
+            return null;
+        }
+    }, [currentDate, eclipse]);
 
     const moonAgeRaw = useMemo(() => getMoonAge(moonPhase), [moonPhase]);
     const moonAge = useMemo(() => Math.max(1, Math.min(29, Math.round(moonAgeRaw))), [moonAgeRaw]);
@@ -360,10 +374,16 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
 
                     <div className="flex flex-col gap-1.5">
                         {eclipse && (
-                            <div 
-                                className={`flex flex-col items-center gap-0.5 px-2 py-1.5 w-full shrink-0 border rounded-[10px] animate-pulse ${
-                                    eclipse.type === 'solar' 
-                                        ? 'bg-gradient-to-r from-orange-950/90 to-red-950/90 border-orange-500/70 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.4)]' 
+                            <div
+                                role={onEclipseClick ? 'button' : undefined}
+                                tabIndex={onEclipseClick ? 0 : undefined}
+                                data-no-drag="true"
+                                onClick={onEclipseClick ? (e) => { e.stopPropagation(); onEclipseClick(); } : undefined}
+                                onKeyDown={onEclipseClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onEclipseClick(); } } : undefined}
+                                title={onEclipseClick ? 'Ver detalhes do eclipse' : undefined}
+                                className={`flex flex-col items-center gap-0.5 px-2 py-1.5 w-full shrink-0 border rounded-[10px] animate-pulse ${onEclipseClick ? 'cursor-pointer hover:brightness-125' : ''} ${
+                                    eclipse.type === 'solar'
+                                        ? 'bg-gradient-to-r from-orange-950/90 to-red-950/90 border-orange-500/70 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.4)]'
                                         : 'bg-gradient-to-r from-red-950/90 to-purple-950/90 border-red-500/70 text-red-200 shadow-[0_0_12px_rgba(239,68,68,0.4)]'
                                 }`}
                             >
@@ -373,6 +393,37 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
                                 </div>
                                 <span className="font-extrabold text-white text-center leading-tight" style={{ fontSize: `${Math.max(8.5, Math.round(10 * scale))}px` }}>
                                     {eclipse.name}
+                                </span>
+                                {onEclipseClick && (
+                                    <span className="flex items-center gap-1 opacity-90" style={{ fontSize: `${Math.max(7.5, Math.round(9 * scale))}px` }}>
+                                        Ver detalhes <i className="ti ti-arrow-right" aria-hidden="true" />
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Aviso antecipado: eclipse nos próximos 15 dias */}
+                        {!eclipse && upcomingEclipse && (
+                            <div
+                                role={onEclipseClick ? 'button' : undefined}
+                                tabIndex={onEclipseClick ? 0 : undefined}
+                                data-no-drag="true"
+                                onClick={onEclipseClick ? (e) => { e.stopPropagation(); onEclipseClick(); } : undefined}
+                                onKeyDown={onEclipseClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onEclipseClick(); } } : undefined}
+                                title={onEclipseClick ? 'Ver detalhes do eclipse' : undefined}
+                                className={`flex items-center justify-between gap-1.5 px-2 py-1.5 w-full shrink-0 border rounded-[10px] transition-colors ${onEclipseClick ? 'cursor-pointer' : ''} ${
+                                    isLight
+                                        ? 'bg-amber-50/80 border-amber-600/30 text-amber-900 hover:border-amber-600/60'
+                                        : (upcomingEclipse.event.type === 'solar'
+                                            ? 'bg-orange-950/40 border-orange-500/35 text-orange-200 hover:border-orange-400/70'
+                                            : 'bg-red-950/40 border-red-500/35 text-red-200 hover:border-red-400/70')
+                                }`}
+                            >
+                                <span className="font-bold leading-tight truncate" style={{ fontSize: `${Math.max(8.5, Math.round(10 * scale))}px` }}>
+                                    {upcomingEclipse.event.name}
+                                </span>
+                                <span className="font-semibold whitespace-nowrap opacity-90" style={{ fontSize: `${Math.max(8, Math.round(9.5 * scale))}px` }}>
+                                    {upcomingEclipse.daysUntil === 1 ? 'amanhã' : `em ${upcomingEclipse.daysUntil} dias`}
                                 </span>
                             </div>
                         )}
