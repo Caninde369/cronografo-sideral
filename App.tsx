@@ -3143,6 +3143,7 @@ const handlePlanetClick = useCallback((id: string) => {
                     setTheme={setTheme}
                     isFreeTier={isFreeTier}
                     onOpenAccount={() => setShowProfileModal(true)}
+                    onOpenEclipses={() => setShowEclipseModal(true)}
                     isAdmin={isAdmin}
                     onOpenAdminDashboard={() => setShowAdminDashboard(true)}
                     onSave={() => setShowSaveMapModal(true)}

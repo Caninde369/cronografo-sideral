@@ -31,6 +31,7 @@ import {
     SiderealTime,
     SunPosition,
 } from 'astronomy-engine';
+import { getCentralTrack, getShadowState, getSubLunarPoint } from './eclipseShadow';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos
@@ -221,11 +222,8 @@ const nodeNear = (peak: Date): 'north' | 'south' => {
 
 /** Ponto da Terra sob a Lua num instante (lat/lon geográficas). */
 const subLunarPoint = (t: Date): { lat: number; lon: number } => {
-    const eq = Equator(Body.Moon, MakeTime(t), new Observer(0, 0, 0), true, true);
-    const gst = SiderealTime(MakeTime(t));
-    let lon = (eq.ra - gst) * 15;
-    lon = ((lon + 540) % 360) - 180;
-    return { lat: eq.dec, lon };
+    const [lon, lat] = getSubLunarPoint(t);
+    return { lat, lon };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -350,6 +348,47 @@ const moonAltitude = (t: Date, obs: Observer): number => {
     return Horizon(time, obs, eq.ra, eq.dec, 'normal').altitude;
 };
 
+/**
+ * Varredura rápida da cobertura do Sol num local (amostras a cada 10 min em torno do pico).
+ * Usada para descartar locais fora da sombra e para escolher as cidades principais.
+ */
+const scanCache = new Map<string, { maxCoverage: number; bestTime: Date; altitude: number }>();
+export const scanSolarCoverage = (ev: EclipseEvent, lat: number, lon: number): { maxCoverage: number; bestTime: Date; altitude: number } => {
+    const key = `${ev.id}|${lat.toFixed(2)}|${lon.toFixed(2)}`;
+    const cached = scanCache.get(key);
+    if (cached) return cached;
+    const obs = new Observer(lat, lon, 0);
+    const sample = (ms: number) => {
+        const time = MakeTime(new Date(ms));
+        const sun = Equator(Body.Sun, time, obs, true, true);
+        const moon = Equator(Body.Moon, time, obs, true, true);
+        const a = sun.vec, b = moon.vec;
+        const cx = a.y * b.z - a.z * b.y, cy = a.z * b.x - a.x * b.z, cz = a.x * b.y - a.y * b.x;
+        const sep = Math.atan2(Math.sqrt(cx * cx + cy * cy + cz * cz), a.x * b.x + a.y * b.y + a.z * b.z) / RAD;
+        const sunR = Math.asin(SUN_RADIUS_KM / (sun.dist * KM_PER_AU)) / RAD;
+        const moonR = Math.asin(MOON_RADIUS_KM / (moon.dist * KM_PER_AU)) / RAD;
+        return { sep, sunR, moonR, sun, time };
+    };
+    const peakMs = ev.peak.getTime();
+    const first = sample(peakMs);
+    let result = { maxCoverage: 0, bestTime: ev.peak, altitude: -90 };
+    if (first.sep - (first.sunR + first.moonR) < 2.2) {
+        let best = { cov: 0, ms: peakMs };
+        for (let ms = peakMs - 3.5 * 3600000; ms <= peakMs + 3.5 * 3600000; ms += 10 * 60000) {
+            const s = sample(ms);
+            const cov = circleOverlapArea(s.sep, s.sunR, s.moonR) / (Math.PI * s.sunR * s.sunR);
+            if (cov > best.cov) best = { cov, ms };
+        }
+        if (best.cov > 0) {
+            const s = sample(best.ms);
+            const alt = Horizon(s.time, obs, s.sun.ra, s.sun.dec, 'normal').altitude;
+            result = { maxCoverage: Math.min(1, best.cov), bestTime: new Date(best.ms), altitude: alt };
+        }
+    }
+    scanCache.set(key, result);
+    return result;
+};
+
 const localCache = new Map<string, EclipseLocalView>();
 
 export const getLocalView = (ev: EclipseEvent, lat: number, lon: number): EclipseLocalView => {
@@ -361,9 +400,13 @@ export const getLocalView = (ev: EclipseEvent, lat: number, lon: number): Eclips
     let view: EclipseLocalView;
 
     if (ev.type === 'solar') {
-        const info = SearchLocalSolarEclipse(MakeTime(new Date(ev.peak.getTime() - DAY_MS)), obs);
-        const samePeak = Math.abs(info.peak.time.date.getTime() - ev.peak.getTime()) < DAY_MS;
-        if (!samePeak) {
+        // Pré-filtro barato: se o Sol nunca é tocado pela Lua aqui, nem chama a busca completa
+        const scan = scanSolarCoverage(ev, lat, lon);
+        const info = scan.maxCoverage > 0
+            ? SearchLocalSolarEclipse(MakeTime(new Date(ev.peak.getTime() - DAY_MS)), obs)
+            : null;
+        const samePeak = !!info && Math.abs(info.peak.time.date.getTime() - ev.peak.getTime()) < DAY_MS;
+        if (!info || !samePeak) {
             view = {
                 visible: false, reason: 'outside-shadow', kind: ev.kind, obscuration: 0,
                 begin: new Date(ev.peak.getTime() - 90 * 60000), peak: ev.peak, end: new Date(ev.peak.getTime() + 90 * 60000),
@@ -416,10 +459,13 @@ export const getLocalView = (ev: EclipseEvent, lat: number, lon: number): Eclips
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Sol e Lua como o observador vê, com o zênite para cima.
+ * Sol e Lua como o observador vê, com o zênite para cima no instante `orientationTime`
+ * (use o máximo do eclipse). A orientação fica FIXA durante todo o eclipse — se ela
+ * acompanhasse cada instante, o quadro giraria junto com o céu (muito rápido quando o
+ * Sol passa perto do zênite) e a Lua pareceria ir e voltar.
  * Raios e deslocamentos em graus.
  */
-export const getSolarDisc = (t: Date, lat: number, lon: number): EclipseDisc => {
+export const getSolarDisc = (t: Date, lat: number, lon: number, orientationTime?: Date): EclipseDisc => {
     const time = MakeTime(t);
     const obs = new Observer(lat, lon, 0);
     const sun = Equator(Body.Sun, time, obs, true, true);
@@ -433,11 +479,13 @@ export const getSolarDisc = (t: Date, lat: number, lon: number): EclipseDisc => 
     const east = dRA * Math.cos(sun.dec * RAD);
     const north = moon.dec - sun.dec;
 
-    // Ângulo paralático: gira o quadro para o zênite ficar para cima
-    const lst = SiderealTime(time) + lon / 15;
-    const H = ((lst - sun.ra) * 15) * RAD;
+    // Ângulo paralático (fixo no instante de orientação): zênite para cima
+    const oTime = orientationTime ? MakeTime(orientationTime) : time;
+    const oSun = orientationTime ? Equator(Body.Sun, oTime, obs, true, true) : sun;
+    const lst = SiderealTime(oTime) + lon / 15;
+    const H = ((lst - oSun.ra) * 15) * RAD;
     const phi = lat * RAD;
-    const dec = sun.dec * RAD;
+    const dec = oSun.dec * RAD;
     const q = Math.atan2(Math.sin(H), Math.tan(phi) * Math.cos(dec) - Math.sin(dec) * Math.cos(H));
 
     const r = Math.hypot(east, north);
@@ -492,35 +540,97 @@ export const getLunarDisc = (t: Date, lat: number, lon: number): EclipseDisc => 
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Leitura (tropical) — rascunho editável
+// Locais principais de cada eclipse
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SIGN_THEMES = [
-    'coragem, iniciativa e identidade',
-    'recursos, corpo e segurança material',
-    'comunicação, estudos e trocas do dia a dia',
-    'casa, família e raízes emocionais',
-    'criatividade, expressão e reconhecimento',
-    'rotina, saúde e trabalho bem-feito',
-    'parcerias, acordos e equilíbrio nas relações',
-    'intimidade, crises e transformação profunda',
-    'crenças, viagens e expansão de horizontes',
-    'carreira, estrutura e responsabilidade',
-    'grupos, redes e projetos coletivos',
-    'espiritualidade, sensibilidade e encerramentos',
+export interface EclipsePlace {
+    id: string;
+    name: string;
+    lat: number;
+    lon: number;
+    /** central = faixa do anel/totalidade · max = ponto de máximo · zenith = Lua no zênite · city = cidade */
+    role: 'central' | 'max' | 'zenith' | 'city';
+}
+
+const WORLD_CITIES: Array<[string, number, number]> = [
+    ['São Paulo', -23.55, -46.63], ['Rio de Janeiro', -22.91, -43.17], ['Brasília', -15.79, -47.88],
+    ['Salvador', -12.97, -38.5], ['Fortaleza', -3.73, -38.52], ['Recife', -8.05, -34.88],
+    ['Belo Horizonte', -19.92, -43.94], ['Manaus', -3.12, -60.02], ['Porto Alegre', -30.03, -51.23],
+    ['Belém', -1.46, -48.5], ['Natal', -5.79, -35.21], ['Curitiba', -25.43, -49.27],
+    ['Buenos Aires', -34.6, -58.38], ['Montevidéu', -34.9, -56.16], ['Santiago', -33.45, -70.67],
+    ['Lima', -12.05, -77.04], ['Bogotá', 4.71, -74.07], ['Quito', -0.18, -78.47],
+    ['Cidade do México', 19.43, -99.13], ['Nova York', 40.71, -74.01], ['Los Angeles', 34.05, -118.24],
+    ['Toronto', 43.65, -79.38], ['Lisboa', 38.72, -9.14], ['Madri', 40.42, -3.7],
+    ['Paris', 48.86, 2.35], ['Londres', 51.51, -0.13], ['Roma', 41.9, 12.5], ['Berlim', 52.52, 13.4],
+    ['Reykjavík', 64.15, -21.94], ['Atenas', 37.98, 23.73], ['Cairo', 30.04, 31.24],
+    ['Lagos', 6.52, 3.38], ['Acra', 5.6, -0.19], ['Dacar', 14.72, -17.47], ['Luanda', -8.84, 13.23],
+    ['Joanesburgo', -26.2, 28.05], ['Nairóbi', -1.29, 36.82], ['Dubai', 25.2, 55.27],
+    ['Mumbai', 19.08, 72.88], ['Pequim', 39.9, 116.4], ['Tóquio', 35.68, 139.69],
+    ['Jacarta', -6.21, 106.85], ['Sydney', -33.87, 151.21], ['Auckland', -36.85, 174.76],
+    ['Honolulu', 21.31, -157.86],
 ];
 
-export const getEclipseReading = (ev: EclipseEvent): string => {
-    const sign = SIGNS_PT[ev.signIndex];
-    const theme = SIGN_THEMES[ev.signIndex];
-    const opening = ev.type === 'solar'
-        ? `Eclipse solar em ${sign}: abre um ciclo ligado a ${theme}.`
-        : `Eclipse lunar em ${sign}: culmina e revela o que vinha sendo construído em ${theme}.`;
-    const node = ev.node === 'north'
-        ? 'Junto ao Nodo Norte, o movimento é de atração para o novo: bom para assumir direções que ainda pedem aprendizado.'
-        : 'Junto ao Nodo Sul, o movimento é de liberação: bom para soltar o que já cumpriu seu papel.';
-    const closing = ev.type === 'solar'
-        ? 'Os efeitos costumam se desdobrar nos seis meses seguintes.'
-        : 'Emoções e desfechos tendem a vir à tona nas duas semanas em torno do eclipse.';
-    return `${opening} ${node} ${closing}`;
+const isOcean = (region: string) => region.startsWith('Oceano');
+const placesCache = new Map<string, EclipsePlace[]>();
+
+/**
+ * Locais principais: faixa central (ou ponto de máximo / Lua no zênite)
+ * + as cidades de onde o eclipse é mais bem visto.
+ */
+export const getMainPlaces = (ev: EclipseEvent): EclipsePlace[] => {
+    const cached = placesCache.get(ev.id);
+    if (cached) return cached;
+    const out: EclipsePlace[] = [];
+
+    try {
+        if (ev.type === 'solar') {
+            const track = (ev.kind === 'annular' || ev.kind === 'total') ? getCentralTrack(ev.id, ev.peak).flat() : [];
+            const label = ev.kind === 'annular' ? 'Anel' : 'Totalidade';
+            if (track.length) {
+                // Agrupa a faixa por região e pega o ponto do meio de cada trecho
+                const groups: Array<{ region: string; pts: Array<[number, number]> }> = [];
+                for (const [lon, lat] of track) {
+                    const region = regionFromLatLon(lat, lon);
+                    const last = groups[groups.length - 1];
+                    if (last && last.region === region) last.pts.push([lon, lat]);
+                    else groups.push({ region, pts: [[lon, lat]] });
+                }
+                const land = groups.filter(g => !isOcean(g.region));
+                const chosen = (land.length ? land : groups)
+                    .sort((a, b) => b.pts.length - a.pts.length)
+                    .slice(0, land.length ? 2 : 1);
+                const seen = new Set<string>();
+                for (const g of chosen) {
+                    if (seen.has(g.region)) continue;
+                    seen.add(g.region);
+                    const [lon, lat] = g.pts[Math.floor(g.pts.length / 2)];
+                    out.push({ id: `central-${g.region}`, name: `${label} · ${g.region}`, lat, lon, role: 'central' });
+                }
+            } else {
+                const [lon, lat] = getShadowState(ev.peak).nearest;
+                out.push({ id: 'max', name: `Máximo · ${regionFromLatLon(lat, lon)}`, lat, lon, role: 'max' });
+            }
+
+            const ranked = WORLD_CITIES
+                .map(([name, lat, lon]) => ({ name, lat, lon, scan: scanSolarCoverage(ev, lat, lon) }))
+                .filter(c => c.scan.maxCoverage >= 0.05 && c.scan.altitude > 0)
+                .sort((a, b) => b.scan.maxCoverage - a.scan.maxCoverage)
+                .slice(0, 3);
+            for (const c of ranked) out.push({ id: `city-${c.name}`, name: c.name, lat: c.lat, lon: c.lon, role: 'city' });
+        } else {
+            const [lon, lat] = getSubLunarPoint(ev.peak);
+            out.push({ id: 'zenith', name: `Lua no zênite · ${regionFromLatLon(lat, lon)}`, lat, lon, role: 'zenith' });
+            const ranked = WORLD_CITIES
+                .map(([name, clat, clon]) => ({ name, lat: clat, lon: clon, alt: moonAltitude(ev.peak, new Observer(clat, clon, 0)) }))
+                .filter(c => c.alt > 10)
+                .sort((a, b) => b.alt - a.alt)
+                .slice(0, 3);
+            for (const c of ranked) out.push({ id: `city-${c.name}`, name: c.name, lat: c.lat, lon: c.lon, role: 'city' });
+        }
+    } catch (err) {
+        console.warn('[eclipses] falha ao calcular locais principais', err);
+    }
+
+    placesCache.set(ev.id, out);
+    return out;
 };

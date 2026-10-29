@@ -1,39 +1,42 @@
 /**
- * Janela de eclipse (opção B) — abre ao clicar no card "Eclipse" do card da Lua.
+ * Janela de eclipse (opção B) — abre pelo botão "Eclipses" da sidebar ou pelo
+ * card de eclipse no card da Lua.
  *
- * - Ilustração real (Sol/Lua ou Lua/sombra da Terra) calculada a cada instante.
- * - Timer (scrubber) do início ao fim do eclipse para o local escolhido; acompanha
- *   o horário real durante o eclipse ("Agora").
- * - Pílulas de localidade: trocam o local da leitura.
+ * - Ilustração real (Sol/Lua ou Lua/sombra da Terra), com orientação fixa no
+ *   máximo do eclipse e a trajetória da Lua desenhada.
+ * - Globo com a sombra da Lua (carregado sob demanda), no mesmo instante do timer.
+ * - Timer (scrubber) do início ao fim do eclipse no local escolhido; acompanha o
+ *   horário real durante o eclipse ("Agora").
+ * - Locais: o local atual do Cronógrafo, os locais principais do eclipse e
+ *   "Escolher cidade".
  * - Lista de eclipses por ano.
  * - Zodíaco TROPICAL.
- *
- * Próxima etapa (globo da sombra): o componente do globo deve receber
- * `event`, `scrubMs` (instante do timer) e o local selecionado — ver o
- * marcador "SLOT DO GLOBO" no layout abaixo.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
     EclipseEvent,
     EclipseLocalView,
     calendarDaysBetween,
-    getEclipseReading,
     getEclipsesForYear,
     getLocalView,
     getLunarDisc,
+    getMainPlaces,
     getSeasonPartner,
     getSolarDisc,
     getUpcomingEclipse,
-    regionFromLatLon,
 } from '../lib/astrology/eclipses';
+import { LocationSearchInput } from './LocationSearchInput';
+
+const EclipseGlobe = lazy(() => import('./EclipseGlobe'));
 
 export interface EclipsePanelProps {
     isOpen: boolean;
     onClose: () => void;
     /** Data de referência (hora do Cronógrafo) para escolher o eclipse inicial */
     referenceDate: Date;
+    /** Local atual aplicado no Cronógrafo */
     location: { latitude: number; longitude: number; displayName: string };
     /** Leva o relógio ao instante informado */
     onGoToTime?: (date: Date) => void;
@@ -47,14 +50,6 @@ interface PlaceOption {
     lat: number;
     lon: number;
 }
-
-const REFERENCE_CITIES: PlaceOption[] = [
-    { id: 'sp', name: 'São Paulo', lat: -23.5505, lon: -46.6333 },
-    { id: 'rj', name: 'Rio de Janeiro', lat: -22.9068, lon: -43.1729 },
-    { id: 'bsb', name: 'Brasília', lat: -15.7939, lon: -47.8828 },
-    { id: 'rec', name: 'Recife', lat: -8.0476, lon: -34.877 },
-    { id: 'lis', name: 'Lisboa', lat: 38.7223, lon: -9.1393 },
-];
 
 const MONTHS3 = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const WEEKDAYS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
@@ -100,21 +95,40 @@ const countdownLabel = (ev: EclipseEvent, view: EclipseLocalView | null): string
     return `há ${-d} dias`;
 };
 
+const isNear = (a: { lat: number; lon: number }, b: { lat: number; lon: number }) =>
+    Math.abs(a.lat - b.lat) < 0.5 && Math.abs(a.lon - b.lon) < 0.5;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Ilustração do eclipse
 // ─────────────────────────────────────────────────────────────────────────────
 
+const VB = { x: -110, y: -100, w: 220, h: 200 };
+
 const EclipseDiscSvg: React.FC<{ event: EclipseEvent; timeMs: number; place: PlaceOption; view: EclipseLocalView }> = ({ event, timeMs, place, view }) => {
+    const orientation = view.peak;
     const disc = useMemo(() => {
         try {
             const t = new Date(timeMs);
-            return event.type === 'solar' ? getSolarDisc(t, place.lat, place.lon) : getLunarDisc(t, place.lat, place.lon);
+            return event.type === 'solar' ? getSolarDisc(t, place.lat, place.lon, orientation) : getLunarDisc(t, place.lat, place.lon);
         } catch {
             return null;
         }
-    }, [event, timeMs, place]);
+    }, [event, timeMs, place, orientation]);
+
+    // Trajetória da Lua (início → fim), na mesma orientação fixa
+    const trackEnds = useMemo(() => {
+        try {
+            if (event.type === 'solar') {
+                return [getSolarDisc(view.begin, place.lat, place.lon, orientation), getSolarDisc(view.end, place.lat, place.lon, orientation)];
+            }
+            return [getLunarDisc(view.begin, place.lat, place.lon), getLunarDisc(view.end, place.lat, place.lon)];
+        } catch {
+            return null;
+        }
+    }, [event, place, view, orientation]);
 
     const inCentral = !!(view.centralBegin && view.centralEnd && timeMs >= view.centralBegin.getTime() && timeMs <= view.centralEnd.getTime());
+    const clipId = `ecl-frame-${event.id.replace(/[^a-z0-9]/gi, '')}`;
 
     if (!disc) {
         return <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, fontSize: 12 }}>Não foi possível desenhar o eclipse.</div>;
@@ -123,24 +137,29 @@ const EclipseDiscSvg: React.FC<{ event: EclipseEvent; timeMs: number; place: Pla
     const below = disc.altitude < -0.5;
 
     if (event.type === 'solar') {
-        const k = 62 / disc.baseRadius; // px por grau
+        const k = 58 / disc.baseRadius; // px por grau
         const moonR = disc.moonRadius * k;
-        const mx = disc.dx * k;
-        const my = disc.dy * k;
         const totalNow = inCentral && view.kind === 'total';
         return (
-            <svg width="220" height="200" viewBox="-110 -100 220 200" aria-hidden="true" style={{ overflow: 'visible' }}>
+            <svg width={VB.w} height={VB.h} viewBox={`${VB.x} ${VB.y} ${VB.w} ${VB.h}`} aria-hidden="true" style={{ overflow: 'hidden', maxWidth: '100%', height: 'auto' }}>
                 <defs>
-                    <radialGradient id="ecl-corona" r="50%">
+                    <clipPath id={clipId}><rect x={VB.x} y={VB.y} width={VB.w} height={VB.h} /></clipPath>
+                    <radialGradient id={`${clipId}-corona`} r="50%">
                         <stop offset="55%" stopColor="rgba(255,255,255,0.35)" />
                         <stop offset="100%" stopColor="rgba(255,255,255,0)" />
                     </radialGradient>
                 </defs>
-                <g opacity={below ? 0.35 : 1}>
-                    {totalNow && <circle r={98} fill="url(#ecl-corona)" />}
-                    <circle r={80} fill="none" stroke="rgba(251,146,60,0.10)" strokeWidth={18} />
-                    <circle r={62} fill={C.sun} stroke={C.sunEdge} strokeWidth={inCentral ? 5 : 3} />
-                    <circle cx={mx} cy={my} r={moonR} fill={C.bg} stroke="rgba(255,255,255,0.07)" strokeWidth={1} />
+                <g clipPath={`url(#${clipId})`} opacity={below ? 0.35 : 1}>
+                    {totalNow && <circle r={96} fill={`url(#${clipId}-corona)`} />}
+                    {trackEnds && (
+                        <line
+                            x1={trackEnds[0].dx * k} y1={trackEnds[0].dy * k}
+                            x2={trackEnds[1].dx * k} y2={trackEnds[1].dy * k}
+                            stroke="rgba(245,242,235,0.22)" strokeDasharray="3 4" strokeWidth={1}
+                        />
+                    )}
+                    <circle r={58} fill={C.sun} stroke={C.sunEdge} strokeWidth={inCentral ? 5 : 2.5} />
+                    <circle cx={disc.dx * k} cy={disc.dy * k} r={moonR} fill={C.bg} stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
                 </g>
                 {below && (
                     <text y={4} textAnchor="middle" fill={C.soft} style={{ fontFamily: FONT_SANS, fontSize: 12 }}>Sol abaixo do horizonte</text>
@@ -151,19 +170,25 @@ const EclipseDiscSvg: React.FC<{ event: EclipseEvent; timeMs: number; place: Pla
 
     // Lunar: Lua atravessando a penumbra e a umbra da Terra (norte para cima)
     const pen = disc.penumbraRadius ?? disc.baseRadius * 1.8;
-    const k = 96 / (pen + disc.moonRadius);
+    const k = 92 / (pen + disc.moonRadius);
     const moonR = disc.moonRadius * k;
     const mx = disc.dx * k;
     const my = disc.dy * k;
-    const clipId = `ecl-moon-clip-${event.id.replace(/[^a-z0-9]/gi, '')}`;
     return (
-        <svg width="220" height="200" viewBox="-110 -100 220 200" aria-hidden="true">
+        <svg width={VB.w} height={VB.h} viewBox={`${VB.x} ${VB.y} ${VB.w} ${VB.h}`} aria-hidden="true" style={{ overflow: 'hidden', maxWidth: '100%', height: 'auto' }}>
             <defs>
                 <clipPath id={clipId}><circle cx={mx} cy={my} r={moonR} /></clipPath>
             </defs>
             <g opacity={below ? 0.4 : 1}>
                 <circle r={pen * k} fill="rgba(255,255,255,0.02)" stroke="rgba(248,113,113,0.35)" strokeDasharray="3 4" />
                 <circle r={disc.baseRadius * k} fill="rgba(127,29,29,0.18)" stroke="rgba(248,113,113,0.55)" />
+                {trackEnds && (
+                    <line
+                        x1={trackEnds[0].dx * k} y1={trackEnds[0].dy * k}
+                        x2={trackEnds[1].dx * k} y2={trackEnds[1].dy * k}
+                        stroke="rgba(245,242,235,0.22)" strokeDasharray="3 4" strokeWidth={1}
+                    />
+                )}
                 <circle cx={mx} cy={my} r={moonR} fill="#E7E2D6" />
                 <g clipPath={`url(#${clipId})`}>
                     <circle r={pen * k} fill="rgba(0,0,0,0.22)" />
@@ -186,7 +211,8 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
     const [mode, setMode] = useState<'detail' | 'list'>('detail');
     const [listYear, setListYear] = useState<number>(new Date().getFullYear());
     const [listFilter, setListFilter] = useState<'all' | 'solar' | 'lunar'>('all');
-    const [placeId, setPlaceId] = useState<string>('user');
+    const [placeId, setPlaceId] = useState<string>('current');
+    const [customPlace, setCustomPlace] = useState<PlaceOption | null>(null);
     const [scrubMs, setScrubMs] = useState<number>(0);
     const [following, setFollowing] = useState(false);
     const [playing, setPlaying] = useState(false);
@@ -205,23 +231,27 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
             console.warn('[EclipsePanel] falha ao buscar eclipse', err);
         }
         setMode('detail');
-        setPlaceId('user');
+        setPlaceId('current');
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
-    // Locais disponíveis
+    // Locais: atual do Cronógrafo + principais do eclipse + cidade escolhida
     const places = useMemo<PlaceOption[]>(() => {
-        const userName = (location.displayName || 'Sua cidade').split(',')[0].trim();
-        const list: PlaceOption[] = [{ id: 'user', name: userName, lat: location.latitude, lon: location.longitude }];
-        if (selected?.type === 'solar' && selected.greatest) {
-            list.push({ id: 'max', name: `Ponto máximo · ${regionFromLatLon(selected.greatest.lat, selected.greatest.lon)}`, lat: selected.greatest.lat, lon: selected.greatest.lon });
+        const current: PlaceOption = {
+            id: 'current',
+            name: (location.displayName || 'Local atual').split(',')[0].trim(),
+            lat: location.latitude,
+            lon: location.longitude,
+        };
+        const list: PlaceOption[] = [current];
+        if (selected) {
+            for (const p of getMainPlaces(selected)) {
+                if (!list.some(q => isNear(q, p))) list.push({ id: p.id, name: p.name, lat: p.lat, lon: p.lon });
+            }
         }
-        for (const c of REFERENCE_CITIES) {
-            const near = Math.abs(c.lat - location.latitude) < 0.4 && Math.abs(c.lon - location.longitude) < 0.4;
-            if (!near) list.push(c);
-        }
+        if (customPlace && !list.some(q => isNear(q, customPlace))) list.push(customPlace);
         return list;
-    }, [location, selected]);
+    }, [location, selected, customPlace]);
 
     const views = useMemo<Record<string, EclipseLocalView | null>>(() => {
         const out: Record<string, EclipseLocalView | null> = {};
@@ -276,7 +306,7 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
             const dt = now - last;
             last = now;
             setScrubMs(prev => {
-                const next = Math.min(end, prev + dt * speed);
+                const next = Math.min(end, Math.max(begin, prev) + dt * speed);
                 if (next >= end) setPlaying(false);
                 return next;
             });
@@ -302,8 +332,7 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
     }, [listYear, listFilter]);
 
     const partner = useMemo(() => (selected ? getSeasonPartner(selected) : null), [selected]);
-    const reading = useMemo(() => (selected ? getEclipseReading(selected) : ''), [selected]);
-    const nextUpcomingId = useMemo(() => getUpcomingEclipse(new Date())?.event.id, []);
+    const nextUpcomingId = useMemo(() => (isOpen ? getUpcomingEclipse(new Date())?.event.id : undefined), [isOpen]);
 
     if (!isOpen) return null;
 
@@ -333,8 +362,11 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
         } catch { return null; }
     })();
 
-    const centralLabel = selected?.type === 'solar' && view?.kind === 'annular' ? 'Duração do anel' : 'Totalidade';
-    const centralDuration = view?.centralBegin && view?.centralEnd ? fmtDuration(view.centralEnd.getTime() - view.centralBegin.getTime()) : '—';
+    // Rótulo da fase central pelo TIPO do eclipse (não pelo que se vê no local)
+    const centralLabel = selected?.type === 'solar' && selected.kind === 'annular' ? 'Duração do anel' : 'Totalidade';
+    const centralDuration = view?.centralBegin && view?.centralEnd
+        ? fmtDuration(view.centralEnd.getTime() - view.centralBegin.getTime())
+        : (selected && (selected.kind === 'annular' || selected.kind === 'total') ? 'só parcial aqui' : '—');
 
     const pillStyle = (on: boolean): React.CSSProperties => ({
         fontFamily: FONT_SANS, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer',
@@ -348,6 +380,14 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
     };
     const secTitle: React.CSSProperties = { fontSize: 11, fontWeight: 700, letterSpacing: '.13em', textTransform: 'uppercase', color: C.gold, margin: '0 0 8px' };
     const tile: React.CSSProperties = { background: C.tile, borderRadius: 8, padding: '8px 10px' };
+    const cardBox: React.CSSProperties = { background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 0 };
+
+    const pillSuffix = (p: PlaceOption) => {
+        const v = views[p.id];
+        if (!v || !v.visible) return ' · não visível';
+        if (selected?.type === 'solar') return ` · ${Math.round(v.obscuration * 100)}%`;
+        return '';
+    };
 
     const content = (
         <div
@@ -358,12 +398,12 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
                 ref={containerRef as React.RefObject<HTMLDivElement>}
                 role="dialog"
                 aria-modal="true"
-                aria-label={selected?.name ?? 'Eclipse'}
+                aria-label={selected?.name ?? 'Eclipses'}
                 initial={{ opacity: 0, scale: 0.97, y: 8 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ duration: 0.18 }}
                 style={{
-                    width: '100%', maxWidth: 680, maxHeight: 'calc(100vh - 24px)', padding: 1, borderRadius: 16,
+                    width: '100%', maxWidth: 720, maxHeight: 'calc(100vh - 24px)', padding: 1, borderRadius: 16,
                     background: 'linear-gradient(135deg,#6366F1,#22D3EE,#818cf8,#f472b6,#fb923c,#EF4444)',
                     fontFamily: FONT_SANS, color: C.text,
                 }}
@@ -416,7 +456,7 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
                                     <button
                                         key={e.id}
                                         type="button"
-                                        onClick={() => { setSelected(e); setPlaceId('user'); setMode('detail'); }}
+                                        onClick={() => { setSelected(e); setPlaceId('current'); setMode('detail'); }}
                                         style={{
                                             display: 'grid', gridTemplateColumns: '22px 1fr auto', gap: 10, alignItems: 'center', width: '100%',
                                             padding: '10px 6px', textAlign: 'left', cursor: 'pointer', fontFamily: FONT_SANS, color: C.text,
@@ -450,11 +490,11 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
                     {mode === 'detail' && selected && view && (
                         <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
                             <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14 }}>
-                                {/* Ilustração + timer */}
-                                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                    <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', fontSize: 11, color: C.muted }}>
+                                {/* Ilustração */}
+                                <div style={cardBox}>
+                                    <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11, color: C.muted }}>
                                         <span>Como fica no céu</span>
-                                        <span>{place.name.split(' ·')[0]}</span>
+                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{place.name}</span>
                                     </div>
                                     {scrubbable ? (
                                         <EclipseDiscSvg event={selected} timeMs={scrubMs} place={place} view={view} />
@@ -470,7 +510,7 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
                                     )}
                                     {scrubbable && (
                                         <>
-                                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: -4 }}>
+                                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
                                                 <span style={{ fontFamily: FONT_MONO, fontSize: 22 }}>{hhmm(new Date(scrubMs))}</span>
                                                 <span style={{ fontSize: 12, color: accent }}>{phaseText}</span>
                                             </div>
@@ -482,38 +522,15 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
                                     )}
                                 </div>
 
-                                {/* Dados do local + posição tropical */}
-                                {/* SLOT DO GLOBO (próxima etapa): o globo da sombra entra nesta coluna,
-                                    recebendo `selected`, `scrubMs` e `place`; os dados abaixo descem. */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
-                                    <div className="grid grid-cols-2" style={{ gap: 8 }}>
-                                        <div style={tile}>
-                                            <div style={{ fontSize: 11, color: C.muted }}>Neste local</div>
-                                            <div style={{ fontSize: 14, marginTop: 2 }}>{view.visible ? kindLabel(view.kind) : 'Não visível'}</div>
-                                        </div>
-                                        <div style={tile}>
-                                            <div style={{ fontSize: 11, color: C.muted }}>{selected.type === 'solar' ? 'Cobertura máx.' : 'Lua na sombra'}</div>
-                                            <div style={{ fontFamily: FONT_MONO, fontSize: 14, marginTop: 2 }}>{view.reason === 'outside-shadow' ? '—' : `${Math.round(view.obscuration * 100)}%`}</div>
-                                        </div>
-                                        <div style={tile}>
-                                            <div style={{ fontSize: 11, color: C.muted }}>{centralLabel}</div>
-                                            <div style={{ fontFamily: FONT_MONO, fontSize: 14, marginTop: 2 }}>{view.reason === 'outside-shadow' ? '—' : centralDuration}</div>
-                                        </div>
-                                        <div style={tile}>
-                                            <div style={{ fontSize: 11, color: C.muted }}>Duração total</div>
-                                            <div style={{ fontFamily: FONT_MONO, fontSize: 14, marginTop: 2 }}>{view.reason === 'outside-shadow' ? '—' : fmtDuration(span)}</div>
-                                        </div>
+                                {/* Globo */}
+                                <div style={cardBox}>
+                                    <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11, color: C.muted }}>
+                                        <span>{selected.type === 'solar' ? 'Sombra da Lua na Terra' : 'Onde a Lua está visível'}</span>
+                                        <span>arraste o globo</span>
                                     </div>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                                        <span style={{ ...pillStyle(false), cursor: 'default' }}>{selected.type === 'solar' ? 'Sol e Lua' : 'Lua'} a {selected.degreeLabel}</span>
-                                        <span style={{ ...pillStyle(false), cursor: 'default' }}>Nodo {selected.node === 'north' ? 'Norte' : 'Sul'}</span>
-                                        {view.reason !== 'outside-shadow' && (
-                                            <span style={{ ...pillStyle(false), cursor: 'default' }}>
-                                                {selected.type === 'solar' ? 'Sol' : 'Lua'} a {Math.round(view.peakAltitude)}° de altura no máximo
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5 }}>Horários no seu fuso horário. Posições no zodíaco tropical.</div>
+                                    <Suspense fallback={<div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: C.muted }}>Carregando o globo…</div>}>
+                                        <EclipseGlobe event={selected} timeMs={scrubbable ? scrubMs : selected.peak.getTime()} place={place} size={230} />
+                                    </Suspense>
                                 </div>
                             </div>
 
@@ -573,23 +590,55 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
                             {/* Locais */}
                             <div>
                                 <p style={secTitle}>Ver de onde</p>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                                    {places.map(p => {
-                                        const v = views[p.id];
-                                        const hidden = !v || !v.visible;
-                                        return (
-                                            <button key={p.id} type="button" style={pillStyle(p.id === place.id)} onClick={() => setPlaceId(p.id)}>
-                                                {p.name}{hidden ? ' · não visível' : ''}
-                                            </button>
-                                        );
-                                    })}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                                    {places.map(p => (
+                                        <button key={p.id} type="button" style={pillStyle(p.id === place.id)} onClick={() => setPlaceId(p.id)}>
+                                            {p.name}{pillSuffix(p)}
+                                        </button>
+                                    ))}
+                                    <div style={{ width: 210, maxWidth: '100%' }}>
+                                        <LocationSearchInput
+                                            value=""
+                                            placeholder="Escolher cidade"
+                                            theme="dark"
+                                            onChange={loc => {
+                                                const name = (loc.displayName || 'Cidade').split(',')[0].trim();
+                                                setCustomPlace({ id: 'custom', name, lat: loc.latitude, lon: loc.longitude });
+                                                setPlaceId('custom');
+                                            }}
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Leitura */}
-                            <div>
-                                <p style={secTitle}>Leitura</p>
-                                <p style={{ fontSize: 13, lineHeight: 1.65, margin: 0, color: C.soft }}>{reading}</p>
+                            {/* Dados do local + posição tropical */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 8 }}>
+                                <div style={tile}>
+                                    <div style={{ fontSize: 11, color: C.muted }}>Neste local</div>
+                                    <div style={{ fontSize: 14, marginTop: 2 }}>{view.visible ? kindLabel(view.kind) : 'Não visível'}</div>
+                                </div>
+                                <div style={tile}>
+                                    <div style={{ fontSize: 11, color: C.muted }}>{selected.type === 'solar' ? 'Cobertura máx.' : 'Lua na sombra'}</div>
+                                    <div style={{ fontFamily: FONT_MONO, fontSize: 14, marginTop: 2 }}>{view.reason === 'outside-shadow' ? '—' : `${Math.round(view.obscuration * 100)}%`}</div>
+                                </div>
+                                <div style={tile}>
+                                    <div style={{ fontSize: 11, color: C.muted }}>{centralLabel}</div>
+                                    <div style={{ fontFamily: FONT_MONO, fontSize: 14, marginTop: 2 }}>{view.reason === 'outside-shadow' ? '—' : centralDuration}</div>
+                                </div>
+                                <div style={tile}>
+                                    <div style={{ fontSize: 11, color: C.muted }}>Duração total</div>
+                                    <div style={{ fontFamily: FONT_MONO, fontSize: 14, marginTop: 2 }}>{view.reason === 'outside-shadow' ? '—' : fmtDuration(span)}</div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                                <span style={{ ...pillStyle(false), cursor: 'default' }}>{selected.type === 'solar' ? 'Sol e Lua' : 'Lua'} a {selected.degreeLabel}</span>
+                                <span style={{ ...pillStyle(false), cursor: 'default' }}>Nodo {selected.node === 'north' ? 'Norte' : 'Sul'}</span>
+                                {view.reason !== 'outside-shadow' && (
+                                    <span style={{ ...pillStyle(false), cursor: 'default' }}>
+                                        {selected.type === 'solar' ? 'Sol' : 'Lua'} a {Math.round(view.peakAltitude)}° de altura no máximo
+                                    </span>
+                                )}
+                                <span style={{ fontSize: 11.5, color: C.muted, marginLeft: 4 }}>Horários no seu fuso horário · zodíaco tropical</span>
                             </div>
 
                             {/* Rodapé */}
@@ -597,7 +646,7 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
                                 {partner && (
                                     <button
                                         type="button"
-                                        onClick={() => { setSelected(partner); setPlaceId('user'); }}
+                                        onClick={() => { setSelected(partner); setPlaceId('current'); }}
                                         style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', border: 'none', color: C.text, cursor: 'pointer', fontFamily: FONT_SANS, fontSize: 12, padding: 0 }}
                                     >
                                         <span style={{ color: C.muted }}>Par da temporada:</span>

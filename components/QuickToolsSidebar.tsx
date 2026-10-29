@@ -183,6 +183,8 @@ export interface QuickToolsSidebarProps {
   setClockPlanetSize?: (v: number) => void;
   setTheme?: (v: 'dark' | 'light') => void;
   onOpenPaymentPlans?: () => void;
+  /** Abre a janela de eclipses (lista + detalhe) */
+  onOpenEclipses?: () => void;
   isFreeTier?: boolean;
   visiblePlanets?: Record<string, boolean>;
   onVisibilityChange?: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
@@ -848,6 +850,33 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                 </div>
               )}
             </div>
+
+            {/* 3. Eclipses (abre a janela de eclipses a qualquer momento) */}
+            {props.onOpenEclipses && (
+              <div className="group relative flex items-center justify-center">
+                <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+                  <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
+                    isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
+                  }`}>
+                    Eclipses
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setOpenPopover(null); props.onOpenEclipses?.(); }}
+                  className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer active:scale-95 shrink-0 ${
+                    isLight ? 'text-orange-700 hover:bg-orange-500/10 hover:text-orange-800' : 'text-orange-300/80 hover:bg-orange-400/15 hover:text-orange-200'
+                  }`}
+                  title="Eclipses"
+                  aria-label="Eclipses"
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" strokeWidth="2" />
+                    <circle cx="13.6" cy="11" r="6.2" fill="currentColor" opacity="0.9" />
+                  </svg>
+                </button>
+              </div>
+            )}
 
             <div className={`w-6 border-b my-0.5 ${isLight ? 'border-black/10' : 'border-white/10'}`} />
           </div>
