@@ -67,6 +67,8 @@ interface AstroInfoPanelProps {
     settings: AspectSettings;
     onSettingsChange: (settings: AspectSettings) => void;
     currentTime?: Date;
+    /** Local atual (necessário para a vigência de aspectos da Parte da Fortuna) */
+    location?: { latitude: number; longitude: number };
     panelPosition?: 'left' | 'right';
     onWidthChange?: (width: number) => void;
     onPanelPositionChange?: (pos: 'left' | 'right') => void;
@@ -297,7 +299,8 @@ const AspectCard: React.FC<{
     onTooltipLeave: () => void;
     theme?: 'dark' | 'light';
     currentTime?: Date;
-}> = ({ aspect, isSelected, onHover, onClick, onRightClick, itemSize, scale = 1, settings, houseFormat, zodiacColorMode, showPlanetSpheres, onTooltip, onTooltipLeave, theme = 'dark', currentTime }) => {
+    location?: { latitude: number; longitude: number };
+}> = ({ aspect, isSelected, onHover, onClick, onRightClick, itemSize, scale = 1, settings, houseFormat, zodiacColorMode, showPlanetSpheres, onTooltip, onTooltipLeave, theme = 'dark', currentTime, location }) => {
     
     const aspectTypeClasses: Record<string, string> = {
         conjunction: 'drop-shadow-[0_0_8px_rgba(72,112,255,0.4)]',
@@ -325,8 +328,8 @@ const AspectCard: React.FC<{
 
     const transitRange = useMemo(() => {
         if (!settings.transitDates) return null;
-        return getAspectTransitRange(aspect, currentTime || new Date());
-    }, [settings.transitDates, aspect, currentTime]);
+        return getAspectTransitRange(aspect, currentTime || new Date(), location);
+    }, [settings.transitDates, aspect, currentTime, location]);
 
     const renderAspect = () => {
         const color = ASPECT_COLORS[aspect.type] || '#F5F2EB';
@@ -488,12 +491,12 @@ const AspectCard: React.FC<{
                 >
                     <span className="inline-flex items-center gap-1">
                         <span className="opacity-70 text-[8px] uppercase font-sans font-medium">de:</span>
-                        <span className="font-normal">{formatDateCompact(transitRange.start)}</span>
+                        <span className="font-normal">{transitRange.startOpen ? 'antes de ' : ''}{formatDateCompact(transitRange.start)}</span>
                     </span>
                     <span className="opacity-40">•</span>
                     <span className="inline-flex items-center gap-1">
                         <span className="opacity-70 text-[8px] uppercase font-sans font-medium">até:</span>
-                        <span className="font-normal">{formatDateCompact(transitRange.end)}</span>
+                        <span className="font-normal">{transitRange.endOpen ? 'depois de ' : ''}{formatDateCompact(transitRange.end)}</span>
                     </span>
                 </div>
             )}
@@ -506,7 +509,7 @@ export const AstroInfoPanel: React.FC<AstroInfoPanelProps> = ({
     onClearAllSelections, isAnythingSelected, dragHandle, activeMenu, setActiveMenu, scale = 1,
     showAspectLines, setShowAspectLines, showNatalLines, setShowNatalLines, hasNatalDate,
     houseFormat = 'arabic', zodiacColorMode = 'element', showPlanetSpheres,
-    settings, onSettingsChange, currentTime, panelPosition = 'right',
+    settings, onSettingsChange, currentTime, location, panelPosition = 'right',
     onWidthChange, onPanelPositionChange,
     panelScale, onPanelScaleChange,
     theme = 'dark',
@@ -918,6 +921,7 @@ export const AstroInfoPanel: React.FC<AstroInfoPanelProps> = ({
                                         onTooltipLeave={handleTooltipLeave}
                                         theme={theme}
                                         currentTime={currentTime}
+                                        location={location}
                                     />
                                 </div>
                             ))

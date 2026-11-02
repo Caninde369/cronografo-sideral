@@ -313,7 +313,13 @@ export const calculateCelestialData = (
         Object.entries(longitudes).map(([id, lon]) => [id, getHousePlacement(lon, houseCusps)])
     );
 
-    const aspects = calculateAspects(longitudes, visiblePlanets, housePlacements);
+    // Aspectos com as longitudes no MESMO zodíaco do resto do app (sideral/tropical):
+    // antes iam tropicais, e o painel/PDF mostravam signo tropical no modo sideral.
+    // Os ângulos entre os corpos não mudam; casas seguem calculadas acima.
+    const zodiacLongitudes = Object.fromEntries(
+        Object.entries(longitudes).map(([id, lon]) => [id, ao(lon)])
+    );
+    const aspects = calculateAspects(zodiacLongitudes, visiblePlanets, housePlacements);
 
     return {
         currentTime,

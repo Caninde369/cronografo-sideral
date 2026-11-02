@@ -2313,6 +2313,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                     settings={aspectSettings}
                                     onSettingsChange={setAspectSettings}
                                     currentTime={currentTime}
+                                    location={location}
                                     panelScale={rightPanelScale}
                                     onPanelScaleChange={setRightPanelScale}
                                     panelPosition="right"

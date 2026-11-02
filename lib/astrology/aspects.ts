@@ -1,3 +1,26 @@
+import {
+    calculateSunTropicalLongitude,
+    calculateMoonTropicalLongitude,
+    calculateMercuryTropicalLongitude,
+    calculateVenusTropicalLongitude,
+    calculateMarsTropicalLongitude,
+    calculateJupiterTropicalLongitude,
+    calculateSaturnTropicalLongitude,
+    calculateUranusTropicalLongitude,
+    calculateNeptuneTropicalLongitude,
+    calculatePlutoTropicalLongitude,
+} from './celestialBodies';
+import {
+    calculateLilithTropicalLongitude,
+    calculateNorthNodeTropicalLongitude,
+    calculateChironTropicalLongitude,
+    calculateCeresTropicalLongitude,
+    calculatePallasTropicalLongitude,
+    calculateJunoTropicalLongitude,
+    calculateVestaTropicalLongitude,
+} from './astroPoints';
+import { calculateAscendant, calculateLocalSiderealTime } from './houseSystem';
+import { normalizeAngle } from './utils';
 
 export type AspectBody = {
   id: string;
@@ -185,45 +208,177 @@ export const calculateTransitNatalAspects = (
     return aspectList.sort((a, b) => a.orb - b.orb);
 };
 
-const PLANET_DAILY_SPEEDS: Record<string, number> = {
-    moon: 13.176,
-    sun: 0.9856,
-    mercury: 1.22,
-    venus: 1.20,
-    mars: 0.524,
-    jupiter: 0.083,
-    saturn: 0.033,
-    uranus: 0.0117,
-    neptune: 0.006,
-    pluto: 0.004,
-    northNode: 0.053,
-    southNode: 0.053,
-    lilith: 0.111,
-    chiron: 0.08,
-    ceres: 0.22,
-    pallas: 0.22,
-    juno: 0.22,
-    vesta: 0.22,
-    partOfFortune: 13.176
+// ─────────────────────────────────────────────────────────────────────────────
+// Vigência do aspecto (data de início e de fim)
+//
+// Busca nas efemérides reais: a partir do instante atual, anda para trás e para
+// frente com as posições verdadeiras dos corpos (as mesmas funções do relógio)
+// até o desvio em relação ao ângulo exato passar do orbe máximo do aspecto, e
+// refina o ponto de saída por bisseção (precisão de 1 minuto).
+//
+// - Corpos NATAIS são fixos (antes eram tratados como se andassem com a mesma
+//   velocidade do trânsito: Lua ☍ Lua natal dava "800 dias").
+// - Considera retrogradação e se o aspecto está se formando ou se desfazendo.
+// - Parte da Fortuna anda com o Ascendente: precisa do local (latitude/longitude).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ASPECT_ANGLE: Record<string, number> = { conjunction: 0, sextile: 60, square: 90, trine: 120, opposition: 180 };
+
+type LonFn = (d: Date) => number;
+
+const TROPICAL_LONGITUDE: Record<string, LonFn> = {
+    sun: calculateSunTropicalLongitude,
+    moon: calculateMoonTropicalLongitude,
+    mercury: calculateMercuryTropicalLongitude,
+    venus: calculateVenusTropicalLongitude,
+    mars: calculateMarsTropicalLongitude,
+    jupiter: calculateJupiterTropicalLongitude,
+    saturn: calculateSaturnTropicalLongitude,
+    uranus: calculateUranusTropicalLongitude,
+    neptune: calculateNeptuneTropicalLongitude,
+    pluto: calculatePlutoTropicalLongitude,
+    lilith: calculateLilithTropicalLongitude,
+    northNode: calculateNorthNodeTropicalLongitude,
+    southNode: (d: Date) => normalizeAngle(calculateNorthNodeTropicalLongitude(d) + 180),
+    chiron: calculateChironTropicalLongitude,
+    ceres: calculateCeresTropicalLongitude,
+    pallas: calculatePallasTropicalLongitude,
+    juno: calculateJunoTropicalLongitude,
+    vesta: calculateVestaTropicalLongitude,
 };
 
-export function getAspectTransitRange(aspect: Aspect, baseDate: Date = new Date()): { start: Date; end: Date } {
-    const speed1 = PLANET_DAILY_SPEEDS[aspect.body1.id] || 0.5;
-    const speed2 = PLANET_DAILY_SPEEDS[aspect.body2.id] || 0.5;
-    
-    let relSpeed = Math.abs(speed1 - speed2);
-    if (relSpeed < 0.02) relSpeed = 0.02;
-    
-    const maxOrb = ASPECT_ORBS[aspect.type] || 6;
-    const currentOrb = aspect.orb;
-    
-    const daysSinceStart = Math.max(0.1, (maxOrb - currentOrb) / relSpeed);
-    const daysUntilEnd = Math.max(0.1, (maxOrb + currentOrb) / relSpeed);
-    
-    const startTime = new Date(baseDate.getTime() - daysSinceStart * 86400000);
-    const endTime = new Date(baseDate.getTime() + daysUntilEnd * 86400000);
-    
-    return { start: startTime, end: endTime };
+/**
+ * Velocidade máxima (absoluta, °/dia) de cada corpo, medida nas próprias funções
+ * de posição (2015–2035) + ~25% de margem. Só define o tamanho do passo da busca.
+ */
+const MAX_DAILY_SPEED: Record<string, number> = {
+    sun: 1.3, moon: 16, mercury: 2.8, venus: 1.6, mars: 1.0,
+    jupiter: 0.3, saturn: 0.17, uranus: 0.08, neptune: 0.05, pluto: 0.05,
+    lilith: 0.15, northNode: 0.3, southNode: 0.3, chiron: 0.1,
+    ceres: 0.6, pallas: 0.75, juno: 0.75, vesta: 0.7,
+    partOfFortune: 1500, // acompanha o Ascendente (muito mais rápido em latitudes altas)
+};
+
+/** Parte da Fortuna tropical num instante (fórmula diurna/noturna, como no relógio). */
+const partOfFortuneAt = (d: Date, latitude: number, longitude: number): number => {
+    const lst = calculateLocalSiderealTime(d, longitude);
+    const asc = calculateAscendant(lst, latitude, d);
+    const sun = calculateSunTropicalLongitude(d);
+    const moon = calculateMoonTropicalLongitude(d);
+    // Altura do Sol (dia = acima de −0,833°, mesmo critério do nascer/pôr do sol)
+    const eps = 23.4393 * Math.PI / 180;
+    const lam = sun * Math.PI / 180;
+    const dec = Math.asin(Math.sin(eps) * Math.sin(lam));
+    const ra = Math.atan2(Math.cos(eps) * Math.sin(lam), Math.cos(lam));
+    const H = lst * Math.PI / 180 - ra;
+    const phi = latitude * Math.PI / 180;
+    const alt = Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H)) * 180 / Math.PI;
+    const isDay = alt > -0.833;
+    return isDay ? normalizeAngle(asc + moon - sun) : normalizeAngle(asc + sun - moon);
+};
+
+export type AspectTransitRange = {
+    start: Date;
+    end: Date;
+    /** true quando a busca chegou ao limite (aspecto começou antes disso) */
+    startOpen?: boolean;
+    /** true quando a busca chegou ao limite (aspecto termina depois disso) */
+    endOpen?: boolean;
+};
+
+const SEARCH_LIMIT_DAYS = 60 * 365.25;
+const rangeCache = new Map<string, AspectTransitRange & { key: string }>();
+
+/**
+ * Início e fim do aspecto em torno de `baseDate`.
+ * Retorna null quando não é possível calcular (corpo desconhecido, ou Parte da
+ * Fortuna sem local).
+ */
+export function getAspectTransitRange(
+    aspect: Aspect,
+    baseDate: Date = new Date(),
+    location?: { latitude: number; longitude: number }
+): AspectTransitRange | null {
+    const angle = ASPECT_ANGLE[aspect.type];
+    const maxOrb = ASPECT_ORBS[aspect.type];
+    if (angle === undefined || maxOrb === undefined) return null;
+
+    const lonFnFor = (id: string): LonFn | null => {
+        if (id === 'partOfFortune') {
+            if (!location) return null;
+            return (d: Date) => partOfFortuneAt(d, location.latitude, location.longitude);
+        }
+        return TROPICAL_LONGITUDE[id] ?? null;
+    };
+
+    const f1 = lonFnFor(aspect.body1.id);
+    if (!f1) return null;
+    // Em aspectos trânsito × natal, o corpo 2 é natal: posição FIXA
+    const f2 = aspect.isNatal ? null : lonFnFor(aspect.body2.id);
+    if (!aspect.isNatal && !f2) return null;
+
+    // Deslocamentos que levam a longitude tropical ao mesmo zodíaco do aspecto
+    // (sideral ou tropical) — calculados no instante base
+    const off1 = aspect.body1.longitude - f1(baseDate);
+    const off2 = f2 ? aspect.body2.longitude - f2(baseDate) : 0;
+
+    const deviation = (ms: number): number => {
+        const d = new Date(ms);
+        const l1 = f1(d) + off1;
+        const l2 = f2 ? f2(d) + off2 : aspect.body2.longitude;
+        let sep = Math.abs(normalizeAngle(l1 - l2));
+        if (sep > 180) sep = 360 - sep;
+        return Math.abs(sep - angle);
+    };
+
+    const baseMs = baseDate.getTime();
+    // Margem mínima para o caso de o aspecto estar exatamente na borda do orbe
+    if (deviation(baseMs) > maxOrb + 1e-6) return null;
+
+    // Reaproveita o resultado enquanto o instante base estiver dentro da janela já calculada
+    const loc = aspect.body1.id === 'partOfFortune' || aspect.body2.id === 'partOfFortune'
+        ? `|${location?.latitude.toFixed(3)},${location?.longitude.toFixed(3)}` : '';
+    const key = `${aspect.id}|${aspect.isNatal ? aspect.body2.longitude.toFixed(4) : ''}${loc}`;
+    const cached = rangeCache.get(aspect.id + loc);
+    if (cached && cached.key === key && baseMs >= cached.start.getTime() && baseMs <= cached.end.getTime()) {
+        return { start: cached.start, end: cached.end, startOpen: cached.startOpen, endOpen: cached.endOpen };
+    }
+
+    const speed1 = MAX_DAILY_SPEED[aspect.body1.id] ?? 1;
+    const speed2 = aspect.isNatal ? 0 : (MAX_DAILY_SPEED[aspect.body2.id] ?? 1);
+    // Passo: o desvio muda no máximo 0,25° entre duas amostras
+    const stepMs = Math.max(5000, (0.25 / (speed1 + speed2)) * 86400000);
+    const maxSteps = Math.ceil((SEARCH_LIMIT_DAYS * 86400000) / stepMs);
+
+    const findEdge = (dir: 1 | -1): { ms: number; open: boolean } => {
+        let inside = baseMs;
+        for (let i = 1; i <= maxSteps; i++) {
+            const t = baseMs + dir * i * stepMs;
+            if (deviation(t) > maxOrb) {
+                // Bisseção entre o último ponto dentro do orbe e o primeiro fora
+                let lo = inside, hi = t;
+                while (Math.abs(hi - lo) > 60000) {
+                    const mid = (lo + hi) / 2;
+                    if (deviation(mid) > maxOrb) hi = mid; else lo = mid;
+                }
+                return { ms: lo, open: false };
+            }
+            inside = t;
+        }
+        return { ms: inside, open: true };
+    };
+
+    const s = findEdge(-1);
+    const e = findEdge(1);
+    const result: AspectTransitRange = {
+        start: new Date(s.ms),
+        end: new Date(e.ms),
+        startOpen: s.open || undefined,
+        endOpen: e.open || undefined,
+    };
+    rangeCache.set(aspect.id + loc, { ...result, key });
+    if (rangeCache.size > 500) rangeCache.clear();
+    return result;
 }
 
 export function formatDateCompact(d: Date): string {
