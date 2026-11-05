@@ -36,6 +36,11 @@ export const PAYMENT_CONFIG = {
   // Plano Gratuito: as liberações atuais valem até esta data (período de lançamento)
   freeLaunchUntil: '31/12/2026',
 
-  // Plano Vitalício: total de vagas (o número vendido vem do Firestore: config/lifetime)
+  // Plano Vitalício: total de vagas
   lifetimeTotalSpots: 21,
+
+  // Vagas do Vitalício JÁ VENDIDAS — atualizado manualmente pelo Rafa no Vercel
+  // (variável VITE_LIFETIME_SOLD + Redeploy). Se o Firestore (config/lifetime)
+  // estiver disponível, vale o maior dos dois números.
+  lifetimeSoldManual: Math.max(0, parseInt((import.meta.env.VITE_LIFETIME_SOLD as string | undefined) || '0', 10) || 0),
 };

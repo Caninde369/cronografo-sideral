@@ -59,8 +59,8 @@ const SERVICES: ServiceItem[] = [
     description: 'Eventos energéticos adicionados à sua agenda e a rotina organizada em torno deles.' },
   { id: 'proximo-mes', name: 'Seu próximo mês', icon: 'ti-calendar-month', cta: 'Quero este',
     description: 'O que os próximos 30 dias trazem para você e como aproveitar cada fase.' },
-  { id: 'onde-no-tempo', name: 'Onde você está no tempo', icon: 'ti-hourglass', cta: 'Quero este',
-    description: 'Sua jornada, ano, mês e dia arcanos: o ciclo que você vive agora.' },
+  { id: 'relogio-arcano', name: 'Relógio Arcano', icon: 'ti-hourglass', cta: 'Quero este',
+    description: 'Onde você está no tempo: sua jornada, ano, mês e dia arcanos e o ciclo que você vive agora.' },
   { id: 'outros', name: 'Outros', icon: 'ti-message-circle', cta: 'Entrar em contato', isOther: true,
     description: 'Tem outra necessidade? Me conte e eu monto o atendimento para você.' },
 ];
@@ -71,8 +71,8 @@ const formatBRL = (n: number) => n.toLocaleString('pt-BR');
 const LIFETIME_BENEFITS: string[] = [
   'Tudo do Mensal, para sempre',
   'Sem mensalidade e sem reajuste',
-  'Atendimento de boas-vindas incluso',
-  'Desconto especial nos atendimentos',
+  'Relógio Arcano de boas-vindas (leitura inclusa)',
+  '20% de desconto nos atendimentos',
   'Grupo exclusivo de Fundadores',
   'Acesso antecipado a novos recursos',
   'Participação ativa: peça as próximas atualizações',
@@ -131,7 +131,9 @@ export const PaymentPlansModal: React.FC<PaymentPlansModalProps> = ({
   if (!isOpen) return null;
 
   const total = PAYMENT_CONFIG.lifetimeTotalSpots;
-  const remaining = lifetimeSold === null ? null : Math.max(0, total - lifetimeSold);
+  // Vendidas = maior entre o número manual (Vercel) e o contador do Firestore (se disponível)
+  const soldCount = Math.max(PAYMENT_CONFIG.lifetimeSoldManual, lifetimeSold ?? 0);
+  const remaining = Math.max(0, total - soldCount);
   const soldOut = remaining === 0;
   const emailLine = userEmail ? ` Meu e-mail da conta: ${userEmail}` : '';
 
@@ -404,7 +406,7 @@ export const PaymentPlansModal: React.FC<PaymentPlansModalProps> = ({
               <div className="mt-2.5 h-[30px] px-2.5 rounded-lg border border-[#D4AF37]/35 flex items-center justify-between gap-2 text-[11px] text-[#F5D98A] whitespace-nowrap overflow-hidden">
                 <span className="inline-flex items-center gap-1.5"><i className="ti ti-flame text-[13px]" aria-hidden="true" />{soldOut ? 'Esgotado' : 'Vagas limitadas'}</span>
                 <span className="ff-num-sm">
-                  {remaining === null ? `${total} vagas` : soldOut ? `0 de ${total}` : `restam ${remaining} de ${total}`}
+                  {soldOut ? `0 de ${total}` : `restam ${remaining} de ${total}`}
                 </span>
               </div>
               <div className="mt-2 text-white/75">
