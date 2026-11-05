@@ -2519,7 +2519,11 @@ const horizonStrokePath = `
       onTouchEnd={handleTouchEnd}
       onDoubleClick={resetZoom}
       onClickCapture={(e) => {
-        if (hasMovedRef.current) {
+        // Só bloqueia cliques DENTRO do relógio logo após um arraste.
+        // A tooltip é desenhada fora (portal), mas o React passa os cliques dela por aqui:
+        // sem esta checagem, depois de qualquer arraste o "Ver mais" deixava de funcionar.
+        const insideClock = containerRef.current?.contains(e.target as Node) ?? false;
+        if (hasMovedRef.current && insideClock) {
           e.stopPropagation();
           e.preventDefault();
         }
