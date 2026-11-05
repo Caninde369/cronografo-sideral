@@ -1,0 +1,327 @@
+export interface Arcanum {
+  id: number;
+  roman: string;
+  name: string;
+  fullName: string;
+  image: string;
+  backupImage: string;
+  localPath: string;
+  keywords: string[];
+  archetype: string;
+  element: string;
+  meaning: string;
+  advice: string;
+}
+
+const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+
+export const MAJOR_ARCANA: Record<number, Arcanum> = {
+  0: { 
+    id: 0, 
+    roman: "0",
+    name: "O Louco", 
+    fullName: "0. O Louco", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/9/90/RWS_Tarot_00_Fool.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/00.jpg",
+    localPath: "/cards/0.jpg",
+    keywords: ["Transição", "Inocência", "Reinício", "Espontaneidade", "Liberdade"],
+    archetype: "O Viajante Cósmico",
+    element: "Ar / Urano",
+    meaning: "O ponto zero de infinitas possibilidades, o salto quântico da consciência.",
+    advice: "Dê o salto de fé sem medo do desconhecido; a jornada se revela a cada passo."
+  },
+  1: { 
+    id: 1, 
+    roman: "I",
+    name: "O Mago", 
+    fullName: "I. O Mago", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/d/de/RWS_Tarot_01_Magician.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/01.jpg",
+    localPath: "/cards/1.jpg",
+    keywords: ["Poder", "Habilidade", "Manifestação", "Recursos", "Foco"],
+    archetype: "O Alquimista",
+    element: "Mercúrio",
+    meaning: "Capacidade de moldar a realidade conectando o plano sutil ao material.",
+    advice: "Você possui todas as ferramentas necessárias; concentre sua intenção e manifeste."
+  },
+  2: { 
+    id: 2, 
+    roman: "II",
+    name: "A Sacerdotisa", 
+    fullName: "II. A Sacerdotisa", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/8/88/RWS_Tarot_02_High_Priestess.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/02.jpg",
+    localPath: "/cards/2.jpg",
+    keywords: ["Intuição", "Mistério", "Subconsciente", "Sabedoria Oculta"],
+    archetype: "A Guardiã do Véu",
+    element: "Lua",
+    meaning: "Silêncio interior, conhecimento velado e a voz das profundezas psíquicas.",
+    advice: "Silencie a mente racional e escute a voz sutil da sua intuição mais profunda."
+  },
+  3: { 
+    id: 3, 
+    roman: "III",
+    name: "A Imperatriz", 
+    fullName: "III. A Imperatriz", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/d/d2/RWS_Tarot_03_Empress.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/03.jpg",
+    localPath: "/cards/3.jpg",
+    keywords: ["Fertilidade", "Natureza", "Abundância", "Criação", "Prosperidade"],
+    archetype: "A Grande Mãe",
+    element: "Vênus",
+    meaning: "Nutrição, expansão criativa e florescimento da matéria.",
+    advice: "Permita-se criar, nutrir e desfrutar da abundância natural da vida."
+  },
+  4: { 
+    id: 4, 
+    roman: "IV",
+    name: "O Imperador", 
+    fullName: "IV. O Imperador", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/c/c3/RWS_Tarot_04_Emperor.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/04.jpg",
+    localPath: "/cards/4.jpg",
+    keywords: ["Estrutura", "Autoridade", "Ordem", "Poder Temporal", "Estabilidade"],
+    archetype: "O Arquiteto do Mundo",
+    element: "Áries / Marte",
+    meaning: "Construção de fundações sólidas, governança e clareza pragmática.",
+    advice: "Estabeleça limites claros, organize suas ideias e assuma o controle com firmeza."
+  },
+  5: { 
+    id: 5, 
+    roman: "V",
+    name: "O Hierofante", 
+    fullName: "V. O Hierofante", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/8/8d/RWS_Tarot_05_Hierophant.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/05.jpg",
+    localPath: "/cards/5.jpg",
+    keywords: ["Tradição", "Ensino", "Conformidade", "Espiritualidade", "Pacto"],
+    archetype: "O Mestre Espiritual",
+    element: "Touro",
+    meaning: "Transmissão da doutrina ancestral e alinhamento com a ordem divina.",
+    advice: "Honre a sabedoria dos mestres, mas busque o significado sagrado em suas ações."
+  },
+  6: { 
+    id: 6, 
+    roman: "VI",
+    name: "Os Enamorados", 
+    fullName: "VI. Os Enamorados", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/d/db/RWS_Tarot_06_Lovers.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/06.jpg",
+    localPath: "/cards/6.jpg",
+    keywords: ["Escolha", "União", "Valores", "Afeto", "Harmonia"],
+    archetype: "A Conjunção Sagrada",
+    element: "Gêmeos",
+    meaning: "Encruzilhada moral, conexão profunda de almas e escolhas do coração.",
+    advice: "Escolha com o coração e permaneça fiel aos seus valores essenciais."
+  },
+  7: { 
+    id: 7, 
+    roman: "VII",
+    name: "O Carro", 
+    fullName: "VII. O Carro", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/9/9b/RWS_Tarot_07_Chariot.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/07.jpg",
+    localPath: "/cards/7.jpg",
+    keywords: ["Vitória", "Controle", "Determinação", "Foco", "Conquista"],
+    archetype: "O Conquistador Vitorioso",
+    element: "Câncer",
+    meaning: "Triunfo pela força de vontade direcionada e controle das dualidades.",
+    advice: "Mantenha o foco inabalável nas rédeas da sua vida para alcançar a vitória."
+  },
+  8: { 
+    id: 8, 
+    roman: "VIII",
+    name: "A Força", 
+    fullName: "VIII. A Força", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/f/f5/RWS_Tarot_08_Strength.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/08.jpg",
+    localPath: "/cards/8.jpg",
+    keywords: ["Coragem", "Paciência", "Controle Interno", "Doma Suave", "Compaixão"],
+    archetype: "A Serenidade Invencível",
+    element: "Leão",
+    meaning: "Domínio dos instintos primordiais pela ternura e firmeza de espírito.",
+    advice: "Domine as dificuldades não com violência, mas com paciência e compaixão."
+  },
+  9: { 
+    id: 9, 
+    roman: "IX",
+    name: "O Eremita", 
+    fullName: "IX. O Eremita", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/4/4d/RWS_Tarot_09_Hermit.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/09.jpg",
+    localPath: "/cards/9.jpg",
+    keywords: ["Solidão", "Busca Interna", "Orientação", "Prudência", "Lanterna"],
+    archetype: "O Sábio Solitário",
+    element: "Virgem",
+    meaning: "Jornada para dentro, introspecção e luz que guia os passos na escuridão.",
+    advice: "Recolha-se na quietude para encontrar a luz da sua própria sabedoria interior."
+  },
+  10: { 
+    id: 10, 
+    roman: "X",
+    name: "A Roda da Fortuna", 
+    fullName: "X. A Roda da Fortuna", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/3/3c/RWS_Tarot_10_Wheel_of_Fortune.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/10.jpg",
+    localPath: "/cards/10.jpg",
+    keywords: ["Destino", "Ciclos", "Mudança", "Sorte", "Movimento"],
+    archetype: "O Giro do Destino",
+    element: "Júpiter",
+    meaning: "Incessante fluxo dos ciclos cósmicos, viradas da sorte e sincronicidade.",
+    advice: "Aceite a impermanência das coisas e adapte-se com sabedoria às mudanças."
+  },
+  11: { 
+    id: 11, 
+    roman: "XI",
+    name: "A Justiça", 
+    fullName: "XI. A Justiça", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/e/e0/RWS_Tarot_11_Justice.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/11.jpg",
+    localPath: "/cards/11.jpg",
+    keywords: ["Equilíbrio", "Justiça", "Retidão", "Causa e Efeito", "Verdade"],
+    archetype: "A Balança Cósmica",
+    element: "Libra",
+    meaning: "Lei de retorno, discernimento implacável e harmonia exata.",
+    advice: "Aja com integridade e imparcialidade; a verdade trará o equilíbrio devido."
+  },
+  12: { 
+    id: 12, 
+    roman: "XII",
+    name: "O Enforcado", 
+    fullName: "XII. O Enforcado", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/2/2b/RWS_Tarot_12_Hanged_Man.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/12.jpg",
+    localPath: "/cards/12.jpg",
+    keywords: ["Pausa", "Sacrifício", "Nova Perspectiva", "Iluminação", "Rendição"],
+    archetype: "O Iniciado Suspenso",
+    element: "Água / Netuno",
+    meaning: "Inversão de paradigmas, entrega voluntária e despertar através da quietude.",
+    advice: "Mude a sua perspectiva e aprenda a arte de entregar o controle no tempo certo."
+  },
+  13: { 
+    id: 13, 
+    roman: "XIII",
+    name: "A Morte", 
+    fullName: "XIII. A Morte", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/d/d7/RWS_Tarot_13_Death.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/13.jpg",
+    localPath: "/cards/13.jpg",
+    keywords: ["Fim de Ciclo", "Renascimento", "Transmutação", "Metamorfose"],
+    archetype: "A Ceifadora Sagrada",
+    element: "Escorpião",
+    meaning: "Eliminação do obsoleto para que o novo floresça; transformação radical.",
+    advice: "Deixe ir o que já não serve para que o novo possa renascer com força."
+  },
+  14: { 
+    id: 14, 
+    roman: "XIV",
+    name: "A Temperança", 
+    fullName: "XIV. A Temperança", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/f/f8/RWS_Tarot_14_Temperance.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/14.jpg",
+    localPath: "/cards/14.jpg",
+    keywords: ["Paciência", "Harmonia", "Alquimia", "Moderação", "Fluidez"],
+    archetype: "O Anjo Alquímico",
+    element: "Sagitário",
+    meaning: "Fusão harmoniosa de opostos, equilíbrio interior e cura alquímica.",
+    advice: "Busque a moderação e combine os opostos com paciência alquímica."
+  },
+  15: { 
+    id: 15, 
+    roman: "XV",
+    name: "O Diabo", 
+    fullName: "XV. O Diabo", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/5/55/RWS_Tarot_15_Devil.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/15.jpg",
+    localPath: "/cards/15.jpg",
+    keywords: ["Apego", "Sombra", "Materialismo", "Libertação", "Magnetismo"],
+    archetype: "A Sombra Oculta",
+    element: "Capricórnio",
+    meaning: "Confrontação com amarras inconscientes, ilusões materiais e poder pessoal.",
+    advice: "Reconheça suas sombras e apegos para que possa se libertar conscientemente."
+  },
+  16: { 
+    id: 16, 
+    roman: "XVI",
+    name: "A Torre", 
+    fullName: "XVI. A Torre", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/5/53/RWS_Tarot_16_Tower.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/16.jpg",
+    localPath: "/cards/16.jpg",
+    keywords: ["Ruptura", "Revelação", "Queda de Ilusões", "Despertar Abrupto"],
+    archetype: "O Relâmpago Divino",
+    element: "Marte",
+    meaning: "Destruição necessária de falsas construções para revelar a verdade nua.",
+    advice: "Não tema as estruturas que caem; elas abrem espaço para a verdade inabalável."
+  },
+  17: { 
+    id: 17, 
+    roman: "XVII",
+    name: "A Estrela", 
+    fullName: "XVII. A Estrela", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/d/db/RWS_Tarot_17_Star.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/17.jpg",
+    localPath: "/cards/17.jpg",
+    keywords: ["Esperança", "Inspiração", "Serenidade", "Cura", "Fé"],
+    archetype: "A Doadora de Águas Vivas",
+    element: "Aquário",
+    meaning: "Renovação espiritual, brilho da esperança e conexão cósmica pura.",
+    advice: "Mantenha viva a esperança e confie na promessa de cura e renovação espiritual."
+  },
+  18: { 
+    id: 18, 
+    roman: "XVIII",
+    name: "A Lua", 
+    fullName: "XVIII. A Lua", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/7/7f/RWS_Tarot_18_Moon.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/18.jpg",
+    localPath: "/cards/18.jpg",
+    keywords: ["Inconsciente", "Ilusão", "Mistério", "Emoções", "Sonhos"],
+    archetype: "O Espelho do Noturno",
+    element: "Peixes",
+    meaning: "Navegação pelas águas turvas do inconsciente, imaginação e intuição.",
+    advice: "Atravesse as sombras do medo e confie nos sinais que emergem dos seus sonhos."
+  },
+  19: { 
+    id: 19, 
+    roman: "XIX",
+    name: "O Sol", 
+    fullName: "XIX. O Sol", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/1/17/RWS_Tarot_19_Sun.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/19.jpg",
+    localPath: "/cards/19.jpg",
+    keywords: ["Sucesso", "Vitalidade", "Clareza", "Alegria", "Iluminação"],
+    archetype: "O Radiante Triunfante",
+    element: "Sol",
+    meaning: "Plenitude, vitalidade radiante, verdade cristalina e triunfo luminoso.",
+    advice: "Celebre a vida com clareza, entusiasmo e alegria radiante."
+  },
+  20: { 
+    id: 20, 
+    roman: "XX",
+    name: "O Julgamento", 
+    fullName: "XX. O Julgamento", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/d/dd/RWS_Tarot_20_Judgement.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/20.jpg",
+    localPath: "/cards/20.jpg",
+    keywords: ["Absolvição", "Chamado", "Revisão", "Renovação", "Despertar"],
+    archetype: "O Trompete da Ressurreição",
+    element: "Fogo / Plutão",
+    meaning: "Renascimento da alma, resposta ao chamado superior e transcendência.",
+    advice: "Ouça o chamado para o seu despertar e perdoe o passado com gratidão."
+  },
+  21: { 
+    id: 21, 
+    roman: "XXI",
+    name: "O Mundo", 
+    fullName: "XXI. O Mundo", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/f/ff/RWS_Tarot_21_World.jpg", 
+    backupImage: "https://raw.githubusercontent.com/mixvlad/TarotCards/master/21.jpg",
+    localPath: "/cards/21.jpg",
+    keywords: ["Realização", "Totalidade", "Viagem", "Conclusão", "Dança Cósmica"],
+    archetype: "A Grande Conclusão",
+    element: "Saturno / Terra",
+    meaning: "Perfeita integração de todos os elementos, triunfo supremo e totalidade.",
+    advice: "Celebre o ciclo concluído e sinta a plenitude da integração cósmica."
+  }
+};

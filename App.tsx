@@ -39,6 +39,7 @@ import { GlobalSvgDefs } from './components/GlobalSvgDefs';
 import { ProfileModal } from './components/ProfileModal';
 import { PaymentPlansModal } from './components/PaymentPlansModal';
 import { EclipsePanel } from './components/EclipsePanel';
+import { ArcaneCalendarModal } from './components/ArcaneCalendarModal';
 import { LoginModal } from './components/LoginModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { 
@@ -362,6 +363,7 @@ export const App: React.FC = () => {
     const [isTimeControlsMinimized, setIsTimeControlsMinimized] = useState(false);
     const [immersiveMode, setImmersiveMode] = useState(false);
     const [showEclipseModal, setShowEclipseModal] = useState(false);
+    const [showArcaneCalendar, setShowArcaneCalendar] = useState(false);
     const [activeAstronomyTab, setActiveAstronomyTab] = useState<'phases' | 'eclipses' | 'other'>('phases');
     const [zodiacColorMode, setZodiacColorMode] = useState<'none' | 'element' | 'modality' | 'polarity'>('element');
     const [highlightFilter, setHighlightFilter] = useState<HighlightFilter>(null);
@@ -3145,6 +3147,7 @@ const handlePlanetClick = useCallback((id: string) => {
                     isFreeTier={isFreeTier}
                     onOpenAccount={() => setShowProfileModal(true)}
                     onOpenEclipses={() => setShowEclipseModal(true)}
+                    onOpenArcaneCalendar={() => setShowArcaneCalendar(true)}
                     isAdmin={isAdmin}
                     onOpenAdminDashboard={() => setShowAdminDashboard(true)}
                     onSave={() => setShowSaveMapModal(true)}
@@ -3301,6 +3304,13 @@ const handlePlanetClick = useCallback((id: string) => {
                     onResetAllLayouts={resetAllPanelLayouts}
                 />
             </div>
+
+            {/* Calendário Arcano (botão na sidebar) */}
+            <ArcaneCalendarModal
+                isOpen={showArcaneCalendar}
+                onClose={() => setShowArcaneCalendar(false)}
+                referenceDate={currentTime}
+            />
 
             {/* Janela de Eclipse (card "Eclipse" no card da Lua) */}
             <EclipsePanel
