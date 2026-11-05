@@ -11,6 +11,7 @@ import { ZODIAC_DATA } from './zodiac';
 import * as bodies from '../lib/astrology/celestialBodies';
 import * as points from '../lib/astrology/astroPoints';
 import { normalizeAngle } from '../lib/astrology/utils';
+import { EGYPTIAN_TERMS as SHARED_EGYPTIAN_TERMS } from '../lib/astrology/terms';
 import { getMoonAge } from '../lib/astrology/calendars';
 import { getMoonPhaseInfo } from '../lib/astrology/moon';
 import { getYearCycles } from '../lib/astrology/lunarCycles';
@@ -132,20 +133,13 @@ const DECAN_RULERS = [
     ['Saturno', 'Júpiter', 'Marte'] // Peixes
 ];
 
-const EGYPTIAN_TERMS = [
-    [{ limit: 6, ruler: 'Júpiter' }, { limit: 12, ruler: 'Vênus' }, { limit: 20, ruler: 'Mercúrio' }, { limit: 25, ruler: 'Marte' }, { limit: 30, ruler: 'Saturno' }],
-    [{ limit: 8, ruler: 'Vênus' }, { limit: 14, ruler: 'Mercúrio' }, { limit: 22, ruler: 'Júpiter' }, { limit: 27, ruler: 'Saturno' }, { limit: 30, ruler: 'Marte' }],
-    [{ limit: 6, ruler: 'Mercúrio' }, { limit: 12, ruler: 'Júpiter' }, { limit: 17, ruler: 'Vênus' }, { limit: 24, ruler: 'Marte' }, { limit: 30, ruler: 'Saturno' }],
-    [{ limit: 7, ruler: 'Marte' }, { limit: 13, ruler: 'Vênus' }, { limit: 19, ruler: 'Mercúrio' }, { limit: 26, ruler: 'Júpiter' }, { limit: 30, ruler: 'Saturno' }],
-    [{ limit: 6, ruler: 'Saturno' }, { limit: 11, ruler: 'Mercúrio' }, { limit: 18, ruler: 'Vênus' }, { limit: 24, ruler: 'Júpiter' }, { limit: 30, ruler: 'Marte' }],
-    [{ limit: 7, ruler: 'Mercúrio' }, { limit: 17, ruler: 'Vênus' }, { limit: 21, ruler: 'Júpiter' }, { limit: 28, ruler: 'Marte' }, { limit: 30, ruler: 'Saturno' }],
-    [{ limit: 6, ruler: 'Saturno' }, { limit: 14, ruler: 'Vênus' }, { limit: 21, ruler: 'Júpiter' }, { limit: 28, ruler: 'Mercúrio' }, { limit: 30, ruler: 'Marte' }],
-    [{ limit: 7, ruler: 'Marte' }, { limit: 11, ruler: 'Vênus' }, { limit: 19, ruler: 'Júpiter' }, { limit: 24, ruler: 'Mercúrio' }, { limit: 30, ruler: 'Saturno' }],
-    [{ limit: 12, ruler: 'Júpiter' }, { limit: 17, ruler: 'Vênus' }, { limit: 21, ruler: 'Mercúrio' }, { limit: 26, ruler: 'Saturno' }, { limit: 30, ruler: 'Marte' }],
-    [{ limit: 7, ruler: 'Mercúrio' }, { limit: 14, ruler: 'Júpiter' }, { limit: 22, ruler: 'Vênus' }, { limit: 26, ruler: 'Saturno' }, { limit: 30, ruler: 'Marte' }],
-    [{ limit: 7, ruler: 'Mercúrio' }, { limit: 13, ruler: 'Vênus' }, { limit: 20, ruler: 'Júpiter' }, { limit: 25, ruler: 'Marte' }, { limit: 30, ruler: 'Saturno' }],
-    [{ limit: 12, ruler: 'Vênus' }, { limit: 16, ruler: 'Júpiter' }, { limit: 19, ruler: 'Mercúrio' }, { limit: 28, ruler: 'Marte' }, { limit: 30, ruler: 'Saturno' }]
-];
+// Termos egípcios: tabela única e conferida (lib/astrology/terms.ts)
+const TERM_RULER_PT: Record<string, string> = {
+    jupiter: 'Júpiter', venus: 'Vênus', mercury: 'Mercúrio', mars: 'Marte', saturn: 'Saturno',
+};
+const EGYPTIAN_TERMS = SHARED_EGYPTIAN_TERMS.map(sign =>
+    sign.map(t => ({ limit: t.end, ruler: TERM_RULER_PT[t.ruler] }))
+);
 
 export const getDecanDetails = (lon: number) => {
     const norm = normalizeAngle(lon);

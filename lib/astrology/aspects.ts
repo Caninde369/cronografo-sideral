@@ -294,11 +294,12 @@ const rangeCache = new Map<string, AspectTransitRange & { key: string }>();
  * Retorna null quando não é possível calcular (corpo desconhecido, ou Parte da
  * Fortuna sem local).
  */
-export function getAspectTransitRange(
+/** Função de desvio (graus em relação ao ângulo exato) ao longo do tempo para um aspecto. */
+function buildDeviation(
     aspect: Aspect,
-    baseDate: Date = new Date(),
+    baseDate: Date,
     location?: { latitude: number; longitude: number }
-): AspectTransitRange | null {
+): { deviation: (ms: number) => number; maxOrb: number; speedSum: number } | null {
     const angle = ASPECT_ANGLE[aspect.type];
     const maxOrb = ASPECT_ORBS[aspect.type];
     if (angle === undefined || maxOrb === undefined) return null;
@@ -331,6 +332,20 @@ export function getAspectTransitRange(
         return Math.abs(sep - angle);
     };
 
+    const speed1 = MAX_DAILY_SPEED[aspect.body1.id] ?? 1;
+    const speed2 = aspect.isNatal ? 0 : (MAX_DAILY_SPEED[aspect.body2.id] ?? 1);
+    return { deviation, maxOrb, speedSum: speed1 + speed2 };
+}
+
+export function getAspectTransitRange(
+    aspect: Aspect,
+    baseDate: Date = new Date(),
+    location?: { latitude: number; longitude: number }
+): AspectTransitRange | null {
+    const built = buildDeviation(aspect, baseDate, location);
+    if (!built) return null;
+    const { deviation, maxOrb } = built;
+
     const baseMs = baseDate.getTime();
     // Margem mínima para o caso de o aspecto estar exatamente na borda do orbe
     if (deviation(baseMs) > maxOrb + 1e-6) return null;
@@ -344,10 +359,8 @@ export function getAspectTransitRange(
         return { start: cached.start, end: cached.end, startOpen: cached.startOpen, endOpen: cached.endOpen };
     }
 
-    const speed1 = MAX_DAILY_SPEED[aspect.body1.id] ?? 1;
-    const speed2 = aspect.isNatal ? 0 : (MAX_DAILY_SPEED[aspect.body2.id] ?? 1);
     // Passo: o desvio muda no máximo 0,25° entre duas amostras
-    const stepMs = Math.max(5000, (0.25 / (speed1 + speed2)) * 86400000);
+    const stepMs = Math.max(5000, (0.25 / built.speedSum) * 86400000);
     const maxSteps = Math.ceil((SEARCH_LIMIT_DAYS * 86400000) / stepMs);
 
     const findEdge = (dir: 1 | -1): { ms: number; open: boolean } => {
@@ -379,6 +392,67 @@ export function getAspectTransitRange(
     rangeCache.set(aspect.id + loc, { ...result, key });
     if (rangeCache.size > 500) rangeCache.clear();
     return result;
+}
+
+export type AspectTiming = {
+    range: AspectTransitRange;
+    /** true = se formando (o desvio está diminuindo) */
+    applying: boolean;
+    /** Se formando: próximo exato. Se desfazendo: último exato. null se não chega/chegou ao exato. */
+    exact: Date | null;
+};
+
+/** Vigência + estado (se formando / se desfazendo) + momento exato do aspecto. */
+export function getAspectTiming(
+    aspect: Aspect,
+    baseDate: Date = new Date(),
+    location?: { latitude: number; longitude: number }
+): AspectTiming | null {
+    const range = getAspectTransitRange(aspect, baseDate, location);
+    const built = buildDeviation(aspect, baseDate, location);
+    if (!range || !built) return null;
+    const { deviation, speedSum } = built;
+
+    const baseMs = baseDate.getTime();
+    const dt = Math.max(60000, Math.min(6 * 3600000, (0.02 / speedSum) * 86400000));
+    const applying = deviation(baseMs + dt) < deviation(baseMs);
+
+    // Momento exato mais próximo NA DIREÇÃO do movimento:
+    //  • se formando  → próximo exato (de agora até o fim da janela)
+    //  • se desfazendo → último exato (do início da janela até agora)
+    // Astros lentos podem fazer o mesmo aspecto 3 vezes (retrogradação): pega o mais próximo de agora.
+    const a = range.start.getTime(), b = range.end.getTime();
+    const from = baseMs, to = applying ? b : a;
+    const N = 240;
+    const step = (to - from) / N;
+    const refine = (t0: number): number => {
+        let lo = Math.min(t0 - step, t0 + step), hi = Math.max(t0 - step, t0 + step);
+        lo = Math.max(Math.min(a, b), lo); hi = Math.min(Math.max(a, b), hi);
+        for (let k = 0; k < 60 && hi - lo > 30000; k++) {
+            const m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3;
+            if (deviation(m1) < deviation(m2)) hi = m2; else lo = m1;
+        }
+        return (lo + hi) / 2;
+    };
+    let exact: Date | null = null;
+    if (step !== 0) {
+        let prev = deviation(from), cur = deviation(from + step);
+        for (let i = 1; i < N && !exact; i++) {
+            const next = deviation(from + (i + 1) * step);
+            const isLocalMin = cur <= prev && cur <= next;
+            if (isLocalMin && cur < 0.5) {
+                const tMin = refine(from + i * step);
+                if (deviation(tMin) <= 0.05) exact = new Date(tMin);
+            }
+            prev = cur; cur = next;
+        }
+        // Borda da janela (ex.: exato a poucos minutos de agora)
+        if (!exact) {
+            const tMin = refine(from + (deviation(from) < deviation(to) ? 0 : N) * step);
+            if (deviation(tMin) <= 0.05) exact = new Date(tMin);
+        }
+    }
+    return { range, applying, exact };
 }
 
 export function formatDateCompact(d: Date): string {

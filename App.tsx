@@ -1918,6 +1918,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                         ) : (
                                             <SiderealClock 
                                                 celestialData={celestialData}
+                                                location={location}
                                                 natalData={natalTime ? natalData : undefined}
                                                 filteredAspects={filteredAspects}
                                                 ghostPlanets={ghostPlanets}

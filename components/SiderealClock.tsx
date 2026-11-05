@@ -19,7 +19,12 @@ import { ZodiacRing } from "./ZodiacRing";
 import { HighlightFilter } from "./ChartStatisticsPanel";
 import { SeasonIngress } from "../lib/astrology/calendars";
 import { StarField } from "./StarField";
-import { Tooltip } from "./Tooltip";
+import InfoTooltip, { AnchorRect, anchorFromElement, anchorFromPoint, INFO_TOOLTIP_CSS } from "./InfoTooltip";
+import {
+  TooltipModel, TooltipContext, buildPlanetTooltip, buildSignTooltip, buildHouseTooltip,
+  buildAspectTooltip, buildTermTooltip, buildDecanTooltip,
+} from "../lib/astrology/tooltipContent";
+import { ALL_TERMS_360 } from "../lib/astrology/terms";
 import { getDecanRuler } from "../lib/astrology/dignities";
 import { getMoonPhaseInfo } from "../lib/astrology/moon";
 import { getMoonAge, getCelticMoonCycle } from "../lib/astrology/calendars";
@@ -111,15 +116,17 @@ interface SiderealClockProps {
   houseMarkerRingOpacity?: number;
   seasonIngresses?: SeasonIngress[];
   smoothTransitions?: boolean;
+  /** local (lat/lon) — usado na vigência de aspectos com a Parte da Fortuna */
+  location?: { latitude: number; longitude: number };
 }
 
-type TooltipData = {
-  type: "planet" | "sign" | "house";
-  title: string;
-  description: React.ReactNode;
-  x: number;
-  y: number;
-};
+type TooltipRequest =
+  | { type: "planet"; id: string }
+  | { type: "sign"; id: string }
+  | { type: "house"; id: number }
+  | { type: "aspect"; id: string }
+  | { type: "term"; sign: number; index: number }
+  | { type: "decan"; index: number };
 
 // --- PALETTE DEFINITIONS BASED ON REFERENCE IMAGES ---
 const SEASON_COLORS_LIGHT = {
@@ -574,6 +581,7 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
   natalColorMode = "gold",
   onClockClick,
   smoothTransitions = true,
+  location,
 }) => {
   const {
     ascendantLongitude,
@@ -603,10 +611,13 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
       }, {} as Record<string, string>)
     : basePlanetColors;
 
-  const [tooltip, setTooltip] = useState<TooltipData | null>(null);
+  const [tip, setTip] = useState<{ model: TooltipModel; anchor: AnchorRect } | null>(null);
   const hoverTimeout = useRef<number | null>(null);
+  const closeTimeout = useRef<number | null>(null);
+  const tipOpenRef = useRef(false);
   const mousePos = useRef({ x: 0, y: 0 });
-  const tooltipRafRef = useRef<number | null>(null);
+  /** Constrói o conteúdo da tooltip com os dados MAIS RECENTES (lido no momento de abrir). */
+  const buildTipRef = useRef<(req: TooltipRequest) => TooltipModel | null>(() => null);
 
   // Google Maps / GIS Style Focal-Point Zoom & Pan Engine
   const [zoomScale, setZoomScale] = useState<number>(1.0);
@@ -860,7 +871,7 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
   useEffect(() => {
     return () => {
       if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
-      if (tooltipRafRef.current) cancelAnimationFrame(tooltipRafRef.current);
+      if (closeTimeout.current) clearTimeout(closeTimeout.current);
       if (wheelTimeoutRef.current) clearTimeout(wheelTimeoutRef.current);
     };
   }, []);
@@ -1768,266 +1779,137 @@ const horizonStrokePath = `
   const anyAspectSelected = selectedAspects.length > 0;
   const isAnyAspectHovered = hoveredAspect !== null;
 
+  // ── TOOLTIPS ────────────────────────────────────────────────────────────
+  // Contexto sempre atualizado (as camadas memorizadas leem por ref no momento de abrir)
+  buildTipRef.current = (req: TooltipRequest): TooltipModel | null => {
+    const longitudes: Record<string, number> = {};
+    Object.entries(celestialData).forEach(([key, val]) => {
+      if (key.endsWith("EclipticLongitude") && typeof val === "number") {
+        longitudes[key.replace("EclipticLongitude", "")] = val;
+      }
+    });
+    const phaseInfo = getMoonPhaseInfo(celestialData.moonPhase);
+    const cycle = getCelticMoonCycle(celestialData.currentTime);
+    const ctx: TooltipContext = {
+      longitudes,
+      retrograde: retrogradeStatus || {},
+      houses: housePlacements || {},
+      houseCusps: houseCusps || [],
+      aspects: (celestialData.aspects && celestialData.aspects.length ? celestialData.aspects : filteredAspects) || [],
+      visible: visiblePlanets,
+      moon: {
+        phaseName: phaseInfo.name,
+        illum: Math.round((celestialData.moonIllumination || 0) * 100),
+        rise: celestialData.moonriseTime || "—",
+        set: celestialData.moonsetTime || "—",
+        cycleName: cycle ? `${cycle.name} · ${cycle.index}º do ano` : undefined,
+      },
+      now: celestialData.currentTime || new Date(),
+      location,
+    };
+    switch (req.type) {
+      case "planet": {
+        const m = buildPlanetTooltip(req.id, ctx);
+        if (m) m.accent = planetColors[req.id] || m.accent;
+        return m;
+      }
+      case "sign": return buildSignTooltip(req.id, ctx);
+      case "house": return buildHouseTooltip(req.id, ctx, HOUSE_RULERS[req.id]);
+      case "aspect": {
+        const a = filteredAspects.find((x) => x.id === req.id);
+        return a ? buildAspectTooltip(a, ctx) : null;
+      }
+      case "term": return buildTermTooltip(req.sign, req.index, ctx);
+      case "decan": return buildDecanTooltip(req.index, ctx);
+    }
+    return null;
+  };
+
+  const clearTipTimers = () => {
+    if (hoverTimeout.current) { clearTimeout(hoverTimeout.current); hoverTimeout.current = null; }
+    if (closeTimeout.current) { clearTimeout(closeTimeout.current); closeTimeout.current = null; }
+  };
+
+  /** Agenda a abertura (rápida se já houver uma tooltip aberta: troca de item). */
+  const openTip = useCallback((req: TooltipRequest, anchor: AnchorRect) => {
+    clearTipTimers();
+    hoverTimeout.current = window.setTimeout(() => {
+      const model = buildTipRef.current(req);
+      if (model) { tipOpenRef.current = true; setTip({ model, anchor }); }
+    }, tipOpenRef.current ? 120 : 150);
+  }, []);
+
+  /** Fecha com uma pequena folga, para o mouse conseguir entrar na tooltip. */
+  const closeTipSoon = useCallback(() => {
+    if (hoverTimeout.current) { clearTimeout(hoverTimeout.current); hoverTimeout.current = null; }
+    if (closeTimeout.current) clearTimeout(closeTimeout.current);
+    closeTimeout.current = window.setTimeout(() => {
+      tipOpenRef.current = false;
+      setTip(null);
+    }, 200);
+  }, []);
+
+  const closeTipNow = useCallback(() => {
+    clearTipTimers();
+    tipOpenRef.current = false;
+    setTip(null);
+  }, []);
+
+  const onTipPointerInside = useCallback((inside: boolean) => {
+    if (inside) {
+      // Entrou na tooltip: cancela o fechamento e qualquer troca pendente (itens cruzados no caminho)
+      clearTipTimers();
+    } else {
+      closeTipSoon();
+    }
+  }, [closeTipSoon]);
+
+  // Arrastar o relógio fecha a tooltip
+  useEffect(() => { if (isDragging) closeTipNow(); }, [isDragging, closeTipNow]);
+  useEffect(() => () => clearTipTimers(), []);
+
   const handleMouseEnter = (
     e: React.MouseEvent,
-    type: TooltipData["type"],
+    type: "planet" | "sign" | "house",
     id: string | number,
   ) => {
-    if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
-    mousePos.current = { x: e.clientX, y: e.clientY };
+    if (e && typeof e.clientX === "number") mousePos.current = { x: e.clientX, y: e.clientY };
     if (type === "house") {
       setHoveredHouse(id as number);
     }
-
-    // Small delay for tooltips
-    hoverTimeout.current = window.setTimeout(() => {
-      let title = "";
-      let description: React.ReactNode = "";
-
-      if (type === "planet") {
-        const data = PLANET_DESCRIPTIONS[id as string];
-        if (data) {
-          title = data.title;
-          const lonKey = `${id}EclipticLongitude` as keyof CelestialData;
-          const longitude = celestialData[lonKey] as number;
-          const decanRulerId = longitude !== undefined ? getDecanRuler(longitude) : null;
-          const decanRulerTitle = decanRulerId ? PLANET_DESCRIPTIONS[decanRulerId]?.title : "";
-          const decanRulerGlyph = decanRulerId ? CELESTIAL_GLYPHS[decanRulerId] : "";
-
-          if (id === "moon") {
-            const phaseInfo = getMoonPhaseInfo(celestialData.moonPhase);
-            const illum = Math.round(celestialData.moonIllumination * 100);
-            const cycle = getCelticMoonCycle(celestialData.currentTime);
-
-            description = (
-              <div className="flex flex-col gap-3 min-w-[200px] text-brand-text w-[240px]">
-                {/* Cabeçalho */}
-                <div className="flex justify-between items-baseline border-b border-brand-border/10 pb-2">
-                  <span className="font-bold text-sm tracking-wide">
-                    {cycle ? `${cycle.emoji ? cycle.emoji + ' ' : ''}${cycle.name}` : "Ciclo Lunar"}
-                  </span>
-                  {cycle && (
-                    <span className="text-[10px] text-brand-text-muted uppercase tracking-wider">
-                      {cycle.index}º Ciclo do ano
-                    </span>
-                  )}
-                </div>
-
-                {/* Fase e Visibilidade + Horarios */}
-                <div className="flex flex-col gap-1 mt-1">
-                  <div className="flex justify-between items-center text-xs">
-                    <div className="flex items-center gap-1.5 font-medium">
-                      <span className="text-[14px] leading-none">
-                        {phaseInfo.icon}
-                      </span>
-                      <span>{phaseInfo.name}</span>
-                    </div>
-                    <span className="text-brand-text-muted font-medium">
-                      {illum}%
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-4 text-xs font-medium text-brand-text-muted pt-1">
-                    <div className="flex items-center gap-1">
-                      <span className="text-brand-text">↑</span>
-                      <span>{celestialData.moonriseTime}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-brand-text">↓</span>
-                      <span>{celestialData.moonsetTime}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Decanato */}
-                {decanRulerId && (
-                  <div className="pt-2 border-t border-brand-border/10">
-                    <div className="flex justify-between items-center text-[10px] uppercase tracking-wider text-brand-text-muted">
-                      <span>Face (Decanato)</span>
-                      <div className="flex items-center gap-1 text-brand-text font-bold">
-                        <span className="font-astro text-base leading-none">{decanRulerGlyph}</span>
-                        <span>{decanRulerTitle}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Explicacao */}
-                <div className="pt-2 border-t border-brand-border/10">
-                  <p className="text-xs leading-relaxed text-brand-text/80">
-                    {data.description}
-                  </p>
-                </div>
-              </div>
-            );
-          } else {
-            // Generic planet tooltip with decan info
-            description = (
-              <div className="flex flex-col gap-3 min-w-[200px] text-brand-text w-[240px]">
-                <div className="flex justify-between items-center border-b border-brand-border/10 pb-2">
-                  <span className="font-bold text-sm tracking-wide uppercase">
-                    Posição Sideral
-                  </span>
-                  <span className="text-xs font-mono text-brand-text-muted">
-                    {formatPlanetDegree(longitude).deg} {formatPlanetDegree(longitude).min}
-                  </span>
-                </div>
-
-                {decanRulerId && (
-                  <div className="pt-1">
-                    <div className="flex justify-between items-center text-[10px] uppercase tracking-wider text-brand-text-muted">
-                      <span>Face (Decanato)</span>
-                      <div className="flex items-center gap-1 text-brand-text font-bold">
-                        <span className="font-astro text-base leading-none">{decanRulerGlyph}</span>
-                        <span>{decanRulerTitle}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="pt-2 border-t border-brand-border/10">
-                  <p className="text-xs leading-relaxed text-brand-text/80 line-clamp-4">
-                    {data.description}
-                  </p>
-                </div>
-              </div>
-            );
-          }
-        }
-      } else if (type === "sign") {
-        const signId = id as string;
-        const signData = ZODIAC_DATA.find((s) => s.id === signId);
-        const descData = SIGN_DESCRIPTIONS[signId];
-
-        if (signData && descData) {
-          title = descData.title;
-
-          // Find planets in this sign
-          const planetsInSign = Object.entries(celestialData)
-            .filter(
-              ([key, val]) =>
-                key.endsWith("EclipticLongitude") && typeof val === "number",
-            )
-            .map(([key, val]) => {
-              const planetId = key.replace("EclipticLongitude", "");
-              if (!visiblePlanets[planetId]) return null;
-              const signIndex = Math.floor((val as number) / 30);
-              return signIndex === ZODIAC_DATA.findIndex((s) => s.id === signId)
-                ? planetId
-                : null;
-            })
-            .filter(Boolean) as string[];
-
-          const rulerId = (signData as any).ruler;
-          const rulerName = PLANET_DESCRIPTIONS[rulerId]?.title || rulerId;
-
-          description = (
-            <div className="flex flex-col gap-2">
-              <p>{descData.description}</p>
-
-              {/* Ruler Info */}
-              {rulerId && (
-                <div className="flex items-center gap-2 mt-1 bg-brand-surface-highlight/20 p-1.5 rounded-md border border-brand-border/10">
-                  <span className="text-[10px] uppercase tracking-wider opacity-70">
-                    Regente:
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <span className="font-astro text-sm">
-                      {CELESTIAL_GLYPHS[rulerId]}
-                    </span>
-                    <span className="font-bold text-xs">{rulerName}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Planets in Sign */}
-              {planetsInSign.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {planetsInSign.map((pid) => (
-                    <div
-                      key={pid}
-                      className="flex items-center gap-1 bg-brand-surface-highlight/30 px-1.5 py-0.5 rounded text-xs border border-brand-border/10"
-                    >
-                      <span className="font-astro">
-                        {CELESTIAL_GLYPHS[pid]}
-                      </span>
-                      <span>{PLANET_DESCRIPTIONS[pid]?.title || pid}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        }
-      } else if (type === "house") {
-        const houseNum = id as number;
-        const data = HOUSE_DESCRIPTIONS[houseNum];
-        if (data) {
-          title = data.title;
-
-          // Get the natural ruler of the house
-          const rulerId = HOUSE_RULERS[houseNum];
-          const rulerName = PLANET_DESCRIPTIONS[rulerId]?.title || rulerId;
-
-          description = (
-            <div className="flex flex-col gap-2">
-              <p>{data.description}</p>
-
-              {/* Ruler Info */}
-              {rulerId && (
-                <div className="flex items-center gap-2 mt-1 bg-brand-surface-highlight/20 p-1.5 rounded-md border border-brand-border/10">
-                  <span className="text-[10px] uppercase tracking-wider opacity-70">
-                    Regente:
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <span className="font-astro text-sm">
-                      {CELESTIAL_GLYPHS[rulerId]}
-                    </span>
-                    <span className="font-bold text-xs">{rulerName}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        }
-      }
-
-      if (title) {
-        setTooltip({
-          type,
-          title,
-          description,
-          x: mousePos.current.x,
-          y: mousePos.current.y,
-        });
-      }
-    }, 300);
+    // Astros: presa ao próprio astro. Signos e casas (áreas grandes): presa ao ponto do mouse.
+    const target = (e as any)?.currentTarget as Element | undefined;
+    const anchor = type === "planet" && target && typeof target.getBoundingClientRect === "function"
+      ? anchorFromElement(target)
+      : anchorFromPoint(mousePos.current.x, mousePos.current.y);
+    const req: TooltipRequest = type === "house"
+      ? { type: "house", id: id as number }
+      : { type, id: id as string };
+    openTip(req, anchor);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     mousePos.current = { x: e.clientX, y: e.clientY };
-    if (tooltip && !tooltipRafRef.current) {
-      tooltipRafRef.current = requestAnimationFrame(() => {
-        setTooltip((prev) =>
-          prev
-            ? { ...prev, x: mousePos.current.x, y: mousePos.current.y }
-            : null,
-        );
-        tooltipRafRef.current = null;
-      });
-    }
   };
 
   const handleMouseLeave = (
-    e: React.MouseEvent,
-    type?: TooltipData["type"],
+    _e: React.MouseEvent,
+    type?: "planet" | "sign" | "house",
   ) => {
-    if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
-    setTooltip(null);
+    closeTipSoon();
     if (type === "house") {
       setHoveredHouse(null);
     }
   };
+
+  /** Handlers estáveis para as áreas de toque dos anéis de termos e decanatos. */
+  const ringTipHandlers = useCallback((req: TooltipRequest) => ({
+    onMouseEnter: (e: React.MouseEvent<SVGPathElement>) => {
+      mousePos.current = { x: e.clientX, y: e.clientY };
+      openTip(req, anchorFromElement(e.currentTarget));
+    },
+    onMouseLeave: () => closeTipSoon(),
+  }), [openTip, closeTipSoon]);
 
   // Outer sub-track: Termos (adjacent to Zodiac / Seasons ring)
   const termTrackOuter = graduationRingRadius;
@@ -2171,79 +2053,8 @@ const horizonStrokePath = `
   const egyptianTermsLayer = useMemo(() => {
     if (!showTermsRing) return null;
 
-    const terms = [
-      { body: "jupiter", start: 0, end: 6 },
-      { body: "venus", start: 6, end: 12 },
-      { body: "mercury", start: 12, end: 20 },
-      { body: "mars", start: 20, end: 25 },
-      { body: "saturn", start: 25, end: 30 },
-
-      { body: "venus", start: 30, end: 38 },
-      { body: "mercury", start: 38, end: 44 },
-      { body: "jupiter", start: 44, end: 52 },
-      { body: "saturn", start: 52, end: 57 },
-      { body: "mars", start: 57, end: 60 },
-
-      { body: "mercury", start: 60, end: 66 },
-      { body: "jupiter", start: 66, end: 72 },
-      { body: "venus", start: 72, end: 77 },
-      { body: "mars", start: 77, end: 84 },
-      { body: "saturn", start: 84, end: 90 },
-
-      { body: "mars", start: 90, end: 96 },
-      { body: "venus", start: 96, end: 103 },
-      { body: "mercury", start: 103, end: 109 },
-      { body: "jupiter", start: 109, end: 116 },
-      { body: "saturn", start: 116, end: 120 },
-
-      { body: "jupiter", start: 120, end: 126 },
-      { body: "venus", start: 126, end: 131 },
-      { body: "saturn", start: 131, end: 138 },
-      { body: "mercury", start: 138, end: 144 },
-      { body: "mars", start: 144, end: 150 },
-
-      { body: "mercury", start: 150, end: 157 },
-      { body: "venus", start: 157, end: 167 },
-      { body: "jupiter", start: 167, end: 171 },
-      { body: "mars", start: 171, end: 178 },
-      { body: "saturn", start: 178, end: 180 },
-
-      { body: "saturn", start: 180, end: 186 },
-      { body: "venus", start: 186, end: 194 },
-      { body: "jupiter", start: 194, end: 201 },
-      { body: "mercury", start: 201, end: 208 },
-      { body: "mars", start: 208, end: 210 },
-
-      { body: "mars", start: 210, end: 217 },
-      { body: "venus", start: 217, end: 221 },
-      { body: "mercury", start: 221, end: 229 },
-      { body: "jupiter", start: 229, end: 234 },
-      { body: "saturn", start: 234, end: 240 },
-
-      { body: "jupiter", start: 240, end: 252 },
-      { body: "venus", start: 252, end: 257 },
-      { body: "mercury", start: 257, end: 261 },
-      { body: "saturn", start: 261, end: 266 },
-      { body: "mars", start: 266, end: 270 },
-
-      { body: "mercury", start: 270, end: 277 },
-      { body: "venus", start: 277, end: 284 },
-      { body: "jupiter", start: 284, end: 292 },
-      { body: "saturn", start: 292, end: 296 },
-      { body: "mars", start: 296, end: 300 },
-
-      { body: "mercury", start: 300, end: 307 },
-      { body: "venus", start: 307, end: 313 },
-      { body: "jupiter", start: 313, end: 320 },
-      { body: "mars", start: 320, end: 325 },
-      { body: "saturn", start: 325, end: 330 },
-
-      { body: "venus", start: 330, end: 342 },
-      { body: "jupiter", start: 342, end: 346 },
-      { body: "mercury", start: 346, end: 349 },
-      { body: "mars", start: 349, end: 358 },
-      { body: "saturn", start: 358, end: 360 },
-    ];
+    // Tabela única e conferida (lib/astrology/terms.ts)
+    const terms = ALL_TERMS_360;
 
     const currentRotation = isZodiacFixed ? 0 : zodiacRotation;
     const termHeight = termTrackOuter - termTrackInner;
@@ -2273,6 +2084,24 @@ const horizonStrokePath = `
           />
         );
       }
+    });
+
+    // 1b. Áreas de toque (tooltip) — invisíveis, uma por termo
+    const termIndexInSign: number[] = [];
+    terms.forEach((term, i) => {
+      const signIdx = Math.floor(term.start / 30);
+      const idxInSign = i > 0 && Math.floor(terms[i - 1].start / 30) === signIdx ? termIndexInSign[i - 1] + 1 : 0;
+      termIndexInSign.push(idxInSign);
+      elements.push(
+        <path
+          key={`term-hit-${i}`}
+          d={describeAnnularSector(cx, cy, termTrackInner, termTrackOuter, 180 - term.end, 180 - term.start)}
+          fill="transparent"
+          stroke="none"
+          style={{ pointerEvents: "all", cursor: "help" }}
+          {...ringTipHandlers({ type: "term", sign: signIdx, index: idxInSign })}
+        />
+      );
     });
 
     // 2. Term ruler glyphs
@@ -2312,6 +2141,7 @@ const horizonStrokePath = `
     cx,
     cy,
     termsGlyphSize,
+    ringTipHandlers,
   ]);
 
   const decanatosLayer = useMemo(() => {
@@ -2341,6 +2171,20 @@ const horizonStrokePath = `
           strokeOpacity="0.95"
           strokeLinecap="round"
           shapeRendering="geometricPrecision"
+        />
+      );
+    }
+
+    // 1b. Áreas de toque (tooltip) — invisíveis, uma por decanato
+    for (let i = 0; i < 36; i++) {
+      elements.push(
+        <path
+          key={`decan-hit-${i}`}
+          d={describeAnnularSector(cx, cy, decanTrackInner, decanTrackOuter, 180 - (i * 10 + 10), 180 - i * 10)}
+          fill="transparent"
+          stroke="none"
+          style={{ pointerEvents: "all", cursor: "help" }}
+          {...ringTipHandlers({ type: "decan", index: i })}
         />
       );
     }
@@ -2383,6 +2227,7 @@ const horizonStrokePath = `
     cx,
     cy,
     decanGlyphSize,
+    ringTipHandlers,
   ]);
 
   const isLightBackground = isBrightSky;
@@ -2667,6 +2512,7 @@ const horizonStrokePath = `
     <div
       ref={containerRef}
       className="relative w-full h-full flex items-center justify-center overflow-visible touch-none select-none"
+      onMouseMoveCapture={(e) => { mousePos.current = { x: e.clientX, y: e.clientY }; }}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -4476,8 +4322,8 @@ const horizonStrokePath = `
                 if (!pos1 || !pos2) return null;
 
                 return (
+                  <g key={aspect.id}>
                   <line
-                    key={aspect.id}
                     x1={pos1.x}
                     y1={pos1.y}
                     x2={pos2.x}
@@ -4491,6 +4337,24 @@ const horizonStrokePath = `
                     onClick={() => onAspectClick(aspect.id)}
                     className="cursor-pointer"
                   />
+                  {/* Área de toque larga e invisível (tooltip do aspecto) */}
+                  <line
+                    x1={pos1.x}
+                    y1={pos1.y}
+                    x2={pos2.x}
+                    y2={pos2.y}
+                    stroke="transparent"
+                    strokeWidth={12}
+                    strokeLinecap="round"
+                    style={{ pointerEvents: "stroke", cursor: "pointer" }}
+                    onClick={() => onAspectClick(aspect.id)}
+                    onMouseEnter={(e) => {
+                      mousePos.current = { x: e.clientX, y: e.clientY };
+                      openTip({ type: "aspect", id: aspect.id }, anchorFromPoint(e.clientX, e.clientY));
+                    }}
+                    onMouseLeave={closeTipSoon}
+                  />
+                  </g>
                 );
               })}
             </g>
@@ -5380,23 +5244,14 @@ const horizonStrokePath = `
         )}
       </svg>
       </div>
-      {tooltip && (
-        <Tooltip
-          text={
-            <div>
-              <h4 className="font-bold text-sm mb-1 text-brand-purple uppercase tracking-wide">
-                {tooltip.title}
-              </h4>
-              <div className="text-xs text-brand-text-muted leading-relaxed">
-                {tooltip.description}
-              </div>
-            </div>
-          }
-          visible={!!tooltip}
-          x={tooltip.x}
-          y={tooltip.y}
-        />
-      )}
+      <style>{INFO_TOOLTIP_CSS}</style>
+      <InfoTooltip
+        model={tip?.model ?? null}
+        anchor={tip?.anchor ?? null}
+        onPointerInside={onTipPointerInside}
+        onClose={closeTipNow}
+        theme={theme}
+      />
     </div>
   );
 };
