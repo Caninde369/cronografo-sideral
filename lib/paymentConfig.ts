@@ -31,7 +31,7 @@ export const PAYMENT_CONFIG = {
 
   // Preços exibidos (o valor cobrado é o do link de checkout no Nubank — manter iguais)
   monthlyPrice: 97,
-  lifetimePrice: 920,
+  lifetimePrice: 1097,
 
   // Plano Gratuito: as liberações atuais valem até esta data (período de lançamento)
   freeLaunchUntil: '31/12/2026',

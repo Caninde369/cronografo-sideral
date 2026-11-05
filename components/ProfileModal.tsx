@@ -362,6 +362,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                           <h3 className="font-manrope text-lg sm:text-xl font-bold text-white tracking-wide">
                             {username}
                           </h3>
+                          {userPlan === 'lifetime' && !isUserAdmin && (
+                            <span
+                              className="h-6 px-2.5 inline-flex items-center gap-1 rounded-full border border-[#D4AF37]/60 bg-[#D4AF37]/10 text-[#F5D98A] text-[10px] font-bold uppercase tracking-[0.1em] whitespace-nowrap"
+                              title="Membro Fundador do Cronógrafo Sideral (plano Vitalício)"
+                            >
+                              <i className="ti ti-crown text-[12px]" aria-hidden="true" />
+                              Fundador
+                            </span>
+                          )}
                           <button
                             onClick={() => setIsEditingName(true)}
                             className="p-1 text-white/40 hover:text-[#D4AF37] transition-colors"
