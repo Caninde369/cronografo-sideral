@@ -86,9 +86,24 @@
       href="https://fonts.googleapis.com/css2?family=Cormorant+Infant:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Michroma&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Syne:wght@700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=DM+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     >
+    <!-- Tipografia da marca (posts / planos / catálogo): EB Garamond (títulos), Sora (texto), Lora (números) -->
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500;600&family=Sora:wght@300;400;500;600&family=Lora:wght@500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 
     <style>
+      /* ── Tipografia da marca ───────────────────────────────────
+         Trocar uma fonte = mudar UMA variável abaixo.
+         Usada hoje nas janelas de Planos e Atendimentos. */
+      :root {
+        --font-brand-title: 'EB Garamond', Georgia, serif;
+        --font-brand-text:  'Sora', system-ui, sans-serif;
+        --font-brand-num:   'Lora', Georgia, serif;
+      }
+      .ff-title  { font-family: var(--font-brand-title); font-weight: 600; letter-spacing: .005em; }
+      .ff-text   { font-family: var(--font-brand-text); }
+      .ff-num    { font-family: var(--font-brand-num); font-weight: 500; font-variant-numeric: lining-nums; }
+      .ff-num-sm { font-family: var(--font-brand-text); font-variant-numeric: tabular-nums; }
+
       /* ── Base ─────────────────────────────────────────────────── */
       body { font-family: 'DM Sans', sans-serif; }
 

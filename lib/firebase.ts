@@ -22,7 +22,8 @@ import {
   getDocs, 
   deleteDoc,
   onSnapshot,
-  increment
+  increment,
+  where
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -155,6 +156,48 @@ export async function updateUserPlanInFirestore(userId: string, plan: 'free' | '
     }, { merge: true });
   } catch (error) {
     console.warn('Failed to update plan in Firestore', error);
+    return;
+  }
+  // Mantém o contador de vagas do Vitalício sempre real (só o admin consegue gravar)
+  await refreshLifetimeSoldCount();
+}
+
+// ─── Vagas do plano Vitalício ────────────────────────────────────────────────
+// Documento público config/lifetime = { sold, total, updatedAt }.
+// Leitura: qualquer pessoa. Escrita: só o admin (ver firestore.rules).
+
+const LIFETIME_DOC = () => doc(db, 'config', 'lifetime');
+const ADMIN_EMAIL = 'rafael.cm333@gmail.com';
+
+/** Quantas vagas do Vitalício já foram vendidas (null se não for possível ler). */
+export async function getLifetimeSoldCount(): Promise<number | null> {
+  try {
+    const snap = await getDoc(LIFETIME_DOC());
+    if (!snap.exists()) return 0;
+    const sold = snap.data()?.sold;
+    return typeof sold === 'number' && sold >= 0 ? sold : 0;
+  } catch (error) {
+    console.warn('Não foi possível ler as vagas do Vitalício', error);
+    return null;
+  }
+}
+
+/**
+ * Reconta os usuários com plano Vitalício (sem contar o admin) e grava em config/lifetime.
+ * Só funciona para o admin; para os demais, falha em silêncio.
+ */
+export async function refreshLifetimeSoldCount(total = 21): Promise<number | null> {
+  try {
+    const snap = await getDocs(query(collection(db, 'users'), where('plan', '==', 'lifetime')));
+    const sold = snap.docs.filter(d => {
+      const data = d.data() as { email?: string; role?: string };
+      return (data.email || '').toLowerCase() !== ADMIN_EMAIL && data.role !== 'admin';
+    }).length;
+    await setDoc(LIFETIME_DOC(), { sold, total, updatedAt: new Date().toISOString() });
+    return sold;
+  } catch (error) {
+    console.warn('Não foi possível atualizar as vagas do Vitalício', error);
+    return null;
   }
 }
 

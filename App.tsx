@@ -1759,7 +1759,7 @@ const handlePlanetClick = useCallback((id: string) => {
                     />
                 )}
 
-                {/* Modal de Opções de Pagamento (Mensal R$100/mês, Vitalício & Gratuito Opcional) */}
+                {/* Modal de Opções de Pagamento (Mensal, Vitalício e Gratuito — preços em lib/paymentConfig.ts) */}
                 {showPaymentPlansModal && !showLoginModal && (
                     <PaymentPlansModal
                         isOpen={showPaymentPlansModal && !showLoginModal}

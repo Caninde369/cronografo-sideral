@@ -72,6 +72,16 @@ service cloud.firestore {
       allow get: if true;
     }
 
+    // Vagas do plano Vitalício (contador público exibido na janela de planos).
+    // Qualquer pessoa lê; só o admin grava, e só números válidos.
+    match /config/lifetime {
+      allow get: if true;
+      allow write: if isAdmin()
+        && request.resource.data.keys().hasOnly(['sold', 'total', 'updatedAt'])
+        && request.resource.data.sold is int && request.resource.data.sold >= 0
+        && request.resource.data.total is int && request.resource.data.total > 0;
+    }
+
     // User profile documents
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
