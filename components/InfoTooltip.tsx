@@ -133,7 +133,16 @@ const InfoTooltip: React.FC<InfoTooltipProps> = ({ model, anchor, onPointerInsid
       }}
       onMouseEnter={() => onPointerInside?.(true)}
       onMouseLeave={() => onPointerInside?.(false)}
+      // A tooltip é desenhada fora do relógio (portal), mas o React repassa os eventos
+      // para o relógio. Sem isto, clicar em "Ver mais" iniciava o arrastar do relógio
+      // e fechava a tooltip antes do clique.
       onPointerDown={e => e.stopPropagation()}
+      onMouseDown={e => e.stopPropagation()}
+      onTouchStart={e => e.stopPropagation()}
+      onTouchMove={e => e.stopPropagation()}
+      onTouchEnd={e => e.stopPropagation()}
+      onDoubleClick={e => e.stopPropagation()}
+      onWheel={e => e.stopPropagation()}
       onClick={e => e.stopPropagation()}
     >
       {!isSheet && pos && (
