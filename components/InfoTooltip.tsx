@@ -159,6 +159,7 @@ const InfoTooltip: React.FC<InfoTooltipProps> = ({ model, anchor, onPointerInsid
         )}
       </div>
 
+      {model.keywords && <div className="itt-kw">{model.keywords}</div>}
       <p className="itt-text">{model.text}</p>
 
       {!keepOpen && model.rows.length > 0 && (
@@ -225,6 +226,7 @@ export const INFO_TOOLTIP_CSS = `
   font-size:16px;line-height:1;font-family:'Segoe UI Symbol','Noto Sans Symbols 2','DejaVu Sans',sans-serif}
 .itt-title{margin:0;flex:1;min-width:0;font-family:'Playfair Display',Georgia,serif;font-weight:600;font-size:17px;line-height:1.2;color:#F5F2EB}
 .itt-x{flex:0 0 auto;width:30px;height:30px;border-radius:8px;border:0;background:rgba(255,255,255,.06);color:#cfc9bd;cursor:pointer}
+.itt-kw{margin:-2px 0 7px;font-size:12px;line-height:1.45;color:#F5D98A;letter-spacing:.01em}
 .itt-text{margin:0;font-size:13.5px;line-height:1.55;color:#D9D4C8}
 .itt-more{margin-top:10px;height:30px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);
   color:#F5D98A;font:600 12px/1 'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
@@ -252,7 +254,7 @@ export const INFO_TOOLTIP_CSS = `
 .itt-sheet{left:10px!important;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));top:auto!important;width:auto!important;max-height:70vh;overflow-y:auto}
 .itt-light{background:rgba(252,250,245,.98);color:#2a2620;border-color:rgba(0,0,0,.10)}
 .itt-light .itt-arrow{background:rgba(252,250,245,.98);border-color:rgba(0,0,0,.10)}
-.itt-light .itt-title{color:#1d1a15}.itt-light .itt-text{color:#3b362d}
+.itt-light .itt-title{color:#1d1a15}.itt-light .itt-kw{color:#8a6a12}.itt-light .itt-text{color:#3b362d}
 .itt-light .itt-more{color:#8a6a12;border-color:rgba(0,0,0,.14);background:rgba(0,0,0,.03)}
 .itt-light .itt-details{border-color:rgba(0,0,0,.08)}
 .itt-light .itt-row dt,.itt-light .itt-details-head{color:#7a7366}.itt-light .itt-row dd{color:#25211b}
