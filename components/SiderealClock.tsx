@@ -1797,6 +1797,8 @@ const horizonStrokePath = `
       houseCusps: houseCusps || [],
       aspects: (celestialData.aspects && celestialData.aspects.length ? celestialData.aspects : filteredAspects) || [],
       visible: visiblePlanets,
+      colors: planetColors,
+      theme: theme === "light" ? "light" : "dark",
       moon: {
         phaseName: phaseInfo.name,
         illum: Math.round((celestialData.moonIllumination || 0) * 100),
@@ -1808,11 +1810,7 @@ const horizonStrokePath = `
       location,
     };
     switch (req.type) {
-      case "planet": {
-        const m = buildPlanetTooltip(req.id, ctx);
-        if (m) m.accent = planetColors[req.id] || m.accent;
-        return m;
-      }
+      case "planet": return buildPlanetTooltip(req.id, ctx);
       case "sign": return buildSignTooltip(req.id, ctx);
       case "house": return buildHouseTooltip(req.id, ctx, HOUSE_RULERS[req.id]);
       case "aspect": {
@@ -1830,13 +1828,18 @@ const horizonStrokePath = `
     if (closeTimeout.current) { clearTimeout(closeTimeout.current); closeTimeout.current = null; }
   };
 
-  /** Agenda a abertura (rápida se já houver uma tooltip aberta: troca de item). */
+  // Espera (hover intent), aprovada pelo Rafa: 0,6 s para abrir e também para TROCAR de item
+  // (passar por cima de outro item a caminho da tooltip não troca); 0,45 s de folga para fechar.
+  const TIP_OPEN_DELAY = 600;
+  const TIP_CLOSE_GRACE = 450;
+
+  /** Agenda a abertura; só abre se o mouse continuar sobre o item. */
   const openTip = useCallback((req: TooltipRequest, anchor: AnchorRect) => {
     clearTipTimers();
     hoverTimeout.current = window.setTimeout(() => {
       const model = buildTipRef.current(req);
       if (model) { tipOpenRef.current = true; setTip({ model, anchor }); }
-    }, tipOpenRef.current ? 120 : 150);
+    }, TIP_OPEN_DELAY);
   }, []);
 
   /** Fecha com uma pequena folga, para o mouse conseguir entrar na tooltip. */
@@ -1846,7 +1849,7 @@ const horizonStrokePath = `
     closeTimeout.current = window.setTimeout(() => {
       tipOpenRef.current = false;
       setTip(null);
-    }, 200);
+    }, TIP_CLOSE_GRACE);
   }, []);
 
   const closeTipNow = useCallback(() => {

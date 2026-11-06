@@ -2,10 +2,11 @@
  * Conteúdo das tooltips do Cronógrafo (astros, aspectos, signos, termos, decanatos, casas).
  *
  * PADRÃO DE COPY v3 (aprovado pelo Rafa):
- *   • Título (nome do item)
- *   • Palavras-chave (3–4) que resumem o significado
+ *   • Título (nome do item) — símbolo na cor do item, gradiente dessa cor no topo
+ *   • Palavras-chave (3–4) em tags
  *   • Descrição de 1–2 frases sobre o SIGNIFICADO do item (sem comentar a posição atual)
- * Dados do momento (posição, astros presentes, orbe, vigência…) ficam só em "Ver mais".
+ * "Ver detalhes": linhas com ícone e cor (verde = favorável, vermelho = desfavorável,
+ * âmbar = retrógrado, cinza = neutro), astros na cor de cada astro, signos na cor do elemento.
  *
  * Os textos ficam todos neste arquivo para revisão rápida.
  */
@@ -21,12 +22,28 @@ import { getSignTerms, getTermAt } from './terms';
 
 export type TooltipKind = 'planet' | 'aspect' | 'sign' | 'term' | 'decan' | 'house';
 
-export interface TooltipRow {
-  label: string;
-  value: string;
+/** Pedaço de texto de uma linha de detalhe. */
+export interface TooltipPart {
+  text: string;
+  color?: string;
   /** números em fonte mono */
   mono?: boolean;
-  tone?: 'good' | 'bad' | 'accent';
+  /** texto apagado (ex.: "Nenhum agora", orbe ao lado do astro) */
+  muted?: boolean;
+  /** símbolo astrológico (um pouco maior) */
+  sym?: boolean;
+}
+
+export interface TooltipRow {
+  label: string;
+  /** classe do ícone Tabler (ex.: 'ti-compass') */
+  icon: string;
+  /** cor do ícone (e da etiqueta, se `pill`) */
+  color: string;
+  /** cada item é uma linha; cada linha é uma lista de pedaços */
+  lines: TooltipPart[][];
+  /** mostra o valor como etiqueta colorida (estados: Direto, Exaltação, Se formando…) */
+  pill?: boolean;
 }
 
 export interface TooltipSegment {
@@ -40,13 +57,11 @@ export interface TooltipModel {
   key: string;
   kind: TooltipKind;
   glyph: string;
-  /** cor do glifo/selo */
+  /** cor do símbolo, das tags e do gradiente do topo */
   accent: string;
-  /** para astros: id (desenha a esfera com o gradiente do planeta) */
-  planetId?: string;
   title: string;
-  /** linha de palavras-chave (separadas por ·) */
-  keywords?: string;
+  /** palavras-chave (viram tags) */
+  keywords: string[];
   text: string;
   rows: TooltipRow[];
   segments?: TooltipSegment[];
@@ -61,6 +76,9 @@ export interface TooltipContext {
   houseCusps: number[];
   aspects: Aspect[];
   visible: Record<string, boolean>;
+  /** cor de cada astro (a mesma do relógio) */
+  colors: Record<string, string>;
+  theme?: 'dark' | 'light';
   moon?: { phaseName: string; illum: number; rise: string; set: string; cycleName?: string };
   now: Date;
   location?: { latitude: number; longitude: number };
@@ -256,9 +274,21 @@ const HOUSE_COPY: ({ title: string } & Copy)[] = [
 ];
 
 const ELEMENT_PT: Record<string, string> = { fire: 'Fogo', earth: 'Terra', air: 'Ar', water: 'Água' };
-const ELEMENT_COLOR: Record<string, string> = { fire: '#FB923C', earth: '#34D399', air: '#FEF3C7', water: '#60A5FA' };
+const ELEMENT_ICON: Record<string, string> = { fire: 'ti-flame', earth: 'ti-leaf', air: 'ti-wind', water: 'ti-droplet' };
 const MODALITY_PT: Record<string, string> = { cardinal: 'Cardinal', fixed: 'Fixo', mutable: 'Mutável' };
+const MODALITY_ICON: Record<string, string> = { cardinal: 'ti-rocket', fixed: 'ti-anchor', mutable: 'ti-arrows-exchange' };
 const POLARITY_PT: Record<string, string> = { masculine: 'Masculino', feminine: 'Feminino' };
+
+/** Cores por tema (escuro / claro). */
+const palette = (theme: 'dark' | 'light' = 'dark') => theme === 'light'
+  ? {
+    good: '#15803d', bad: '#b91c1c', retro: '#b45309', muted: '#7a7366', gold: '#8a6a12', house: '#0f766e',
+    accent: '#6d28d9', element: { fire: '#c2410c', earth: '#047857', air: '#a16207', water: '#1d4ed8' } as Record<string, string>,
+  }
+  : {
+    good: '#4ade80', bad: '#f87171', retro: '#FBBF24', muted: '#9b958a', gold: '#F5D98A', house: '#2E9E8C',
+    accent: '#a78bfa', element: { fire: '#FB923C', earth: '#34D399', air: '#FEF3C7', water: '#60A5FA' } as Record<string, string>,
+  };
 
 // Dignidades tradicionais (7 planetas clássicos)
 const DOMICILE: Record<string, number[]> = {
@@ -276,8 +306,9 @@ const dignityOf = (planetId: string, signIndex: number): Dignity | null => {
   if (opposite(EXALTATION[planetId]) === signIndex) return 'Queda';
   return 'Peregrino';
 };
-const dignityTone = (d: Dignity): TooltipRow['tone'] =>
-  d === 'Domicílio' || d === 'Exaltação' ? 'good' : d === 'Exílio' || d === 'Queda' ? 'bad' : undefined;
+const DIGNITY_ICON: Record<Dignity, string> = {
+  'Domicílio': 'ti-home-star', 'Exaltação': 'ti-crown', 'Exílio': 'ti-arrow-bar-left', 'Queda': 'ti-arrow-down', 'Peregrino': 'ti-walk',
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Utilitários
@@ -287,14 +318,12 @@ const norm = (l: number) => ((l % 360) + 360) % 360;
 const signOf = (lon: number) => Math.floor(norm(lon) / 30);
 const SIGN = (i: number) => ZODIAC_DATA[((i % 12) + 12) % 12];
 
-export const fmtDegree = (lon: number): string => {
-  const l = norm(lon);
-  const s = Math.floor(l / 30);
-  const inSign = l - s * 30;
+const fmtDegInSign = (lon: number): string => {
+  const inSign = norm(lon) % 30;
   let d = Math.floor(inSign);
   let m = Math.round((inSign - d) * 60);
   if (m === 60) { m = 0; d += 1; }
-  return `${d}°${String(m).padStart(2, '0')}′ ${SIGN(s).symbol} ${SIGN(s).name}`;
+  return `${d}°${String(m).padStart(2, '0')}′`;
 };
 const fmtOrb = (orb: number) => {
   const d = Math.floor(orb);
@@ -304,6 +333,18 @@ const fmtOrb = (orb: number) => {
 const fmtDay = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 const fmtDayYear = (d: Date, now: Date) => d.getFullYear() === now.getFullYear() ? fmtDay(d) : `${fmtDay(d)}/${d.getFullYear()}`;
 const glyph = (id: string) => CELESTIAL_GLYPHS[id] ?? '•';
+const splitKw = (kw?: string) => (kw ? kw.split(' · ').map(k => k.trim()).filter(Boolean) : []);
+
+// Pedaços prontos
+const txt = (text: string, extra: Partial<TooltipPart> = {}): TooltipPart => ({ text, ...extra });
+const bodyLine = (id: string, ctx: TooltipContext): TooltipPart[] =>
+  [txt(glyph(id), { sym: true, color: ctx.colors[id] }), txt(` ${BODY_NAMES[id] ?? id}`)];
+const signParts = (s: number, ctx: TooltipContext): TooltipPart[] => {
+  const z = SIGN(s);
+  return [txt(z.symbol, { sym: true, color: palette(ctx.theme).element[z.element] }), txt(` ${z.name}`)];
+};
+const positionLine = (lon: number, ctx: TooltipContext): TooltipPart[] =>
+  [txt(fmtDegInSign(lon), { mono: true }), txt(' '), ...signParts(signOf(lon), ctx)];
 
 /** Astros visíveis com longitude dentro de [start, end) (graus absolutos, 0–360). */
 const bodiesIn = (ctx: TooltipContext, start: number, end: number): string[] =>
@@ -314,8 +355,12 @@ const bodiesIn = (ctx: TooltipContext, start: number, end: number): string[] =>
     const x = norm(l);
     return x >= start && x < end;
   });
-const bodiesValue = (ids: string[], ctx: TooltipContext) =>
-  ids.length ? ids.map(id => `${glyph(id)} ${BODY_NAMES[id]} ${fmtDegree(ctx.longitudes[id]).split(' ')[0]}`).join('\n') : 'Nenhum agora';
+const bodiesRow = (ids: string[], ctx: TooltipContext): TooltipRow => ({
+  label: 'Astros aqui', icon: 'ti-planet', color: palette(ctx.theme).gold,
+  lines: ids.length
+    ? ids.map(id => [...bodyLine(id, ctx), txt(` ${fmtDegInSign(ctx.longitudes[id])}`, { mono: true, muted: true })])
+    : [[txt('Nenhum agora', { muted: true })]],
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Construtores
@@ -324,66 +369,73 @@ const bodiesValue = (ids: string[], ctx: TooltipContext) =>
 export const buildPlanetTooltip = (id: string, ctx: TooltipContext): TooltipModel | null => {
   const lon = ctx.longitudes[id];
   if (typeof lon !== 'number' || !BODY_NAMES[id]) return null;
+  const P = palette(ctx.theme);
   const s = signOf(lon);
-  const name = BODY_NAMES[id];
   const retro = !!ctx.retrograde[id];
+  const accent = ctx.colors[id] ?? P.gold;
 
-  const rows: TooltipRow[] = [{ label: 'Posição', value: fmtDegree(lon), mono: true }];
+  const rows: TooltipRow[] = [{ label: 'Posição', icon: 'ti-compass', color: accent, lines: [positionLine(lon, ctx)] }];
   if (id === 'moon' && ctx.moon) {
-    rows.push({ label: 'Fase', value: `${ctx.moon.phaseName} · ${ctx.moon.illum}%` });
-    rows.push({ label: 'Nasce · Põe', value: `${ctx.moon.rise} · ${ctx.moon.set}`, mono: true });
-    if (ctx.moon.cycleName) rows.push({ label: 'Ciclo', value: ctx.moon.cycleName });
+    rows.push({ label: 'Fase', icon: 'ti-moon', color: accent, lines: [[txt(ctx.moon.phaseName), txt(` · ${ctx.moon.illum}%`, { mono: true, muted: true })]] });
+    rows.push({ label: 'Nasce · Põe', icon: 'ti-sunrise', color: P.gold, lines: [[txt(`${ctx.moon.rise} · ${ctx.moon.set}`, { mono: true })]] });
+    if (ctx.moon.cycleName) rows.push({ label: 'Ciclo', icon: 'ti-refresh', color: P.muted, lines: [[txt(ctx.moon.cycleName)]] });
   } else if (!['northNode', 'southNode', 'partOfFortune', 'lilith'].includes(id)) {
-    rows.push({ label: 'Movimento', value: retro ? 'Retrógrado' : 'Direto', tone: retro ? 'accent' : undefined });
+    rows.push(retro
+      ? { label: 'Movimento', icon: 'ti-arrow-back-up', color: P.retro, pill: true, lines: [[txt('Retrógrado ℞')]] }
+      : { label: 'Movimento', icon: 'ti-arrow-right', color: P.good, pill: true, lines: [[txt('Direto')]] });
   }
   const dig = dignityOf(id, s);
-  if (dig) rows.push({ label: 'Dignidade', value: dig, tone: dignityTone(dig) });
+  if (dig) {
+    const c = dig === 'Domicílio' || dig === 'Exaltação' ? P.good : dig === 'Peregrino' ? P.muted : P.bad;
+    rows.push({ label: 'Dignidade', icon: DIGNITY_ICON[dig], color: c, pill: true, lines: [[txt(dig)]] });
+  }
   const term = getTermAt(lon);
-  rows.push({ label: 'Termo', value: `${glyph(term.ruler)} ${BODY_NAMES[term.ruler]}` });
+  rows.push({ label: 'Termo', icon: 'ti-layout-columns', color: ctx.colors[term.ruler] ?? P.gold, lines: [bodyLine(term.ruler, ctx)] });
   const decanNum = Math.floor((norm(lon) % 30) / 10) + 1;
   const decanRuler = getDecanRuler(norm(lon));
-  rows.push({ label: 'Decanato', value: `${decanNum}º · ${glyph(decanRuler)} ${BODY_NAMES[decanRuler]}` });
+  rows.push({ label: 'Decanato', icon: 'ti-chart-pie-2', color: ctx.colors[decanRuler] ?? P.gold, lines: [[txt(`${decanNum}º · `), ...bodyLine(decanRuler, ctx)]] });
   const house = ctx.houses[id];
-  if (house) rows.push({ label: 'Casa', value: `Casa ${house}`, mono: false });
+  if (house) rows.push({ label: 'Casa', icon: 'ti-home', color: P.house, lines: [[txt(HOUSE_COPY[house - 1]?.title ?? `Casa ${house}`)]] });
   const asps = ctx.aspects
     .filter(a => !a.isNatal && (a.body1.id === id || a.body2.id === id))
     .sort((a, b) => a.orb - b.orb)
     .slice(0, 4)
     .map(a => {
       const other = a.body1.id === id ? a.body2.id : a.body1.id;
-      return `${ASPECT_INFO[a.type]?.symbol ?? ''} ${BODY_NAMES[other] ?? other} ${fmtOrb(a.orb)}`;
+      const info = ASPECT_INFO[a.type];
+      return [txt(info?.symbol ?? '', { sym: true, color: info?.color }), txt(` ${BODY_NAMES[other] ?? other}`), txt(` ${fmtOrb(a.orb)}`, { mono: true, muted: true })];
     });
-  if (asps.length) rows.push({ label: 'Aspectos', value: asps.join('\n') });
+  if (asps.length) rows.push({ label: 'Aspectos', icon: 'ti-affiliate', color: P.accent, lines: asps });
 
   return {
-    key: `planet-${id}`, kind: 'planet', glyph: glyph(id), accent: '#F5F2EB', planetId: id,
-    title: name, keywords: PLANET_COPY[id]?.kw, text: PLANET_COPY[id]?.text ?? '', rows,
+    key: `planet-${id}`, kind: 'planet', glyph: glyph(id), accent,
+    title: BODY_NAMES[id], keywords: splitKw(PLANET_COPY[id]?.kw), text: PLANET_COPY[id]?.text ?? '', rows,
   };
 };
 
 export const buildSignTooltip = (signIndexOrId: number | string, ctx: TooltipContext): TooltipModel | null => {
   const s = typeof signIndexOrId === 'number' ? signIndexOrId : ZODIAC_DATA.findIndex(z => z.id === signIndexOrId);
   if (s < 0) return null;
+  const P = palette(ctx.theme);
   const z = SIGN(s);
+  const accent = P.element[z.element] ?? P.gold;
   const here = bodiesIn(ctx, s * 30, s * 30 + 30);
   const exalted = Object.keys(EXALTATION).filter(p => EXALTATION[p] === s);
   const exiled = Object.keys(DOMICILE).filter(p => DOMICILE[p].map(opposite).includes(s));
   const fallen = Object.keys(EXALTATION).filter(p => opposite(EXALTATION[p]) === s);
-  const names = (ids: string[]) => ids.length ? ids.map(i => `${glyph(i)} ${BODY_NAMES[i]}`).join(', ') : '—';
+  const list = (ids: string[]) => ids.length ? ids.map(i => bodyLine(i, ctx)) : [[txt('—', { muted: true })]];
   return {
-    key: `sign-${s}`, kind: 'sign', glyph: z.symbol, accent: ELEMENT_COLOR[z.element] ?? '#F5F2EB',
-    title: z.name,
-    keywords: SIGN_COPY[s].kw,
-    text: SIGN_COPY[s].text,
+    key: `sign-${s}`, kind: 'sign', glyph: z.symbol, accent,
+    title: z.name, keywords: splitKw(SIGN_COPY[s].kw), text: SIGN_COPY[s].text,
     rows: [
-      { label: 'Elemento', value: ELEMENT_PT[z.element] ?? z.element },
-      { label: 'Modalidade', value: MODALITY_PT[z.modality] ?? z.modality },
-      { label: 'Polaridade', value: POLARITY_PT[z.polarity] ?? z.polarity },
-      { label: 'Regente', value: `${glyph(z.ruler)} ${BODY_NAMES[z.ruler] ?? z.ruler}` },
-      { label: 'Exaltação', value: names(exalted) },
-      { label: 'Exílio', value: names(exiled) },
-      { label: 'Queda', value: names(fallen) },
-      { label: 'Astros aqui', value: bodiesValue(here, ctx) },
+      { label: 'Elemento', icon: ELEMENT_ICON[z.element] ?? 'ti-circle', color: accent, pill: true, lines: [[txt(ELEMENT_PT[z.element] ?? z.element)]] },
+      { label: 'Modalidade', icon: MODALITY_ICON[z.modality] ?? 'ti-circle', color: P.accent, lines: [[txt(MODALITY_PT[z.modality] ?? z.modality)]] },
+      { label: 'Polaridade', icon: 'ti-yin-yang', color: P.muted, lines: [[txt(POLARITY_PT[z.polarity] ?? z.polarity)]] },
+      { label: 'Regente', icon: 'ti-crown', color: ctx.colors[z.ruler] ?? P.gold, lines: [bodyLine(z.ruler, ctx)] },
+      { label: 'Exaltação', icon: 'ti-arrow-up', color: P.good, lines: list(exalted) },
+      { label: 'Exílio', icon: 'ti-arrow-bar-left', color: P.bad, lines: list(exiled) },
+      { label: 'Queda', icon: 'ti-arrow-down', color: P.bad, lines: list(fallen) },
+      bodiesRow(here, ctx),
     ],
   };
 };
@@ -391,32 +443,34 @@ export const buildSignTooltip = (signIndexOrId: number | string, ctx: TooltipCon
 export const buildAspectTooltip = (aspect: Aspect, ctx: TooltipContext): TooltipModel | null => {
   const info = ASPECT_INFO[aspect.type];
   if (!info) return null;
+  const P = palette(ctx.theme);
   const a = aspect.body1.id, b = aspect.body2.id;
   const natal = aspect.isNatal ? ' natal' : '';
   const timing = (() => { try { return getAspectTiming(aspect, ctx.now, ctx.location); } catch { return null; } })();
   const rows: TooltipRow[] = [
-    { label: 'Aspecto', value: `${info.symbol} ${info.name} · ${info.angle}°` },
-    { label: 'Orbe', value: fmtOrb(aspect.orb), mono: true },
+    { label: 'Aspecto', icon: 'ti-angle', color: info.color, lines: [[txt(info.symbol, { sym: true, color: info.color }), txt(` ${info.name} · `), txt(`${info.angle}°`, { mono: true })]] },
+    { label: 'Astros', icon: 'ti-planet', color: P.gold, lines: [bodyLine(a, ctx), bodyLine(b, ctx)] },
+    { label: 'Orbe', icon: 'ti-target', color: P.gold, lines: [[txt(fmtOrb(aspect.orb), { mono: true })]] },
   ];
   if (timing) {
-    rows.push({ label: 'Estado', value: timing.applying ? 'Se formando' : 'Se desfazendo', tone: timing.applying ? 'good' : undefined });
+    rows.push(timing.applying
+      ? { label: 'Estado', icon: 'ti-trending-up', color: P.good, pill: true, lines: [[txt('Se formando')]] }
+      : { label: 'Estado', icon: 'ti-trending-down', color: P.muted, pill: true, lines: [[txt('Se desfazendo')]] });
     rows.push({
-      label: timing.applying ? 'Exato' : 'Foi exato',
-      value: timing.exact ? fmtDayYear(timing.exact, ctx.now) : (timing.applying ? 'Não chega ao exato' : 'Não chegou ao exato'),
-      mono: !!timing.exact,
+      label: timing.applying ? 'Exato' : 'Foi exato', icon: 'ti-calendar-event', color: P.gold,
+      lines: [[timing.exact
+        ? txt(fmtDayYear(timing.exact, ctx.now), { mono: true })
+        : txt(timing.applying ? 'Não chega ao exato' : 'Não chegou ao exato', { muted: true })]],
     });
     rows.push({
-      label: 'Vigência',
-      value: `${timing.range.startOpen ? 'antes de ' : ''}${fmtDayYear(timing.range.start, ctx.now)} → ${timing.range.endOpen ? 'depois de ' : ''}${fmtDayYear(timing.range.end, ctx.now)}`,
-      mono: true,
+      label: 'Vigência', icon: 'ti-calendar', color: P.muted,
+      lines: [[txt(`${timing.range.startOpen ? 'antes de ' : ''}${fmtDayYear(timing.range.start, ctx.now)} → ${timing.range.endOpen ? 'depois de ' : ''}${fmtDayYear(timing.range.end, ctx.now)}`, { mono: true })]],
     });
   }
   return {
     key: `aspect-${aspect.id}`, kind: 'aspect', glyph: info.symbol, accent: info.color,
     title: `${BODY_NAMES[a] ?? a} ${info.connector} ${BODY_NAMES[b] ?? b}${natal}`,
-    keywords: info.kw,
-    text: info.text,
-    rows,
+    keywords: splitKw(info.kw), text: info.text, rows,
   };
 };
 
@@ -424,40 +478,44 @@ export const buildTermTooltip = (signIndex: number, termIndex: number, ctx: Tool
   const terms = getSignTerms(signIndex);
   const t = terms[termIndex];
   if (!t) return null;
+  const P = palette(ctx.theme);
   const z = SIGN(signIndex);
+  const accent = ctx.colors[t.ruler] ?? P.gold;
   const here = bodiesIn(ctx, signIndex * 30 + t.start, signIndex * 30 + t.end);
   return {
-    key: `term-${signIndex}-${termIndex}`, kind: 'term', glyph: glyph(t.ruler), accent: '#F5D98A',
+    key: `term-${signIndex}-${termIndex}`, kind: 'term', glyph: glyph(t.ruler), accent,
     title: `Termo ${ofBody(t.ruler)} em ${z.name}`,
-    keywords: TERM_COPY[signIndex]?.[t.ruler]?.kw,
+    keywords: splitKw(TERM_COPY[signIndex]?.[t.ruler]?.kw),
     text: TERM_COPY[signIndex]?.[t.ruler]?.text ?? '',
     rows: [
-      { label: 'Signo', value: `${z.symbol} ${z.name}` },
-      { label: 'Trecho', value: `${t.start}°–${t.end}°`, mono: true },
-      { label: 'Sistema', value: `Egípcio · ${termIndex + 1}º de ${terms.length}` },
-      { label: 'Astros aqui', value: bodiesValue(here, ctx) },
+      { label: 'Signo', icon: `ti-zodiac-${z.id}`, color: P.element[z.element] ?? P.gold, lines: [signParts(signIndex, ctx)] },
+      { label: 'Trecho', icon: 'ti-ruler-2', color: P.gold, lines: [[txt(`${t.start}°–${t.end}°`, { mono: true })]] },
+      { label: 'Sistema', icon: 'ti-books', color: P.muted, lines: [[txt(`Egípcio · ${termIndex + 1}º de ${terms.length}`)]] },
+      bodiesRow(here, ctx),
     ],
     segments: terms.map((x, i) => ({ label: `${glyph(x.ruler)} ${x.start}–${x.end}`, size: x.end - x.start, active: i === termIndex })),
   };
 };
 
 export const buildDecanTooltip = (decanIndex: number, ctx: TooltipContext): TooltipModel | null => {
+  const P = palette(ctx.theme);
   const s = Math.floor(decanIndex / 3);
   const n = decanIndex % 3;
   const ruler = getDecanRuler(decanIndex * 10);
   const z = SIGN(s);
+  const accent = ctx.colors[ruler] ?? P.gold;
   const here = bodiesIn(ctx, decanIndex * 10, decanIndex * 10 + 10);
   return {
-    key: `decan-${decanIndex}`, kind: 'decan', glyph: glyph(ruler), accent: '#E2E8F0',
+    key: `decan-${decanIndex}`, kind: 'decan', glyph: glyph(ruler), accent,
     title: `${n + 1}º decanato de ${z.name}`,
-    keywords: DECAN_COPY[ruler]?.kw,
+    keywords: splitKw(DECAN_COPY[ruler]?.kw),
     text: DECAN_COPY[ruler]?.text ?? '',
     rows: [
-      { label: 'Signo', value: `${z.symbol} ${z.name}` },
-      { label: 'Trecho', value: `${n * 10}°–${n * 10 + 10}°`, mono: true },
-      { label: 'Regente', value: `${glyph(ruler)} ${BODY_NAMES[ruler]}` },
-      { label: 'Sistema', value: `Caldeu (faces) · ${n + 1}º de 3` },
-      { label: 'Astros aqui', value: bodiesValue(here, ctx) },
+      { label: 'Signo', icon: `ti-zodiac-${z.id}`, color: P.element[z.element] ?? P.gold, lines: [signParts(s, ctx)] },
+      { label: 'Trecho', icon: 'ti-ruler-2', color: P.gold, lines: [[txt(`${n * 10}°–${n * 10 + 10}°`, { mono: true })]] },
+      { label: 'Regente', icon: 'ti-crown', color: accent, lines: [bodyLine(ruler, ctx)] },
+      { label: 'Sistema', icon: 'ti-books', color: P.muted, lines: [[txt(`Caldeu (faces) · ${n + 1}º de 3`)]] },
+      bodiesRow(here, ctx),
     ],
     segments: [0, 1, 2].map(i => {
       const r = getDecanRuler((s * 3 + i) * 10);
@@ -468,16 +526,20 @@ export const buildDecanTooltip = (decanIndex: number, ctx: TooltipContext): Tool
 
 export const buildHouseTooltip = (house: number, ctx: TooltipContext, naturalRuler?: string): TooltipModel | null => {
   if (house < 1 || house > 12) return null;
+  const P = palette(ctx.theme);
   const here = Object.keys(BODY_NAMES).filter(id => ctx.visible[id] && ctx.houses[id] === house);
   const cusp = ctx.houseCusps[house - 1];
   const rows: TooltipRow[] = [];
-  if (typeof cusp === 'number') rows.push({ label: 'Cúspide', value: fmtDegree(cusp), mono: true });
-  if (naturalRuler) rows.push({ label: 'Regente', value: `${glyph(naturalRuler)} ${BODY_NAMES[naturalRuler] ?? naturalRuler}` });
-  rows.push({ label: 'Astros aqui', value: bodiesValue(here, ctx) });
+  if (typeof cusp === 'number') rows.push({ label: 'Cúspide', icon: 'ti-compass', color: P.house, lines: [positionLine(cusp, ctx)] });
+  if (naturalRuler) rows.push({ label: 'Regente', icon: 'ti-crown', color: ctx.colors[naturalRuler] ?? P.gold, lines: [bodyLine(naturalRuler, ctx)] });
+  rows.push({
+    ...bodiesRow([], ctx),
+    lines: here.length ? here.map(id => [...bodyLine(id, ctx), txt(` ${fmtDegInSign(ctx.longitudes[id])}`, { mono: true, muted: true })]) : [[txt('Nenhum agora', { muted: true })]],
+  });
   return {
-    key: `house-${house}`, kind: 'house', glyph: String(house), accent: '#2E9E8C',
+    key: `house-${house}`, kind: 'house', glyph: String(house), accent: P.house,
     title: HOUSE_COPY[house - 1].title,
-    keywords: HOUSE_COPY[house - 1].kw,
+    keywords: splitKw(HOUSE_COPY[house - 1].kw),
     text: HOUSE_COPY[house - 1].text,
     rows,
   };
