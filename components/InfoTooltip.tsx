@@ -12,6 +12,16 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { TooltipModel, TooltipPart } from '../lib/astrology/tooltipContent';
+import { ZODIAC_ICONS } from './icons';
+
+/** Signo em SVG (nunca o caractere, que em alguns aparelhos vira emoji). */
+const SignSvg: React.FC<{ id: string; size: number; color?: string }> = ({ id, size, color }) => {
+  const Icon = ZODIAC_ICONS[id as keyof typeof ZODIAC_ICONS];
+  if (!Icon) return null;
+  return <Icon width={size} height={size} fill={color} style={{ color, display: 'inline-block', verticalAlign: '-0.18em', flex: '0 0 auto' }} />;
+};
+/** Força a versão em texto (não emoji) dos símbolos de astros. */
+const asText = (t: string) => t.replace(/[\u2600-\u26FF\u2640-\u2642]/g, ch => `${ch}\uFE0E`);
 
 const PREF_KEY = 'cronografo_tooltip_details_open';
 const PREF_EVENT = 'cronografo:tooltip-details-pref';
@@ -64,14 +74,17 @@ const MARGIN = 10;
 /** "#RRGGBB" + alfa em hex ("33") — ignora cores que não são hex de 6 dígitos. */
 const withAlpha = (c: string, a: string) => (/^#[0-9a-f]{6}$/i.test(c) ? `${c}${a}` : c);
 
-const Part: React.FC<{ p: TooltipPart }> = ({ p }) => (
-  <span
-    className={`${p.mono ? 'itt-mono' : ''} ${p.muted ? 'itt-muted' : ''} ${p.sym ? 'itt-sym' : ''}`}
-    style={p.color ? { color: p.color } : undefined}
-  >
-    {p.text}
-  </span>
-);
+const Part: React.FC<{ p: TooltipPart }> = ({ p }) => {
+  if (p.signId) return <SignSvg id={p.signId} size={14} color={p.color} />;
+  return (
+    <span
+      className={`${p.mono ? 'itt-mono' : ''} ${p.muted ? 'itt-muted' : ''} ${p.sym ? 'itt-sym' : ''}`}
+      style={p.color ? { color: p.color } : undefined}
+    >
+      {p.sym ? asText(p.text) : p.text}
+    </span>
+  );
+};
 
 const InfoTooltip: React.FC<InfoTooltipProps> = ({ model, anchor, onPointerInside, onClose, theme = 'dark' }) => {
   const [keepOpen, setKeepOpen] = useTooltipDetailsPref();
@@ -162,7 +175,9 @@ const InfoTooltip: React.FC<InfoTooltipProps> = ({ model, anchor, onPointerInsid
           style={{ background: `linear-gradient(180deg, ${withAlpha(accent, light ? '2e' : '38')} 0%, ${withAlpha(accent, light ? '0f' : '12')} 45%, transparent 100%)` }}
         />
         <div className="itt-head">
-          <span className="itt-symbol" style={{ color: accent }}>{model.glyph}</span>
+          <span className="itt-symbol" style={{ color: accent }}>
+            {model.signId ? <SignSvg id={model.signId} size={22} color={accent} /> : asText(model.glyph)}
+          </span>
           <h4 className="itt-title">{model.title}</h4>
           {isSheet && (
             <button type="button" className="itt-x" aria-label="Fechar" onClick={e => { e.stopPropagation(); onClose(); }}>
@@ -216,7 +231,7 @@ const InfoTooltip: React.FC<InfoTooltipProps> = ({ model, anchor, onPointerInsid
                     ...(s.active ? { color: accent, background: withAlpha(accent, '26'), boxShadow: `inset 0 0 0 0.5px ${withAlpha(accent, '88')}` } : {}),
                   }}
                 >
-                  {s.label}
+                  {asText(s.label)}
                 </span>
               ))}
             </div>

@@ -266,7 +266,7 @@ export const App: React.FC = () => {
     const [showDegreeLabels, setShowDegreeLabels] = useState(false);
     const [degreeLabelSize, setDegreeLabelSize] = useState(18);
     const [degreeLabelPosition, setDegreeLabelPosition] = useState<'responsive' | 'static' | 'callout' | 'staggered'>('responsive');
-    const [degreeLabelFormat, setDegreeLabelFormat] = useState<'vertical' | 'horizontal'>('vertical');
+    const [degreeLabelFormat, setDegreeLabelFormat] = useState<'radial' | 'vertical' | 'horizontal'>('radial');
     const [showAspectLines, setShowAspectLines] = useState(true);
     const [showNatalLines, setShowNatalLines] = useState(false);
     const [celestialTab, setCelestialTab] = useState<'transit' | 'natal'>('natal');

@@ -202,8 +202,8 @@ interface OptionsRailProps {
   // Graus
   showDegreeLabels?: boolean;
   setShowDegreeLabels?: (v: boolean) => void;
-  degreeLabelFormat?: 'vertical' | 'horizontal';
-  setDegreeLabelFormat?: (v: 'vertical' | 'horizontal') => void;
+  degreeLabelFormat?: 'radial' | 'vertical' | 'horizontal';
+  setDegreeLabelFormat?: (v: 'radial' | 'vertical' | 'horizontal') => void;
   degreeLabelSize?: number;
   setDegreeLabelSize?: (v: number) => void;
   degreeLabelPosition?: 'responsive' | 'static' | 'staggered';
@@ -1036,10 +1036,11 @@ export const OptionsRail: React.FC<OptionsRailProps> = (props) => {
                   <CtrlRow label="Formato dos Graus" isLight={isLight}>
                     <SegSel 
                       options={[
-                        { label: 'Vertical', value: 'vertical' },
+                        { label: 'Tradicional', value: 'radial' },
+                            { label: 'Vertical', value: 'vertical' },
                         { label: 'Horizontal', value: 'horizontal' },
                       ]} 
-                      value={props.degreeLabelFormat || 'vertical'} 
+                      value={props.degreeLabelFormat || 'radial'} 
                       onChange={v => props.setDegreeLabelFormat?.(v as any)} 
                       isLight={isLight} 
                     />

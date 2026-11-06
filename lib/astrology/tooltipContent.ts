@@ -32,6 +32,8 @@ export interface TooltipPart {
   muted?: boolean;
   /** símbolo astrológico (um pouco maior) */
   sym?: boolean;
+  /** signo: desenha o SVG do signo (ZODIAC_ICONS) em vez do caractere */
+  signId?: string;
 }
 
 export interface TooltipRow {
@@ -57,6 +59,8 @@ export interface TooltipModel {
   key: string;
   kind: TooltipKind;
   glyph: string;
+  /** se o símbolo do título for um signo: desenha o SVG do signo */
+  signId?: string;
   /** cor do símbolo, das tags e do gradiente do topo */
   accent: string;
   title: string;
@@ -341,7 +345,7 @@ const bodyLine = (id: string, ctx: TooltipContext): TooltipPart[] =>
   [txt(glyph(id), { sym: true, color: ctx.colors[id] }), txt(` ${BODY_NAMES[id] ?? id}`)];
 const signParts = (s: number, ctx: TooltipContext): TooltipPart[] => {
   const z = SIGN(s);
-  return [txt(z.symbol, { sym: true, color: palette(ctx.theme).element[z.element] }), txt(` ${z.name}`)];
+  return [txt(z.symbol, { sym: true, signId: z.id, color: palette(ctx.theme).element[z.element] }), txt(` ${z.name}`)];
 };
 const positionLine = (lon: number, ctx: TooltipContext): TooltipPart[] =>
   [txt(fmtDegInSign(lon), { mono: true }), txt(' '), ...signParts(signOf(lon), ctx)];
@@ -425,7 +429,7 @@ export const buildSignTooltip = (signIndexOrId: number | string, ctx: TooltipCon
   const fallen = Object.keys(EXALTATION).filter(p => opposite(EXALTATION[p]) === s);
   const list = (ids: string[]) => ids.length ? ids.map(i => bodyLine(i, ctx)) : [[txt('—', { muted: true })]];
   return {
-    key: `sign-${s}`, kind: 'sign', glyph: z.symbol, accent,
+    key: `sign-${s}`, kind: 'sign', glyph: z.symbol, signId: z.id, accent,
     title: z.name, keywords: splitKw(SIGN_COPY[s].kw), text: SIGN_COPY[s].text,
     rows: [
       { label: 'Elemento', icon: ELEMENT_ICON[z.element] ?? 'ti-circle', color: accent, pill: true, lines: [[txt(ELEMENT_PT[z.element] ?? z.element)]] },

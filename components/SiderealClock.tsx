@@ -78,7 +78,7 @@ interface SiderealClockProps {
   showDegreeLabels?: boolean;
   degreeLabelSize?: number;
   degreeLabelPosition?: "responsive" | "static" | "callout" | "staggered";
-  degreeLabelFormat?: "vertical" | "horizontal";
+  degreeLabelFormat?: "radial" | "vertical" | "horizontal";
   zodiacColorMode?: "none" | "element" | "modality" | "polarity";
   highlightFilter?: HighlightFilter;
   showSignLines?: boolean;
@@ -552,7 +552,7 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
   showDegreeLabels = false,
   degreeLabelSize = 18,
   degreeLabelPosition = "responsive",
-  degreeLabelFormat = "vertical",
+  degreeLabelFormat = "radial",
   zodiacColorMode = "element",
   highlightFilter,
   showSignLines = false,
@@ -1756,6 +1756,104 @@ const horizonStrokePath = `
     cy,
   ]);
 
+  /**
+   * Graus no formato TRADICIONAL (radial): o texto "24° ♎ 58′" fica sobre a linha
+   * que vai do astro ao centro. No lado esquerdo da roda lê-se do astro para o centro;
+   * no lado direito o texto vira para não ficar de cabeça para baixo.
+   * Se o rótulo bater em outro astro ou em outro rótulo, desliza para o lado
+   * (paralelo à linha) e ganha um fio-guia até o astro.
+   */
+  const radialDegreeLayout = useMemo(() => {
+    const fs = degreeLabelSize;
+    const degFont = fs * 0.82;
+    const minFont = fs * 0.72;
+    const iconSize = Math.round(fs * 0.86);
+    const gap = fs * 0.22;
+    const degW = degFont * 1.62;
+    const minW = minFont * 1.52;
+    const width = degW + gap + iconSize + gap + minW;
+    const thick = fs * 1.05;
+    return { fs, degFont, minFont, iconSize, gap, degW, minW, width, thick };
+  }, [degreeLabelSize]);
+
+  const radialDegreePlacements = useMemo(() => {
+    const placements: Record<string, { dt: number; start: number }> = {};
+    if (!showDegreeLabels || degreeLabelFormat !== "radial") return placements;
+    const { width, thick } = radialDegreeLayout;
+    const startBase = planetSize / 2 + 5;
+
+    const active = sortedPlanetIds
+      .filter((id) => visiblePlanets[id] && planetPositions[id])
+      .map((id) => {
+        const pos = planetPositions[id];
+        const a = (pos.angle * Math.PI) / 180;
+        return { id, x: pos.x, y: pos.y, cos: Math.cos(a), sin: Math.sin(a) };
+      });
+
+    // pontos ao longo do rótulo (para testar colisões)
+    const samplePoints = (p: { x: number; y: number; cos: number; sin: number }, start: number, dt: number) => {
+      const pts: Array<[number, number]> = [];
+      for (let k = 0; k <= 6; k++) {
+        const d = start + (width * k) / 6;
+        // para dentro (−cos, −sin) + deslocamento lateral (−sin, cos)
+        pts.push([p.x - d * p.cos - dt * p.sin, p.y - d * p.sin + dt * p.cos]);
+      }
+      return pts;
+    };
+
+    const placed: Array<Array<[number, number]>> = [];
+    const step = thick * 1.05;
+    const candidates = [0, step, -step, 2 * step, -2 * step, 3 * step, -3 * step];
+
+    active.forEach((p) => {
+      let best = { dt: 0, start: startBase, score: Infinity };
+      for (const dt of candidates) {
+        for (const start of [startBase, startBase + thick]) {
+          const pts = samplePoints(p, start, dt);
+          let score = Math.abs(dt) * 2 + (start - startBase);
+          // não invadir o miolo (números do centro)
+          const inner = pts[pts.length - 1];
+          if (Math.hypot(inner[0] - cx, inner[1] - cy) < numbersProtectionRadius + 4) score += 5000;
+          // não passar por cima de outros astros
+          for (const o of active) {
+            if (o.id === p.id) continue;
+            for (const [x, y] of pts) {
+              if (Math.hypot(x - o.x, y - o.y) < planetSize / 2 + thick * 0.55) { score += 3000; break; }
+            }
+          }
+          // não sobrepor rótulos já colocados
+          for (const other of placed) {
+            let hit = false;
+            for (const [x, y] of pts) {
+              for (const [ox, oy] of other) {
+                if (Math.hypot(x - ox, y - oy) < thick * 0.95) { hit = true; break; }
+              }
+              if (hit) break;
+            }
+            if (hit) score += 2000;
+          }
+          if (score < best.score) best = { dt, start, score };
+          if (score < 1) break;
+        }
+        if (best.score < 1) break;
+      }
+      placements[p.id] = { dt: best.dt, start: best.start };
+      placed.push(samplePoints(p, best.start, best.dt));
+    });
+    return placements;
+  }, [
+    showDegreeLabels,
+    degreeLabelFormat,
+    radialDegreeLayout,
+    visiblePlanets,
+    planetPositions,
+    sortedPlanetIds,
+    planetSize,
+    numbersProtectionRadius,
+    cx,
+    cy,
+  ]);
+
   const natalPlanetPositions = useMemo(() => {
     if (!natalData) return {};
     const positions: Record<string, { x: number; y: number; angle: number }> =
@@ -2279,7 +2377,7 @@ const horizonStrokePath = `
     return {
       deg: String(deg).padStart(2, "0") + "°",
       signId: SIGN_IDS[signIndex] || "aries",
-      min: String(min).padStart(2, "0") + "'",
+      min: String(min).padStart(2, "0") + "′",
     };
   };
 
@@ -5007,6 +5105,88 @@ const horizonStrokePath = `
                       const { deg, signId, min } = formatPlanetDegree(lon);
                       const SignIcon =
                         ZODIAC_ICONS[signId as keyof typeof ZODIAC_ICONS];
+
+                      // ── Formato TRADICIONAL: texto na linha do astro ao centro ──
+                      if (degreeLabelFormat === "radial") {
+                        const ppos = planetPositions[planetId];
+                        if (!ppos) return null;
+                        const L = radialDegreeLayout;
+                        const place = radialDegreePlacements[planetId] || { dt: 0, start: planetSize / 2 + 5 };
+                        const aRad = (ppos.angle * Math.PI) / 180;
+                        const leftSide = Math.cos(aRad) < 0;
+                        // lado esquerdo: eixo x aponta para o centro; lado direito: aponta para fora
+                        const rot = leftSide ? ppos.angle + 180 : ppos.angle;
+                        const x0 = leftSide ? place.start : -place.start - L.width;
+                        const shiftX = -place.dt * Math.sin(aRad);
+                        const shiftY = place.dt * Math.cos(aRad);
+                        const ink = theme === "light" ? "#0f172a" : "#F5F2EB";
+                        const inkSoft = theme === "light" ? "#475569" : "#C9C3B6";
+                        const halo = theme === "light" ? "rgba(255,255,255,0.92)" : "rgba(6,4,12,0.92)";
+                        const signX = x0 + L.degW + L.gap;
+                        const minX = signX + L.iconSize + L.gap;
+                        return (
+                          <g style={{ pointerEvents: "none" }}>
+                            {place.dt !== 0 && (
+                              <line
+                                x1={-(planetSize / 2) * Math.cos(aRad)}
+                                y1={-(planetSize / 2) * Math.sin(aRad)}
+                                x2={shiftX - place.start * Math.cos(aRad)}
+                                y2={shiftY - place.start * Math.sin(aRad)}
+                                stroke={theme === "light" ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.35)"}
+                                strokeWidth="0.8"
+                                strokeDasharray="2,2"
+                              />
+                            )}
+                            <g transform={`translate(${shiftX}, ${shiftY}) rotate(${rot})`}>
+                              <text
+                                x={x0}
+                                y={0}
+                                dominantBaseline="central"
+                                style={{
+                                  fill: ink,
+                                  stroke: halo,
+                                  strokeWidth: 3,
+                                  paintOrder: "stroke",
+                                  strokeLinejoin: "round",
+                                  fontFamily: "'Inter', sans-serif",
+                                  fontVariantNumeric: "tabular-nums",
+                                  fontSize: `${L.degFont}px`,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {deg}
+                              </text>
+                              {SignIcon && (
+                                <g
+                                  transform={`translate(${signX}, ${-L.iconSize / 2})`}
+                                  style={{ filter: theme === "light" ? "drop-shadow(0 0 1.5px rgba(255,255,255,0.95))" : "drop-shadow(0 0 1.5px rgba(0,0,0,0.95))" }}
+                                >
+                                  <SignIcon width={L.iconSize} height={L.iconSize} fill={getSignElementColor(signId)} />
+                                </g>
+                              )}
+                              <text
+                                x={minX}
+                                y={0}
+                                dominantBaseline="central"
+                                style={{
+                                  fill: inkSoft,
+                                  stroke: halo,
+                                  strokeWidth: 3,
+                                  paintOrder: "stroke",
+                                  strokeLinejoin: "round",
+                                  fontFamily: "'Inter', sans-serif",
+                                  fontVariantNumeric: "tabular-nums",
+                                  fontSize: `${L.minFont}px`,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {min}
+                              </text>
+                            </g>
+                          </g>
+                        );
+                      }
+
                       const fs = degreeLabelSize;
                       const color = theme === "light" ? "#0f172a" : "#f8fafc";
                       const isVertical = degreeLabelFormat === "vertical";
@@ -5081,7 +5261,7 @@ const horizonStrokePath = `
                                   fontWeight: 700,
                                 }}
                               >
-                                {deg}°
+                                {deg}
                               </text>
 
                               {/* Símbolo do Signo do Zodíaco (Centro) */}
@@ -5111,7 +5291,7 @@ const horizonStrokePath = `
                                   fontWeight: 600,
                                 }}
                               >
-                                {String(min).padStart(2, "0")}&apos;
+                                {min}
                               </text>
                             </g>
                           ) : (
@@ -5131,7 +5311,7 @@ const horizonStrokePath = `
                                   fontWeight: 700,
                                 }}
                               >
-                                {deg}°
+                                {deg}
                               </text>
 
                               {/* Símbolo do Signo do Zodíaco */}
@@ -5162,7 +5342,7 @@ const horizonStrokePath = `
                                   opacity: 0.92,
                                 }}
                               >
-                                {String(min).padStart(2, "0")}&apos;
+                                {min}
                               </text>
                             </g>
                           )}
