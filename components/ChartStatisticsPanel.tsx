@@ -735,21 +735,30 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                                             </span>
                                         </div>
 
-                                        {/* Planet SVG Glyphs List */}
+                                        {/* Planet SVG Glyphs List — altura FIXA de 2 linhas (evita o "pulo" do painel
+                                            quando um astro muda de signo e a lista passa de 1 para 2 linhas) */}
+                                        {(() => {
+                                            const baseGlyph = Math.max(10, Math.round(11 * scale));
+                                            const rowGap = 2;
+                                            // muitos astros no mesmo ritmo: símbolos menores para continuar em 2 linhas
+                                            const glyph = planets.length > 8 ? Math.max(8, Math.round(baseGlyph * 0.78)) : baseGlyph;
+                                            return (
                                         <div 
-                                            className={`flex items-center gap-0.5 flex-wrap pt-1 mt-1 border-t ${isLight ? 'border-amber-900/10' : 'border-white/5'}`}
-                                            style={{ minHeight: `${Math.max(14, Math.round(16 * scale))}px` }}
+                                            className={`flex items-center gap-0.5 flex-wrap content-start overflow-hidden pt-1 mt-1 border-t ${isLight ? 'border-amber-900/10' : 'border-white/5'}`}
+                                            style={{ height: `${baseGlyph * 2 + rowGap + 1}px`, rowGap: `${rowGap}px`, boxSizing: 'content-box' }}
                                         >
                                             {planets.length > 0 ? (
                                                 planets.map(p => (
-                                                    <span key={p.id} title={`${p.name} (${style.label})`} className="hover:scale-125 transition-transform">
-                                                        <CelestialGlyphSvg bodyId={p.id} size={Math.max(10, Math.round(11 * scale))} className={style.text} />
+                                                    <span key={p.id} title={`${p.name} (${style.label})`} className="inline-flex items-center justify-center" style={{ height: `${glyph}px` }}>
+                                                        <CelestialGlyphSvg bodyId={p.id} size={glyph} className={style.text} />
                                                     </span>
                                                 ))
                                             ) : (
                                                 <span className={`italic ${isLight ? 'text-amber-900/40' : 'text-white/30'}`} style={{ fontSize: `${Math.max(7.5, Math.round(8 * scale))}px` }}>—</span>
                                             )}
                                         </div>
+                                            );
+                                        })()}
                                     </div>
                                 );
                             })}
