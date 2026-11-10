@@ -578,11 +578,11 @@ export default OnboardingTour;
 /** CSS do tutorial (injetado uma vez). */
 export const ONBOARDING_TOUR_CSS = `
 @property --tour-a{syntax:'<angle>';inherits:false;initial-value:0deg}
-.tour-root{position:fixed;inset:0;z-index:10050;pointer-events:none}
+.tour-root{position:fixed;inset:0;z-index:2147483000;pointer-events:none}
 .tour-dim{position:fixed;inset:0;background:rgba(4,0,4,.78);pointer-events:auto;animation:tour-fade .35s ease-out}
 .tour-block{position:fixed;inset:0;pointer-events:auto;background:transparent}
 @keyframes tour-fade{from{opacity:0}to{opacity:1}}
-body.tour-open .itt{z-index:10060!important}
+body.tour-open .itt{z-index:2147483100!important}
 .tour-ring{position:fixed;padding:2px;pointer-events:none;transition:all .5s cubic-bezier(.65,0,.35,1);
   background:conic-gradient(from var(--tour-a),transparent 0deg,#D4AF37 70deg,#FFF3C4 110deg,#D4AF37 150deg,transparent 220deg);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
