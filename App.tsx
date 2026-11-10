@@ -955,6 +955,17 @@ useEffect(() => {
         setShowProfileModal(false);
     };
 
+    /** Botão + → "Usar um mapa salvo": o mapa escolhido vira o mapa natal sobreposto. */
+    const handleUseSavedMapAsNatal = (map: any) => {
+        const birth = map.natalDate || map.targetDate || map.date;
+        if (!birth) return;
+        const d = new Date(birth);
+        if (isNaN(d.getTime())) return;
+        setNatalTime(d);
+        const loc = map.natalDate ? (map.natalLocation || map.location) : (map.location || map.natalLocation);
+        if (loc) setNatalLocation(loc);
+    };
+
     const handleLoadLayout = (layout: any) => {
         if (layout.layout) {
             handleApplyLayoutProps(layout.layout);
@@ -1020,13 +1031,14 @@ useEffect(() => {
         visiblePlanets: typeof visiblePlanets; showTimeRing: boolean; showHouseLines: boolean;
         showHouseMarkers: boolean; showAspectLines: boolean; showAtmosphere: boolean; isZodiacFixed: boolean;
         showTermsRing: boolean; showDecanRing: boolean; showSeasonsRing: boolean;
+        zodiacColorMode: typeof zodiacColorMode;
     }>(null);
     const tourRevealTimersRef = useRef<number[]>([]);
     const takeTourSnapshot = () => {
         if (tourSnapshotRef.current) return;
         tourSnapshotRef.current = {
             visiblePlanets, showTimeRing, showHouseLines, showHouseMarkers, showAspectLines, showAtmosphere, isZodiacFixed,
-            showTermsRing, showDecanRing, showSeasonsRing,
+            showTermsRing, showDecanRing, showSeasonsRing, zodiacColorMode,
         };
     };
     const handleTourScene = (scene: TourScene) => {
@@ -1110,8 +1122,10 @@ useEffect(() => {
                     setShowTermsRing(snap.showTermsRing);
                     setShowDecanRing(snap.showDecanRing);
                     setShowSeasonsRing(snap.showSeasonsRing);
+                    setZodiacColorMode(snap.zodiacColorMode);
                     tourSnapshotRef.current = null;
                 }
+                setHighlightFilter(null);
                 break;
             }
         }
@@ -1129,7 +1143,7 @@ useEffect(() => {
         markTourDone(tourUid);
         setTourSeen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tourUid, visiblePlanets, showTimeRing, showHouseLines, showHouseMarkers, showAspectLines, showAtmosphere, isZodiacFixed, showTermsRing, showDecanRing, showSeasonsRing]);
+    }, [tourUid, visiblePlanets, showTimeRing, showHouseLines, showHouseMarkers, showAspectLines, showAtmosphere, isZodiacFixed, showTermsRing, showDecanRing, showSeasonsRing, zodiacColorMode]);
     const openTour = useCallback(() => {
         setShowEclipseModal(false);
         setShowArcaneCalendar(false);
@@ -3085,11 +3099,16 @@ const handlePlanetClick = useCallback((id: string) => {
                     isFreeTier={isFreeTier}
                     state={{
                         atmosphere: showAtmosphere,
-                        houseSelected: selectedHouses.length > 0,
                         realTime: isRealTime,
                         time: currentTime.getTime(),
                         zodiacLocked: isZodiacFixed,
                         natal: !!natalTime,
+                        housesCount: selectedHouses.length,
+                        houseWithPlanet: selectedHouses.some(h => Object.values(celestialData.housePlacements || {}).includes(h)),
+                        aspectHovered: !!hoveredAspect,
+                        aspectsSelected: selectedAspects.length,
+                        colorMode: zodiacColorMode,
+                        highlight: !!highlightFilter,
                     }}
                     theme={theme === 'light' ? 'light' : 'dark'}
                 />
@@ -3341,6 +3360,8 @@ const handlePlanetClick = useCallback((id: string) => {
                     planetColorMode={planetColorMode}
                     setPlanetColorMode={setPlanetColorMode}
                     natalTime={natalTime}
+                    savedMaps={savedMaps}
+                    onUseSavedNatal={handleUseSavedMapAsNatal}
                     onSetNatalTime={(date) => {
                         setNatalTime(date);
                         setShowNatalLines(true);

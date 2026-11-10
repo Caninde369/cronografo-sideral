@@ -395,6 +395,7 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
             onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
         >
             <motion.div
+                data-tour="eclipse-panel"
                 ref={containerRef as React.RefObject<HTMLDivElement>}
                 role="dialog"
                 aria-modal="true"

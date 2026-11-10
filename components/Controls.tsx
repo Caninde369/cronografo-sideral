@@ -626,6 +626,7 @@ export const TimeControls: React.FC<{
             />
             <div 
                 ref={toolbarContainerRef}
+                data-tour="time-controls"
                 className={`z-10 flex flex-col gap-1.5 w-full pointer-events-auto pb-2.5 sm:pb-3.5 transition-all mx-auto ${
                 isFullWidth 
                     ? 'px-3 sm:px-4 md:px-6 max-w-none' 

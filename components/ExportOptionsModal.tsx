@@ -174,6 +174,7 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = (props) => 
             }}
         >
             <div 
+                data-tour="export-modal"
                 className="relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl bg-[#0e0c18] border border-white/15 text-white shadow-2xl shadow-black/80 overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >

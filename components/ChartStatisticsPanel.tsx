@@ -389,6 +389,9 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
         };
     }, [celestialData, visiblePlanets]);
 
+    // Passar o mouse: destaque temporário. Clicar num card: destaque FIXO (clique de novo solta).
+    const [pinnedFilter, setPinnedFilter] = React.useState<HighlightFilter>(null);
+
     const handleHover = (type: 'element' | 'modality' | 'polarity', value: string) => {
         if (onHighlightFilterChange) {
             onHighlightFilterChange({ type, value });
@@ -397,8 +400,44 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
 
     const handleLeave = () => {
         if (onHighlightFilterChange) {
-            onHighlightFilterChange(null);
+            onHighlightFilterChange(pinnedFilter);
         }
+    };
+
+    const handleCardClick = (type: 'element' | 'modality' | 'polarity', value: string) => {
+        const same = !!pinnedFilter && pinnedFilter.type === type && pinnedFilter.value === value;
+        const next: HighlightFilter = same ? null : { type, value };
+        setPinnedFilter(next);
+        onHighlightFilterChange?.(next ?? { type, value });
+    };
+    const isPinned = (type: string, value: string) => !!pinnedFilter && pinnedFilter.type === type && pinnedFilter.value === value;
+
+    /** Clicar no título da seção: colore o zodíaco por essa categoria (clique de novo desliga). */
+    const renderSectionHeader = (label: string, mode: 'element' | 'modality' | 'polarity', icon: string) => {
+        const active = zodiacColorMode === mode;
+        return (
+            <button
+                type="button"
+                data-status-section={mode}
+                onClick={() => onZodiacColorModeChange?.(active ? 'none' : mode)}
+                title={active ? 'Clique para tirar as cores do zodíaco' : `Clique para colorir o zodíaco por ${label.toLowerCase()}`}
+                className={`w-full flex items-center justify-between px-1.5 rounded-md transition-colors cursor-pointer ${
+                    active
+                        ? (isLight ? 'bg-amber-500/15 text-amber-900' : 'bg-amber-400/15 text-amber-200')
+                        : (isLight ? 'text-amber-950/60 hover:bg-black/5' : 'text-white/45 hover:bg-white/5 hover:text-white/75')
+                }`}
+                style={{ height: `${Math.max(16, Math.round(18 * scale))}px`, fontSize: `${Math.max(8, Math.round(9 * scale))}px` }}
+            >
+                <span className="font-extrabold uppercase tracking-[0.12em] flex items-center gap-1">
+                    <i className={`ti ${icon}`} style={{ fontSize: `${Math.max(10, Math.round(11 * scale))}px` }} />
+                    {label}
+                </span>
+                <span className="flex items-center gap-1 font-bold normal-case tracking-normal whitespace-nowrap">
+                    <i className="ti ti-palette" style={{ fontSize: `${Math.max(10, Math.round(11 * scale))}px` }} />
+                    {active ? 'No zodíaco' : 'Colorir'}
+                </span>
+            </button>
+        );
     };
 
     const moonInfo = moonPhase !== undefined ? getMoonPhaseInfo(moonPhase) : null;
@@ -406,6 +445,8 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
 
     return (
         <div data-tour="status" className={`flex flex-col font-sans w-full bg-transparent relative p-1.5 gap-1.5 ${isLight ? 'text-amber-950' : 'text-white'} overflow-hidden`}>
+            <style>{`[data-status-card]{cursor:pointer}
+[data-status-card][data-pinned="true"]{outline:1.5px solid rgba(245,217,138,.85);outline-offset:1px;border-radius:8px;box-shadow:0 0 12px rgba(212,175,55,.25)}`}</style>
             {/* CABEÇALHO DO PAINEL */}
             {!hideHeader && (
                 <div className={`flex items-center gap-2 select-none border-b ${isLight ? 'border-amber-900/15' : 'border-white/10'} pb-1.5 shrink-0`}>
@@ -542,6 +583,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
 
                     {/* SESSÃO 1: POLARIDADES */}
                     <div className="flex flex-col gap-1 shrink-0">
+                        {renderSectionHeader('Polaridade', 'polarity', 'ti-yin-yang')}
                         <div 
                             className={`rounded-xl border ${isLight ? 'border-amber-900/15 bg-black/[0.03]' : 'border-white/10 bg-white/[0.03]'} flex flex-col gap-1`}
                             style={{ padding: `${Math.max(4, Math.round(6 * scale))}px` }}
@@ -551,6 +593,9 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                                 <div 
                                     className={`flex items-center gap-1.5 ${isLight ? 'text-blue-800 hover:text-blue-900' : 'text-blue-400 hover:text-blue-300'} cursor-pointer transition-colors`}
                                     onMouseEnter={() => handleHover('polarity', 'feminine')}
+                                    onClick={() => handleCardClick('polarity', 'feminine')}
+                                    data-status-card="polarity"
+                                    data-pinned={isPinned('polarity', 'feminine') ? 'true' : undefined}
                                     onMouseLeave={handleLeave}
                                     title={`Feminino: ${stats.counts.feminine} astros`}
                                 >
@@ -567,6 +612,9 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                                 <div 
                                     className={`flex items-center gap-1.5 ${isLight ? 'text-red-800 hover:text-red-900' : 'text-red-400 hover:text-red-300'} cursor-pointer transition-colors`}
                                     onMouseEnter={() => handleHover('polarity', 'masculine')}
+                                    onClick={() => handleCardClick('polarity', 'masculine')}
+                                    data-status-card="polarity"
+                                    data-pinned={isPinned('polarity', 'masculine') ? 'true' : undefined}
                                     onMouseLeave={handleLeave}
                                     title={`Masculino: ${stats.counts.masculine} astros`}
                                 >
@@ -589,6 +637,9 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                                     className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-300 cursor-pointer"
                                     style={{ width: `${(stats.counts.feminine / totalCount) * 100}%` }}
                                     onMouseEnter={() => handleHover('polarity', 'feminine')}
+                                    onClick={() => handleCardClick('polarity', 'feminine')}
+                                    data-status-card="polarity"
+                                    data-pinned={isPinned('polarity', 'feminine') ? 'true' : undefined}
                                     onMouseLeave={handleLeave}
                                     title={`Feminino: ${stats.counts.feminine} astros`}
                                 />
@@ -596,6 +647,9 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                                     className="h-full bg-gradient-to-r from-red-500 to-amber-500 transition-all duration-300 cursor-pointer"
                                     style={{ width: `${(stats.counts.masculine / totalCount) * 100}%` }}
                                     onMouseEnter={() => handleHover('polarity', 'masculine')}
+                                    onClick={() => handleCardClick('polarity', 'masculine')}
+                                    data-status-card="polarity"
+                                    data-pinned={isPinned('polarity', 'masculine') ? 'true' : undefined}
                                     onMouseLeave={handleLeave}
                                     title={`Masculino: ${stats.counts.masculine} astros`}
                                 />
@@ -626,6 +680,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
 
                     {/* SESSÃO 2: ELEMENTOS */}
                     <div className="flex flex-col gap-1 shrink-0">
+                        {renderSectionHeader('Elementos', 'element', 'ti-flame')}
                         <div className="grid grid-cols-2 gap-1">
                             {(['fire', 'earth', 'air', 'water'] as const).map(elKey => {
                                 const count = stats.counts[elKey];
@@ -637,6 +692,9 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                                     <div 
                                         key={elKey}
                                         onMouseEnter={() => handleHover('element', elKey)}
+                                    onClick={() => handleCardClick('element', elKey)}
+                                    data-status-card="element"
+                                    data-pinned={isPinned('element', elKey) ? 'true' : undefined}
                                         onMouseLeave={handleLeave}
                                         title={`${style.label}: ${count} astros`}
                                         className={`flex flex-col rounded-lg border transition-all duration-200 ${style.bg} ${style.border} ${isHighlighted ? 'opacity-100' : 'opacity-40'}`}
@@ -694,6 +752,9 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                                         className={`h-full ${style.bar} transition-all duration-500`}
                                         style={{ width: `${pct}%` }}
                                         onMouseEnter={() => handleHover('element', elKey)}
+                                    onClick={() => handleCardClick('element', elKey)}
+                                    data-status-card="element"
+                                    data-pinned={isPinned('element', elKey) ? 'true' : undefined}
                                         onMouseLeave={handleLeave}
                                         title={`${style.label}: ${count} astros`}
                                     />
@@ -704,6 +765,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
 
                     {/* SESSÃO 3: MODALIDADES */}
                     <div className="flex flex-col gap-1 shrink-0">
+                        {renderSectionHeader('Ritmos', 'modality', 'ti-arrows-exchange')}
                         {/* Compact Bento 3-Column Grid for Modalities with Planet SVG Glyphs */}
                         <div className="grid grid-cols-3 gap-1">
                             {(['cardinal', 'fixed', 'mutable'] as const).map(modKey => {
@@ -717,6 +779,9 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                                     <div 
                                         key={modKey}
                                         onMouseEnter={() => handleHover('modality', modKey)}
+                                    onClick={() => handleCardClick('modality', modKey)}
+                                    data-status-card="modality"
+                                    data-pinned={isPinned('modality', modKey) ? 'true' : undefined}
                                         onMouseLeave={handleLeave}
                                         title={`${style.label} (${style.desc}): ${count} astros`}
                                         className={`flex flex-col rounded-lg border ${isLight ? 'border-amber-900/15 bg-black/[0.03]' : 'border-white/10 bg-white/[0.03]'} transition-all duration-200 ${isHighlighted ? 'opacity-100' : 'opacity-40'}`}
@@ -779,6 +844,9 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                                         className={`h-full ${style.bar} transition-all duration-500`}
                                         style={{ width: `${pct}%` }}
                                         onMouseEnter={() => handleHover('modality', modKey)}
+                                    onClick={() => handleCardClick('modality', modKey)}
+                                    data-status-card="modality"
+                                    data-pinned={isPinned('modality', modKey) ? 'true' : undefined}
                                         onMouseLeave={handleLeave}
                                         title={`${style.label}: ${count} astros`}
                                     />

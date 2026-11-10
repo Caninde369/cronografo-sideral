@@ -65,6 +65,9 @@ export interface QuickToolsSidebarProps {
   // Mapa Natal
   natalTime?: Date | null;
   onSetNatalTime?: (d: Date) => void;
+  /** Mapas salvos (para usar como mapa natal pelo botão +) */
+  savedMaps?: any[];
+  onUseSavedNatal?: (map: any) => void;
   onClearNatal?: () => void;
   onOpenNatal?: () => void;
   showNatalLines?: boolean;
@@ -416,6 +419,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
   const isLight = props.theme === 'light';
   const isFreeTier = !!props.isFreeTier;
   const [openPopover, setOpenPopover] = useState<string | null>(null);
+  const [showSavedNatalList, setShowSavedNatalList] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Local state for Natal Date inputs inside the quick tools sidebar
@@ -655,6 +659,54 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                       <i className="ti ti-x text-xs" />
                     </button>
                   </div>
+
+                  {/* Mapas salvos: usar como mapa natal */}
+                  {props.onUseSavedNatal && (
+                    <div className="mb-2.5" data-tour="natal-saved">
+                      <button
+                        type="button"
+                        onClick={() => setShowSavedNatalList(v => !v)}
+                        className={`w-full h-9 px-3 rounded-xl border flex items-center justify-between text-xs font-bold transition-all cursor-pointer ${
+                          isLight
+                            ? 'border-amber-600/30 bg-amber-500/10 text-amber-900 hover:bg-amber-500/15'
+                            : 'border-amber-400/30 bg-amber-400/10 text-amber-200 hover:bg-amber-400/15'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2"><i className="ti ti-bookmarks text-sm" />Usar um mapa salvo</span>
+                        <i className={`ti ti-chevron-${showSavedNatalList ? 'up' : 'down'} text-sm`} />
+                      </button>
+                      {showSavedNatalList && (
+                        <div className={`mt-1.5 max-h-48 overflow-y-auto rounded-xl border custom-scrollbar ${isLight ? 'border-black/10 bg-black/[0.03]' : 'border-white/10 bg-white/[0.03]'}`}>
+                          {(props.savedMaps ?? []).length === 0 ? (
+                            <div className={`p-3 text-center text-[11px] ${isLight ? 'text-neutral-500' : 'text-white/50'}`}>
+                              Nenhum mapa salvo ainda.
+                            </div>
+                          ) : (
+                            (props.savedMaps ?? []).map((map: any) => {
+                              const raw = map.natalDate || map.targetDate || map.date;
+                              const d = raw ? new Date(raw) : null;
+                              const when = d && !isNaN(d.getTime())
+                                ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+                                : '';
+                              return (
+                                <button
+                                  key={map.id}
+                                  type="button"
+                                  onClick={() => { props.onUseSavedNatal?.(map); setShowSavedNatalList(false); }}
+                                  className={`w-full text-left px-3 py-2 flex items-center justify-between gap-2 border-b last:border-b-0 transition-colors cursor-pointer ${
+                                    isLight ? 'border-black/5 hover:bg-amber-500/10' : 'border-white/5 hover:bg-amber-400/10'
+                                  }`}
+                                >
+                                  <span className="text-xs font-bold truncate">{map.name || 'Mapa sem nome'}</span>
+                                  <span className={`text-[10px] font-mono shrink-0 ${isLight ? 'text-neutral-500' : 'text-white/50'}`}>{when}</span>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Status Banner */}
                   <div className={`p-2 rounded-xl mb-2.5 border text-xs flex items-center justify-between ${
@@ -971,6 +1023,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
               {/* Popover Agulha */}
               {openPopover === 'agulha' && (
                 <div
+                  data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
                   className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[340px] rounded-[14px] p-3 pb-5 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
@@ -1068,6 +1121,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
               {/* Popover Órbitas & Planetas */}
               {openPopover === 'orbitas' && (
                 <div
+                  data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
                   className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[350px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
@@ -1207,6 +1261,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
               {/* Popover Casas */}
               {openPopover === 'casas' && (
                 <div
+                  data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
                   className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[340px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
@@ -1379,6 +1434,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
               {/* Popover Aspectos */}
               {openPopover === 'aspectos' && (
                 <div
+                  data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
                   className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[340px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
@@ -1505,6 +1561,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
               {/* Popover Graus */}
               {openPopover === 'graus' && (
                 <div
+                  data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
                   className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[340px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
@@ -1592,6 +1649,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
               {/* Popover Anéis & Cronógrafo */}
               {openPopover === 'aneis' && (
                 <div
+                  data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
                   className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[350px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
@@ -1753,6 +1811,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
               {/* Popover Céu Estrelado & Fundo */}
               {openPopover === 'estrelas' && (
                 <div
+                  data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
                   className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[350px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
@@ -1951,6 +2010,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
               {/* Popover Tamanho & Escala */}
               {openPopover === 'avancado' && (
                 <div
+                  data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
                   className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-[340px] sm:w-[380px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
@@ -2065,6 +2125,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
               {/* Flyout Window: Opções e Configurações */}
               {openPopover === 'opcoes' && (
                 <div
+                  data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
                   className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[340px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${

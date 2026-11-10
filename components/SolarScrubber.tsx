@@ -816,7 +816,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
 
 
           {(loopA || loopB) && (
-            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-mono select-none ${isLight ? 'bg-amber-500/10 border-amber-500/25 text-amber-800' : 'bg-amber-500/15 border-amber-500/30 text-amber-300'}`}>
+            <div data-tour="loop-chip" data-complete={loopA && loopB ? 'true' : 'false'} className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-mono select-none ${isLight ? 'bg-amber-500/10 border-amber-500/25 text-amber-800' : 'bg-amber-500/15 border-amber-500/30 text-amber-300'}`}>
               <span className={`w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0`} />
               <span className={`font-semibold ${isLight ? 'text-neutral-800' : 'text-white/90'}`}>Loop:</span>
               <span className="text-cyan-600 dark:text-cyan-300 font-bold">{loopA ? formatDateShort(loopA) : '?'}</span>

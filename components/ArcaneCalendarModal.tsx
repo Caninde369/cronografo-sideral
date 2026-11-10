@@ -42,6 +42,7 @@ export const ArcaneCalendarModal: React.FC<ArcaneCalendarModalProps> = ({ isOpen
             aria-label="Calendário Arcano"
         >
             <div
+                data-tour="arcane-panel"
                 className="relative w-full h-full sm:max-w-[1400px] sm:h-[calc(100vh-24px)] sm:rounded-2xl overflow-hidden border-0 sm:border sm:border-amber-500/30 shadow-[0_24px_80px_rgba(0,0,0,0.85)] bg-black"
                 style={{ animation: 'arcane-modal-in 160ms ease-out' }}
             >
