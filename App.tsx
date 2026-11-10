@@ -1019,12 +1019,14 @@ useEffect(() => {
     const tourSnapshotRef = useRef<null | {
         visiblePlanets: typeof visiblePlanets; showTimeRing: boolean; showHouseLines: boolean;
         showHouseMarkers: boolean; showAspectLines: boolean; showAtmosphere: boolean; isZodiacFixed: boolean;
+        showTermsRing: boolean; showDecanRing: boolean; showSeasonsRing: boolean;
     }>(null);
     const tourRevealTimersRef = useRef<number[]>([]);
     const takeTourSnapshot = () => {
         if (tourSnapshotRef.current) return;
         tourSnapshotRef.current = {
             visiblePlanets, showTimeRing, showHouseLines, showHouseMarkers, showAspectLines, showAtmosphere, isZodiacFixed,
+            showTermsRing, showDecanRing, showSeasonsRing,
         };
     };
     const handleTourScene = (scene: TourScene) => {
@@ -1036,12 +1038,36 @@ useEffect(() => {
             setShowSaveMapModal(false);
         };
         switch (scene) {
+            case 'full-show': {
+                // "Este é o Cronógrafo": tudo ligado — completo e complexo
+                takeTourSnapshot();
+                closeOverlays();
+                const base = tourSnapshotRef.current?.visiblePlanets ?? visiblePlanets;
+                setVisiblePlanets(Object.fromEntries(
+                    Object.keys(base).map(id => [id, !!(base as Record<string, boolean>)[id] || !!DEFAULT_VISIBLE_PLANETS[id]])
+                ) as typeof visiblePlanets);
+                setShowTermsRing(true);
+                setShowDecanRing(true);
+                setShowSeasonsRing(true);
+                setShowTimeRing(true);
+                setShowHouseLines(true);
+                setShowHouseMarkers(true);
+                setShowAspectLines(true);
+                break;
+            }
+            case 'simplify':
+                // "Ainda não conheço o mapa": sem termos e decanatos, com o anel de 24 horas
+                takeTourSnapshot();
+                setShowTermsRing(false);
+                setShowDecanRing(false);
+                setShowTimeRing(true);
+                break;
             case 'story': {
                 // "Que horas são?": só Sol e Lua, relógio 24h, sem casas e sem aspectos
                 takeTourSnapshot();
                 closeOverlays();
                 const onlyLights = Object.fromEntries(
-                    Object.keys(visiblePlanets).map(id => [id, id === 'sun' || id === 'moon'])
+                    Object.keys(tourSnapshotRef.current?.visiblePlanets ?? visiblePlanets).map(id => [id, id === 'sun' || id === 'moon'])
                 ) as typeof visiblePlanets;
                 setVisiblePlanets(onlyLights);
                 setShowTimeRing(true);
@@ -1081,6 +1107,9 @@ useEffect(() => {
                     setShowHouseMarkers(snap.showHouseMarkers);
                     setShowAspectLines(snap.showAspectLines);
                     setShowAtmosphere(snap.showAtmosphere);
+                    setShowTermsRing(snap.showTermsRing);
+                    setShowDecanRing(snap.showDecanRing);
+                    setShowSeasonsRing(snap.showSeasonsRing);
                     tourSnapshotRef.current = null;
                 }
                 break;
@@ -1100,7 +1129,7 @@ useEffect(() => {
         markTourDone(tourUid);
         setTourSeen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tourUid, visiblePlanets, showTimeRing, showHouseLines, showHouseMarkers, showAspectLines, showAtmosphere, isZodiacFixed]);
+    }, [tourUid, visiblePlanets, showTimeRing, showHouseLines, showHouseMarkers, showAspectLines, showAtmosphere, isZodiacFixed, showTermsRing, showDecanRing, showSeasonsRing]);
     const openTour = useCallback(() => {
         setShowEclipseModal(false);
         setShowArcaneCalendar(false);
@@ -3057,8 +3086,8 @@ const handlePlanetClick = useCallback((id: string) => {
                     state={{
                         atmosphere: showAtmosphere,
                         houseSelected: selectedHouses.length > 0,
-                        timeMoved: !isRealTime,
                         realTime: isRealTime,
+                        time: currentTime.getTime(),
                         zodiacLocked: isZodiacFixed,
                         natal: !!natalTime,
                     }}
