@@ -28,7 +28,18 @@ interface TourStep {
   /** precisa da barra lateral aberta */
   needsSidebar?: boolean;
   media?: Media;
+  /**
+   * Passo interativo: a área em foco fica clicável e o tutorial espera a pessoa agir.
+   * Avança sozinho quando o estado indicado (vindo do App) fica verdadeiro.
+   */
+  waitFor?: TourStateKey;
+  /** texto quando o estado já estava ligado ao chegar no passo */
+  doneText?: string;
 }
+
+/** Estados do app que o tutorial acompanha (passos interativos). */
+export type TourStateKey = 'atmosphere';
+export type TourState = Partial<Record<TourStateKey, boolean>>;
 
 export const TOUR_STEPS: TourStep[] = [
   { chapter: 'Boas-vindas', title: 'Bem-vindo', text: 'O céu de agora, em tempo real. Vamos lá?', icon: 'ti-sparkles' },
@@ -40,7 +51,8 @@ export const TOUR_STEPS: TourStep[] = [
   { chapter: '1 · Ler o céu', title: 'Cores do zodíaco', text: 'Alterne: elementos, ritmos ou polaridade.', icon: 'ti-palette', targets: ['status'], pad: 4 },
   { chapter: '1 · Ler o céu', title: 'Casas', text: 'Clique numa casa. A área da vida acende.', icon: 'ti-home', targets: ['house', 'clock'], pad: 6 },
   { chapter: '1 · Ler o céu', title: 'Aspectos', text: 'Clique numa linha. É a conversa entre dois astros.', icon: 'ti-affiliate', targets: ['aspect', 'clock'], pad: 10 },
-  { chapter: '1 · Ler o céu', title: 'Horizonte', text: 'Acima, o céu visível. Abaixo, o céu sob a Terra.', icon: 'ti-sunset-2', targets: ['horizon', 'clock'], pad: 10 },
+  { chapter: '1 · Ler o céu', title: 'Ligue a atmosfera', text: 'Clique no botão destacado.', icon: 'ti-hand-click', targets: ['atmosphere'], pad: 6, needsSidebar: true, waitFor: 'atmosphere', doneText: 'A atmosfera já está ligada.' },
+  { chapter: '1 · Ler o céu', title: 'O céu de agora', text: 'Acima da linha, o céu visível. Abaixo, o céu sob a Terra.', icon: 'ti-sunset-2', targets: ['clock'], round: true, pad: 0 },
 
   // 2 · Mover o tempo
   { chapter: '2 · Mover o tempo', title: 'Botões do tempo', text: 'Avance e volte. Segure para correr.', icon: 'ti-player-track-next', targets: ['time-step'], pad: 6 },
@@ -108,6 +120,12 @@ const findTargetBox = (step: TourStep): Box | null => {
   const x1 = Math.min(...rects.map(r => r.left)), y1 = Math.min(...rects.map(r => r.top));
   const x2 = Math.max(...rects.map(r => r.right)), y2 = Math.max(...rects.map(r => r.bottom));
   const p = step.pad ?? 6;
+  if (step.round) {
+    // círculo de verdade: diâmetro = menor lado, centralizado (o contêiner do relógio é mais largo que alto)
+    const d = Math.min(x2 - x1, y2 - y1) + 2 * p;
+    const cxm = (x1 + x2) / 2, cym = (y1 + y2) / 2;
+    return { x: cxm - d / 2, y: cym - d / 2, w: d, h: d };
+  }
   return { x: x1 - p, y: y1 - p, w: x2 - x1 + 2 * p, h: y2 - y1 + 2 * p };
 };
 
@@ -137,12 +155,14 @@ interface OnboardingTourProps {
   onClose: (completed: boolean) => void;
   /** abre a barra lateral quando um passo precisa dela */
   onNeedSidebar?: () => void;
+  /** estados do app (passos interativos) */
+  state?: TourState;
   theme?: 'dark' | 'light';
 }
 
 const CARD_W = 268;
 
-const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSidebar, theme = 'dark' }) => {
+const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSidebar, state = {}, theme = 'dark' }) => {
   const [index, setIndex] = useState(0);
   const [box, setBox] = useState<Box | null>(null);
   const [cardPos, setCardPos] = useState<{ left: number; top: number } | null>(null);
@@ -200,6 +220,25 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
   const next = useCallback(() => {
     if (index >= last) onClose(true); else setIndex(i => i + 1);
   }, [index, last, onClose]);
+
+  // Passo interativo: guarda se o estado já estava ligado ao entrar; avança quando a pessoa liga
+  const waitKey = step?.waitFor;
+  const waitValue = waitKey ? !!state[waitKey] : false;
+  const [alreadyDone, setAlreadyDone] = useState(false);
+  const enteredRef = useRef<number>(-1);
+  useEffect(() => {
+    if (!open || !waitKey) return;
+    if (enteredRef.current !== index) {
+      enteredRef.current = index;
+      setAlreadyDone(waitValue);
+      return;
+    }
+    if (waitValue && !alreadyDone) {
+      const t = window.setTimeout(() => setIndex(i => Math.min(i + 1, last)), 700);
+      return () => window.clearTimeout(t);
+    }
+  }, [open, index, waitKey, waitValue, alreadyDone, last]);
+  useEffect(() => { if (!waitKey) enteredRef.current = -1; }, [waitKey]);
   const back = useCallback(() => setIndex(i => Math.max(0, i - 1)), []);
 
   useEffect(() => {
@@ -222,8 +261,18 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
 
   return createPortal(
     <div className={`tour-root ${light ? 'tour-light' : ''}`} role="dialog" aria-modal="true" aria-label="Tutorial do Cronógrafo">
-      {/* bloqueia cliques no app enquanto o tutorial está aberto */}
-      <div className="tour-catcher" onClick={e => e.stopPropagation()} />
+      {/* bloqueia cliques no app enquanto o tutorial está aberto.
+          Em passo interativo, deixa só a área em foco clicável. */}
+      {waitKey && box ? (
+        <>
+          <div className="tour-catcher" style={{ left: 0, top: 0, right: 0, height: Math.max(0, box.y) }} />
+          <div className="tour-catcher" style={{ left: 0, top: box.y + box.h, right: 0, bottom: 0 }} />
+          <div className="tour-catcher" style={{ left: 0, top: box.y, width: Math.max(0, box.x), height: box.h }} />
+          <div className="tour-catcher" style={{ left: box.x + box.w, top: box.y, right: 0, height: box.h }} />
+        </>
+      ) : (
+        <div className="tour-catcher" style={{ inset: 0 }} onClick={e => e.stopPropagation()} />
+      )}
       <div className="tour-spot" style={spotStyle} />
       {box && (
         <div
@@ -243,7 +292,13 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
           <i className={`ti ${step.icon} tour-icon`} aria-hidden="true" />
           <h4>{step.title}</h4>
         </div>
-        <p>{step.text}</p>
+        <p>{waitKey && alreadyDone && step.doneText ? step.doneText : step.text}</p>
+        {waitKey && !alreadyDone && (
+          <div className={`tour-wait ${waitValue ? 'ok' : ''}`}>
+            <i className={`ti ${waitValue ? 'ti-circle-check' : 'ti-pointer'}`} aria-hidden="true" />
+            {waitValue ? 'Isso!' : 'Aguardando seu clique…'}
+          </div>
+        )}
         {step.media === 'daycard' && <DayCardMedia />}
 
         <div className="tour-prog" aria-hidden="true">
@@ -270,7 +325,10 @@ export default OnboardingTour;
 export const ONBOARDING_TOUR_CSS = `
 @property --tour-a{syntax:'<angle>';inherits:false;initial-value:0deg}
 .tour-root{position:fixed;inset:0;z-index:10050;pointer-events:none}
-.tour-catcher{position:fixed;inset:0;pointer-events:auto;background:transparent}
+.tour-catcher{position:fixed;pointer-events:auto;background:transparent}
+.tour-wait{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:#F5D98A;padding:4px 10px;border-radius:999px;background:rgba(212,175,55,.12);animation:tour-blink 1.4s ease-in-out infinite}
+.tour-wait.ok{color:#86efac;background:rgba(74,222,128,.14);animation:none}
+@keyframes tour-blink{50%{opacity:.55}}
 .tour-spot{position:fixed;box-shadow:0 0 0 200vmax rgba(4,0,4,.78);transition:all .55s cubic-bezier(.65,0,.35,1);pointer-events:none}
 .tour-ring{position:fixed;padding:2px;pointer-events:none;transition:all .55s cubic-bezier(.65,0,.35,1);
   background:conic-gradient(from var(--tour-a),transparent 0deg,#D4AF37 70deg,#FFF3C4 110deg,#D4AF37 150deg,transparent 220deg);

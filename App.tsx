@@ -2971,6 +2971,7 @@ const handlePlanetClick = useCallback((id: string) => {
                     open={showTour}
                     onClose={closeTour}
                     onNeedSidebar={ensureSidebarOpenForTour}
+                    state={{ atmosphere: showAtmosphere }}
                     theme={theme === 'light' ? 'light' : 'dark'}
                 />
                 <TopBar 
