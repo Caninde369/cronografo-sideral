@@ -1,14 +1,14 @@
 /**
  * Conteúdo das tooltips do Cronógrafo (astros, aspectos, signos, termos, decanatos, casas).
  *
- * PADRÃO DE COPY v3 (aprovado pelo Rafa):
- *   • Título (nome do item) — símbolo na cor do item, gradiente dessa cor no topo
- *   • Palavras-chave (3–4) em tags
- *   • Descrição de 1–2 frases sobre o SIGNIFICADO do item (sem comentar a posição atual)
- * "Ver detalhes": linhas com ícone e cor (verde = favorável, vermelho = desfavorável,
- * âmbar = retrógrado, cinza = neutro), astros na cor de cada astro, signos na cor do elemento.
- *
- * Os textos ficam todos neste arquivo para revisão rápida.
+ * PADRÃO DE COPY v4 (aprovado pelo Rafa em 10/11/2026) — três leitores:
+ *   • Frase principal: direta, sem repetir o nome do assunto (o título já diz).
+ *     Ex.: Marte → "Energia de ação, coragem, vontade e iniciativa."
+ *   • Segunda linha: "Na prática" (astros), "O jeito" (signos), "Leitura oculta" (casas),
+ *     a interpretação do par (aspectos) ou "Neste trecho" (termos e decanatos).
+ *   • Tags só em termos, decanatos e aspectos (nos outros a frase já é a lista de palavras-chave).
+ *   • "Ver detalhes": dados técnicos + "No corpo (tradição)" — melotesia da iatromatemática.
+ * Sem comentar a posição atual (isso fica nos detalhes).
  */
 import { ZODIAC_DATA } from '../../components/zodiac';
 import { CELESTIAL_GLYPHS } from '../../components/icons';
@@ -67,6 +67,8 @@ export interface TooltipModel {
   /** palavras-chave (viram tags) */
   keywords: string[];
   text: string;
+  /** linhas abaixo da frase principal (ex.: "Na prática", "Leitura oculta") */
+  sub?: { label?: string; text: string }[];
   rows: TooltipRow[];
   segments?: TooltipSegment[];
 }
@@ -108,55 +110,66 @@ const ofBody = (id: string) => OF_BODY[id] ?? `de ${BODY_NAMES[id] ?? id}`;
 
 type Copy = { kw: string; text: string };
 
-const PLANET_COPY: Record<string, Copy> = {
-  sun: { kw: 'Essência · Vitalidade · Propósito', text: 'Representa a essência e a força vital. É o centro da personalidade: a consciência de quem somos, a vontade criativa e o propósito que dá direção à vida.' },
-  moon: { kw: 'Emoções · Instinto · Segurança', text: 'Rege as emoções, os instintos e o mundo interior. Mostra como buscamos segurança e acolhimento, e guarda a memória afetiva e as raízes do passado.' },
-  mercury: { kw: 'Mente · Comunicação · Aprendizado', text: 'Simboliza a mente e a troca de informações. Rege como pensamos, aprendemos, falamos e negociamos, ligando ideias, pessoas e lugares.' },
-  venus: { kw: 'Amor · Beleza · Valores', text: 'Representa o amor, a beleza e a harmonia. Rege os relacionamentos, o prazer, o gosto e aquilo que valorizamos, inclusive o dinheiro.' },
-  mars: { kw: 'Ação · Desejo · Coragem', text: 'Simboliza a ação, o desejo e a energia de conquista. Rege a força de vontade, a coragem, a raiva e a forma como lutamos pelo que queremos.' },
-  jupiter: { kw: 'Expansão · Fé · Sabedoria', text: 'Representa a expansão, o otimismo e a busca de sentido. Rege a sorte, a fé, a filosofia, os estudos superiores e tudo o que nos faz crescer.' },
-  saturn: { kw: 'Estrutura · Disciplina · Tempo', text: 'Simboliza a estrutura, os limites e a responsabilidade. Rege o tempo, as lições, a ambição e a maestria conquistada com esforço e paciência.' },
-  uranus: { kw: 'Liberdade · Inovação · Ruptura', text: 'Representa a originalidade e as mudanças súbitas. Rege a liberdade, a tecnologia, as revoluções e o inesperado que rompe padrões.' },
-  neptune: { kw: 'Intuição · Sonho · Espiritualidade', text: 'Simboliza a espiritualidade, a imaginação e a dissolução de fronteiras. Rege a intuição, a compaixão, a arte, a ilusão e o inconsciente coletivo.' },
-  pluto: { kw: 'Transformação · Poder · Renascimento', text: 'Representa a transformação profunda e o que está oculto. Rege o poder, as crises, a morte e o renascimento, e os processos de cura radical.' },
-  lilith: { kw: 'Sombra · Instinto · Autonomia', text: 'Simboliza o lado sombra e a força instintiva que não se submete. Representa o desejo cru, a independência radical e o que foi exilado da consciência.' },
-  northNode: { kw: 'Destino · Evolução · Missão da alma', text: 'Aponta o caminho de evolução da alma nesta vida. Indica as qualidades e experiências que precisamos buscar, mesmo fora da zona de conforto.' },
-  southNode: { kw: 'Passado · Talentos · Desapego', text: 'Representa a bagagem kármica: talentos inatos e padrões confortáveis. É a nossa base, mas também aquilo que precisamos soltar para evoluir.' },
-  chiron: { kw: 'Ferida · Cura · Ensino', text: 'Conhecido como o curador ferido, mostra a nossa dor mais profunda e o dom que nasce dela: a capacidade de curar e de ensinar.' },
-  ceres: { kw: 'Nutrição · Cuidado · Ciclos', text: 'Rege a nutrição, o cuidado e o ciclo de perda e retorno. Mostra como nutrimos a nós e aos outros, e como lidamos com a separação.' },
-  pallas: { kw: 'Estratégia · Sabedoria · Justiça', text: 'Representa a inteligência estratégica e criativa. Simboliza a capacidade de reconhecer padrões, encontrar soluções e lutar por ideais.' },
-  juno: { kw: 'Compromisso · Parceria · Lealdade', text: 'Rege os compromissos e as parcerias duradouras. Simboliza a busca por igualdade e lealdade, e o que esperamos de quem caminha ao nosso lado.' },
-  vesta: { kw: 'Devoção · Foco · Chama interior', text: 'Representa a chama sagrada interior. Simboliza aquilo a que nos dedicamos com foco total, pureza de intenção e entrega.' },
-  partOfFortune: { kw: 'Prosperidade · Sorte · Bem-estar', text: 'Ponto calculado a partir do Sol, da Lua e do Ascendente. Indica onde a vida flui com mais facilidade: prosperidade, saúde e alegria verdadeira.' },
+/** Astros: frase principal · na prática · no corpo (tradição). */
+const PLANET_COPY: Record<string, { text: string; practice: string; body?: string }> = {
+  sun: { text: 'Nossa luz: quem somos e o que nos dá energia.', practice: 'Vontade de brilhar, saúde e o caminho que escolhemos.', body: 'Coração, coluna, olhos e vitalidade.' },
+  moon: { text: 'Emoções, instinto e o que nos faz sentir seguros.', practice: 'Humor do dia, casa, família e lembranças.', body: 'Estômago, fluidos, útero e ciclos.' },
+  mercury: { text: 'Jeito de pensar, aprender e conversar.', practice: 'Mensagens, estudos, negócios e viagens curtas.', body: 'Nervos, pulmões, mãos e fala.' },
+  venus: { text: 'Amor, beleza e tudo o que nos dá prazer.', practice: 'Relacionamentos, gosto pessoal, arte e dinheiro.', body: 'Rins, garganta, pele e hormônios.' },
+  mars: { text: 'Energia de ação, coragem, vontade e iniciativa.', practice: 'Esporte, disputas, desejo e o jeito de lutar pelo que queremos.', body: 'Sangue, músculos, febres e inflamações.' },
+  jupiter: { text: 'Crescimento, sorte, fé e confiança.', practice: 'Estudos, viagens longas, oportunidades e generosidade.', body: 'Fígado, quadris e crescimento.' },
+  saturn: { text: 'Limites, paciência, responsabilidade e tempo.', practice: 'Trabalho duro, regras, maturidade e resultados que demoram.', body: 'Ossos, dentes, pele e joelhos.' },
+  uranus: { text: 'Mudanças, surpresas, liberdade e ideias novas.', practice: 'Tecnologia, rebeldia e reviravoltas.', body: 'Sistema nervoso e espasmos.' },
+  neptune: { text: 'Sonhos, intuição, imaginação e espiritualidade.', practice: 'Arte, fé, compaixão e também confusão.', body: 'Sistema linfático, imunidade e sensibilidades.' },
+  pluto: { text: 'Grandes transformações, poder e renascimento.', practice: 'Crises, finais, recomeços e poder pessoal.', body: 'Órgãos reprodutores, eliminação e regeneração.' },
+  lilith: { text: 'Força livre e instintiva, que não aceita ser controlada.', practice: 'Desejos escondidos, rebeldia e independência.' },
+  northNode: { text: 'O caminho que a alma veio aprender.', practice: 'O que vale buscar, mesmo fora da zona de conforto.' },
+  southNode: { text: 'O que já sabemos fazer bem e precisamos soltar aos poucos.', practice: 'Hábitos antigos, dons naturais e zonas de conforto.' },
+  chiron: { text: 'A ferida e o dom de curar.', practice: 'A dor que vira sabedoria para ajudar os outros.' },
+  ceres: { text: 'Cuidar e ser cuidado.', practice: 'Alimentação, maternidade e os ciclos de perder e reencontrar.' },
+  pallas: { text: 'Inteligência estratégica: ver o todo e achar soluções.', practice: 'Planejamento, criatividade e senso de justiça.' },
+  juno: { text: 'Parcerias, compromissos e lealdade.', practice: 'Casamento, sociedades e acordos.' },
+  vesta: { text: 'Chama da dedicação: aquilo a que entregamos o coração.', practice: 'Foco, propósito e o que é sagrado para nós.' },
+  partOfFortune: { text: 'Onde a vida flui com mais facilidade e alegria.', practice: 'Sorte, corpo e bem-estar.' },
 };
 
-/** Signos, na ordem de Áries a Peixes. */
-const SIGN_COPY: Copy[] = [
-  { kw: 'Iniciativa · Coragem · Impulso', text: 'Energia de início e de ação. Pioneiro e assertivo, Áries abre caminhos com entusiasmo e liderança, mas pode ser impaciente e impulsivo.' },
-  { kw: 'Estabilidade · Prazer · Persistência', text: 'Energia de estabilidade e de construção. Prático e sensorial, Touro busca segurança material, aprecia os prazeres da vida e resiste a mudanças.' },
-  { kw: 'Comunicação · Curiosidade · Versatilidade', text: 'Energia de troca e de movimento mental. Adaptável e sociável, Gêmeos aprende rápido e conecta ideias e pessoas, mas pode se dispersar.' },
-  { kw: 'Cuidado · Sensibilidade · Proteção', text: 'Energia de nutrição e de pertencimento. Emotivo e intuitivo, Câncer valoriza o lar, a família e a memória, com forte instinto de proteger.' },
-  { kw: 'Expressão · Criatividade · Generosidade', text: 'Energia de brilho e de autoexpressão. Carismático e confiante, Leão cria, lidera com o coração e busca reconhecimento.' },
-  { kw: 'Análise · Serviço · Aperfeiçoamento', text: 'Energia de discernimento e de cuidado prático. Detalhista e eficiente, Virgem organiza, aprimora e gosta de ser útil, mas tende à autocrítica.' },
-  { kw: 'Harmonia · Diplomacia · Parceria', text: 'Energia de equilíbrio e de relação. Sociável e justo, Libra busca beleza, acordo e cooperação, pesando os dois lados antes de decidir.' },
-  { kw: 'Intensidade · Transformação · Profundidade', text: 'Energia de profundidade e regeneração. Magnético e investigativo, Escorpião mergulha nos mistérios, busca a verdade oculta e se transforma pelas crises.' },
-  { kw: 'Expansão · Liberdade · Sentido', text: 'Energia de busca e de horizonte. Aventureiro e filosófico, Sagitário procura a verdade por meio do conhecimento, das viagens e da fé.' },
-  { kw: 'Ambição · Disciplina · Estrutura', text: 'Energia de construção e de maturidade. Paciente e responsável, Capricórnio ergue bases sólidas para metas de longo prazo.' },
-  { kw: 'Inovação · Liberdade · Coletivo', text: 'Energia de visão e de independência. Original e humanitário, Aquário valoriza a amizade, os ideais coletivos e o futuro.' },
-  { kw: 'Compaixão · Intuição · Espiritualidade', text: 'Energia de dissolução e de entrega. Sensível e sonhador, Peixes sente o todo, conecta-se ao inconsciente e cura pela empatia.' },
+/** Signos (Áries a Peixes): frase principal · o jeito · no corpo (tradição). */
+const SIGN_COPY: { text: string; way: string; body: string }[] = [
+  { text: 'Coragem, começos, impulso e liderança.', way: 'Pioneiro e direto, mas pode ser impaciente.', body: 'Cabeça.' },
+  { text: 'Calma, conforto, prazer e coisas que duram.', way: 'Prático e sensorial, mas resiste a mudanças.', body: 'Garganta e pescoço.' },
+  { text: 'Curiosidade, ideias, conversa e movimento.', way: 'Rápido e sociável, mas pode se dispersar.', body: 'Braços, mãos e pulmões.' },
+  { text: 'Cuidado, casa, família e sentimentos.', way: 'Sensível e protetor, guarda memórias.', body: 'Peito e estômago.' },
+  { text: 'Brilho, alegria, criatividade e generosidade.', way: 'Confiante, lidera com o coração e gosta de ser visto.', body: 'Coração e coluna.' },
+  { text: 'Detalhes, saúde, organização e serviço.', way: 'Prático e caprichoso, mas pode ser crítico demais.', body: 'Intestinos.' },
+  { text: 'Equilíbrio, beleza, justiça e parcerias.', way: 'Gentil e diplomático, mas pode demorar a decidir.', body: 'Rins e lombar.' },
+  { text: 'Intensidade, mistério, transformação e sexualidade.', way: 'Profundo e magnético, vai até o fim e renasce das crises.', body: 'Órgãos genitais e excreção.' },
+  { text: 'Aventura, viagens, fé e liberdade.', way: 'Otimista e franco, busca sentido e novos horizontes.', body: 'Quadris, coxas e fígado.' },
+  { text: 'Disciplina, metas, ambição e estrutura.', way: 'Paciente e responsável, constrói devagar o que dura.', body: 'Joelhos, ossos e pele.' },
+  { text: 'Liberdade, amizade, futuro e inovação.', way: 'Original e independente, pensa no coletivo.', body: 'Tornozelos e circulação.' },
+  { text: 'Imaginação, intuição, compaixão e espiritualidade.', way: 'Sensível e sonhador, sente tudo e acolhe todos.', body: 'Pés e sistema linfático.' },
 ];
 
-const ASPECT_INFO: Record<string, { name: string; symbol: string; angle: number; color: string; connector: string } & Copy> = {
-  conjunction: { name: 'Conjunção', symbol: '☌', angle: 0, color: '#4870FF', connector: 'junto de',
-    kw: 'Fusão · Intensidade · Novo ciclo', text: 'Dois astros no mesmo ponto do zodíaco (0°). As energias se fundem e se potencializam, marcando o início de um novo ciclo.' },
-  opposition: { name: 'Oposição', symbol: '☍', angle: 180, color: '#f87171', connector: 'oposto a',
-    kw: 'Polaridade · Tensão · Consciência', text: 'Dois astros em lados opostos (180°). As energias se confrontam e pedem equilíbrio: o outro funciona como espelho.' },
-  square: { name: 'Quadratura', symbol: '□', angle: 90, color: '#FB923C', connector: 'em quadratura com',
-    kw: 'Desafio · Atrito · Ação', text: 'Dois astros em ângulo reto (90°). As energias entram em atrito e geram crise, mas também a força para agir e mudar.' },
-  trine: { name: 'Trígono', symbol: '△', angle: 120, color: '#4ade80', connector: 'em trígono com',
-    kw: 'Fluidez · Harmonia · Talento', text: 'Dois astros a 120°, em signos do mesmo elemento. As energias fluem com naturalidade, trazendo facilidade e dons naturais.' },
-  sextile: { name: 'Sextil', symbol: '✶', angle: 60, color: '#60a5fa', connector: 'em sextil com',
-    kw: 'Oportunidade · Cooperação · Estímulo', text: 'Dois astros a 60°. As energias se estimulam e abrem oportunidades, que pedem uma pequena iniciativa para acontecer.' },
+/** Palavra-chave de cada corpo nos aspectos (sempre feminina: concorda com "fluem juntas"). */
+const ASPECT_KEY: Record<string, string> = {
+  sun: 'a identidade', moon: 'a emoção', mercury: 'a mente', venus: 'a afetividade',
+  mars: 'a ação', jupiter: 'a expansão', saturn: 'a responsabilidade', uranus: 'a mudança',
+  neptune: 'a intuição', pluto: 'a transformação', lilith: 'a liberdade instintiva',
+  northNode: 'a direção da alma', southNode: 'a bagagem do passado', chiron: 'a cura',
+  ceres: 'a nutrição', pallas: 'a estratégia', juno: 'a parceria', vesta: 'a dedicação',
+  partOfFortune: 'a boa sorte',
+};
+
+const ASPECT_INFO: Record<string, { name: string; symbol: string; angle: number; color: string; connector: string; verb: string } & Copy> = {
+  conjunction: { name: 'Conjunção', symbol: '☌', angle: 0, color: '#4870FF', connector: 'junto de', verb: 'se misturam',
+    kw: 'Fusão · Intensidade · Novo ciclo', text: 'Dois astros no mesmo ponto do céu: energias que se fundem.' },
+  opposition: { name: 'Oposição', symbol: '☍', angle: 180, color: '#f87171', connector: 'oposto a', verb: 'precisam encontrar equilíbrio',
+    kw: 'Polaridade · Tensão · Consciência', text: 'Dois astros em lados opostos: tensão que pede equilíbrio.' },
+  square: { name: 'Quadratura', symbol: '□', angle: 90, color: '#FB923C', connector: 'em quadratura com', verb: 'se desafiam e geram movimento',
+    kw: 'Desafio · Atrito · Ação', text: 'Dois astros em ângulo reto: desafio que gera movimento.' },
+  trine: { name: 'Trígono', symbol: '△', angle: 120, color: '#4ade80', connector: 'em trígono com', verb: 'fluem juntas',
+    kw: 'Fluidez · Harmonia · Talento', text: 'Dois astros que se ajudam com facilidade: harmonia e talento.' },
+  sextile: { name: 'Sextil', symbol: '✶', angle: 60, color: '#60a5fa', connector: 'em sextil com', verb: 'se ajudam',
+    kw: 'Oportunidade · Cooperação · Estímulo', text: 'Dois astros que abrem oportunidades: cooperação e estímulo.' },
 };
 
 /**
@@ -250,31 +263,32 @@ const TERM_COPY: Record<string, Copy>[] = [
   },
 ];
 
-/** Decanatos (faces): copy pelo regente. */
-const DECAN_COPY: Record<string, Copy> = {
-  sun: { kw: 'Brilho · Liderança · Vitalidade', text: 'Terço do signo regido pelo Sol: o signo se expressa com brilho, confiança e liderança.' },
-  moon: { kw: 'Sensibilidade · Receptividade · Memória', text: 'Terço do signo regido pela Lua: o signo se expressa com sensibilidade, acolhimento e intuição.' },
-  mercury: { kw: 'Raciocínio · Comunicação · Habilidade', text: 'Terço do signo regido por Mercúrio: o signo se expressa com inteligência, comunicação e destreza.' },
-  venus: { kw: 'Beleza · Afeto · Harmonia', text: 'Terço do signo regido por Vênus: o signo se expressa com beleza, afeto e harmonia.' },
-  mars: { kw: 'Ação · Coragem · Iniciativa', text: 'Terço do signo regido por Marte: o signo se expressa com ação, coragem e iniciativa.' },
-  jupiter: { kw: 'Expansão · Fé · Generosidade', text: 'Terço do signo regido por Júpiter: o signo se expressa com expansão, fé e generosidade.' },
-  saturn: { kw: 'Foco · Maturidade · Disciplina', text: 'Terço do signo regido por Saturno: o signo se expressa com foco, maturidade e disciplina.' },
+/** Decanatos (faces): tags e qualidades pelo regente. */
+const DECAN_COPY: Record<string, { kw: string; tone: string }> = {
+  sun: { kw: 'Brilho · Liderança · Vitalidade', tone: 'brilho e confiança' },
+  moon: { kw: 'Sensibilidade · Receptividade · Memória', tone: 'sensibilidade e intuição' },
+  mercury: { kw: 'Raciocínio · Comunicação · Habilidade', tone: 'curiosidade e inteligência' },
+  venus: { kw: 'Beleza · Afeto · Harmonia', tone: 'beleza e afeto' },
+  mars: { kw: 'Ação · Coragem · Iniciativa', tone: 'ação e coragem' },
+  jupiter: { kw: 'Expansão · Fé · Generosidade', tone: 'expansão e fé' },
+  saturn: { kw: 'Foco · Maturidade · Disciplina', tone: 'foco e maturidade' },
 };
 
-/** Casas 1 a 12. */
-const HOUSE_COPY: ({ title: string } & Copy)[] = [
-  { title: 'Casa 1 · Ascendente', kw: 'Identidade · Corpo · Inícios', text: 'Representa o eu: a aparência, a personalidade, a vitalidade e a forma como nos apresentamos ao mundo e começamos as coisas.' },
-  { title: 'Casa 2', kw: 'Recursos · Valores · Autoestima', text: 'Rege os bens materiais, o dinheiro, os talentos e a autoestima: aquilo que temos e aquilo que valorizamos.' },
-  { title: 'Casa 3', kw: 'Comunicação · Aprendizado · Entorno', text: 'Rege a mente concreta, os estudos básicos, irmãos, vizinhos, deslocamentos curtos e as trocas do dia a dia.' },
-  { title: 'Casa 4 · Fundo do Céu', kw: 'Lar · Família · Raízes', text: 'Simboliza o lar, os ancestrais, a vida privada e a base emocional: o nosso refúgio íntimo.' },
-  { title: 'Casa 5', kw: 'Criatividade · Prazer · Filhos', text: 'Rege a autoexpressão, os romances, os filhos, os hobbies e tudo o que fazemos por pura alegria.' },
-  { title: 'Casa 6', kw: 'Rotina · Trabalho · Saúde', text: 'Rege os hábitos diários, o trabalho como serviço, o bem-estar do corpo e a forma como cuidamos das obrigações.' },
-  { title: 'Casa 7 · Descendente', kw: 'Parcerias · Contratos · O outro', text: 'A casa dos relacionamentos um a um: casamento, sócios, acordos e também os opositores declarados.' },
-  { title: 'Casa 8', kw: 'Transformação · Intimidade · Bens partilhados', text: 'Rege as crises e a regeneração, a sexualidade, heranças, dívidas e investimentos em comum, e os mistérios profundos.' },
-  { title: 'Casa 9', kw: 'Sabedoria · Viagens · Fé', text: 'Rege os estudos superiores, as viagens longas, a filosofia e a espiritualidade: a expansão dos horizontes e a busca de sentido.' },
-  { title: 'Casa 10 · Meio do Céu', kw: 'Carreira · Reputação · Vocação', text: 'Simboliza o status, a autoridade, a imagem pública e a realização do nosso propósito no mundo.' },
-  { title: 'Casa 11', kw: 'Amigos · Grupos · Futuro', text: 'Rege as amizades, as redes de contato, os projetos coletivos e as esperanças que temos para o futuro.' },
-  { title: 'Casa 12', kw: 'Inconsciente · Espiritualidade · Recolhimento', text: 'Rege o que está oculto: sonhos, carma, isolamento, sacrifício e transcendência. É a casa do retiro e da entrega.' },
+/** Casas 1 a 12: frase principal · leitura oculta (tradição) · no corpo (iatromatemática). */
+const HOUSE_COPY: { title: string; text: string; occult: string; body: string }[] = [
+  { title: 'Casa 1 · Ascendente', text: 'Identidade, corpo, vitalidade e o jeito de começar.', occult: 'A própria vida: temperamento, aparência e o sopro vital. Alegria de Mercúrio.', body: 'Cabeça, rosto e a saúde geral.' },
+  { title: 'Casa 2', text: 'Dinheiro, bens, valores e autoestima.', occult: 'Os recursos que sustentam a vida: bens móveis, ganhos e aliados.', body: 'Garganta, pescoço e voz.' },
+  { title: 'Casa 3', text: 'Comunicação, estudos, irmãos e vizinhança.', occult: 'Viagens curtas, cartas, notícias, rituais e cultos. Casa da Deusa, alegria da Lua.', body: 'Ombros, braços, mãos e pulmões.' },
+  { title: 'Casa 4 · Fundo do Céu', text: 'Lar, família, raízes e vida íntima.', occult: 'O pai, os ancestrais, as terras e os imóveis. O fim das coisas e o túmulo.', body: 'Peito, mamas e estômago.' },
+  { title: 'Casa 5', text: 'Criatividade, diversão, romance e filhos.', occult: 'Gestação, prazeres, presentes e boa sorte. Casa da Boa Fortuna, alegria de Vênus.', body: 'Coração, costas e coluna.' },
+  { title: 'Casa 6', text: 'Rotina, trabalho do dia a dia e saúde.', occult: 'Doenças agudas, servidão, empregados e pequenos animais. Casa da Má Fortuna, alegria de Marte.', body: 'Intestinos, digestão e abdômen.' },
+  { title: 'Casa 7 · Descendente', text: 'O outro, parcerias e alianças, casamentos, sociedades e acordos.', occult: 'Primeiro casamento, inimigos declarados, processos e contratos. O ocaso da vida.', body: 'Rins, lombar e bexiga.' },
+  { title: 'Casa 8', text: 'Morte, transformação, intimidade e recursos compartilhados.', occult: 'Morte e renascimento, heranças, bens dos mortos, dívidas, medos e o oculto.', body: 'Órgãos genitais, excreção e regeneração.' },
+  { title: 'Casa 9', text: 'Viagens longas, estudos superiores, fé e filosofia.', occult: 'Segundo casamento, religião, sonhos e profecias, o estrangeiro. Casa do Deus, alegria do Sol.', body: 'Quadris, coxas e fígado.' },
+  { title: 'Casa 10 · Meio do Céu', text: 'Carreira, reputação, vocação e objetivos.', occult: 'A mãe, a honra, a autoridade e o legado público.', body: 'Joelhos, ossos, articulações e pele.' },
+  { title: 'Casa 11', text: 'Amigos, grupos, comunidades e sonhos para o futuro.', occult: 'Benfeitores, esperanças realizadas e ganhos da profissão. Casa do Bom Espírito, alegria de Júpiter.', body: 'Tornozelos, panturrilhas e circulação.' },
+  { title: 'Casa 12', text: 'Mundo interior, espiritualidade e o que está escondido.', occult: 'Inimigos ocultos, prisões, hospitais, isolamento, sacrifício e carma. Casa do Mau Espírito, alegria de Saturno.', body: 'Pés, sistema linfático, internações e doenças crônicas.' },
+
 ];
 
 const ELEMENT_PT: Record<string, string> = { fire: 'Fogo', earth: 'Terra', air: 'Ar', water: 'Água' };
@@ -366,6 +380,12 @@ const bodiesRow = (ids: string[], ctx: TooltipContext): TooltipRow => ({
     : [[txt('Nenhum agora', { muted: true })]],
 });
 
+/** Linha "No corpo" dos detalhes (melotesia da iatromatemática — leitura tradicional). */
+const bodyRow = (text: string, ctx: TooltipContext): TooltipRow => ({
+  label: 'No corpo', icon: 'ti-heartbeat', color: ctx.theme === 'light' ? '#be185d' : '#F9A8D4',
+  lines: [[txt(text)], [txt('leitura tradicional', { muted: true })]],
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Construtores
 // ─────────────────────────────────────────────────────────────────────────────
@@ -413,7 +433,9 @@ export const buildPlanetTooltip = (id: string, ctx: TooltipContext): TooltipMode
 
   return {
     key: `planet-${id}`, kind: 'planet', glyph: glyph(id), accent,
-    title: BODY_NAMES[id], keywords: splitKw(PLANET_COPY[id]?.kw), text: PLANET_COPY[id]?.text ?? '', rows,
+    title: BODY_NAMES[id], keywords: [], text: PLANET_COPY[id]?.text ?? '',
+    sub: PLANET_COPY[id]?.practice ? [{ label: 'Na prática', text: PLANET_COPY[id].practice }] : undefined,
+    rows: PLANET_COPY[id]?.body ? [...rows, bodyRow(PLANET_COPY[id].body as string, ctx)] : rows,
   };
 };
 
@@ -430,7 +452,8 @@ export const buildSignTooltip = (signIndexOrId: number | string, ctx: TooltipCon
   const list = (ids: string[]) => ids.length ? ids.map(i => bodyLine(i, ctx)) : [[txt('—', { muted: true })]];
   return {
     key: `sign-${s}`, kind: 'sign', glyph: z.symbol, signId: z.id, accent,
-    title: z.name, keywords: splitKw(SIGN_COPY[s].kw), text: SIGN_COPY[s].text,
+    title: z.name, keywords: [], text: SIGN_COPY[s].text,
+    sub: [{ label: 'O jeito', text: SIGN_COPY[s].way }],
     rows: [
       { label: 'Elemento', icon: ELEMENT_ICON[z.element] ?? 'ti-circle', color: accent, pill: true, lines: [[txt(ELEMENT_PT[z.element] ?? z.element)]] },
       { label: 'Modalidade', icon: MODALITY_ICON[z.modality] ?? 'ti-circle', color: P.accent, lines: [[txt(MODALITY_PT[z.modality] ?? z.modality)]] },
@@ -440,6 +463,7 @@ export const buildSignTooltip = (signIndexOrId: number | string, ctx: TooltipCon
       { label: 'Exílio', icon: 'ti-arrow-bar-left', color: P.bad, lines: list(exiled) },
       { label: 'Queda', icon: 'ti-arrow-down', color: P.bad, lines: list(fallen) },
       bodiesRow(here, ctx),
+      bodyRow(SIGN_COPY[s].body, ctx),
     ],
   };
 };
@@ -474,7 +498,9 @@ export const buildAspectTooltip = (aspect: Aspect, ctx: TooltipContext): Tooltip
   return {
     key: `aspect-${aspect.id}`, kind: 'aspect', glyph: info.symbol, accent: info.color,
     title: `${BODY_NAMES[a] ?? a} ${info.connector} ${BODY_NAMES[b] ?? b}${natal}`,
-    keywords: splitKw(info.kw), text: info.text, rows,
+    keywords: splitKw(info.kw), text: info.text,
+    sub: [{ text: `Aqui, ${ASPECT_KEY[a] ?? 'a energia'} e ${ASPECT_KEY[b] ?? 'a energia'} ${info.verb}.` }],
+    rows,
   };
 };
 
@@ -490,7 +516,8 @@ export const buildTermTooltip = (signIndex: number, termIndex: number, ctx: Tool
     key: `term-${signIndex}-${termIndex}`, kind: 'term', glyph: glyph(t.ruler), accent,
     title: `Termo ${ofBody(t.ruler)} em ${z.name}`,
     keywords: splitKw(TERM_COPY[signIndex]?.[t.ruler]?.kw),
-    text: TERM_COPY[signIndex]?.[t.ruler]?.text ?? '',
+    text: 'Pedaço do signo com um astro responsável.',
+    sub: TERM_COPY[signIndex]?.[t.ruler]?.text ? [{ label: 'Neste trecho', text: TERM_COPY[signIndex][t.ruler].text }] : undefined,
     rows: [
       { label: 'Signo', icon: `ti-zodiac-${z.id}`, color: P.element[z.element] ?? P.gold, lines: [signParts(signIndex, ctx)] },
       { label: 'Trecho', icon: 'ti-ruler-2', color: P.gold, lines: [[txt(`${t.start}°–${t.end}°`, { mono: true })]] },
@@ -513,7 +540,8 @@ export const buildDecanTooltip = (decanIndex: number, ctx: TooltipContext): Tool
     key: `decan-${decanIndex}`, kind: 'decan', glyph: glyph(ruler), accent,
     title: `${n + 1}º decanato de ${z.name}`,
     keywords: splitKw(DECAN_COPY[ruler]?.kw),
-    text: DECAN_COPY[ruler]?.text ?? '',
+    text: 'Cada terço de um signo, com seu astro regente.',
+    sub: [{ label: 'Neste trecho', text: `O ${['primeiro', 'segundo', 'último'][n]} terço de ${z.name} é ${ofBody(ruler)}: mais ${DECAN_COPY[ruler]?.tone ?? ''}.` }],
     rows: [
       { label: 'Signo', icon: `ti-zodiac-${z.id}`, color: P.element[z.element] ?? P.gold, lines: [signParts(s, ctx)] },
       { label: 'Trecho', icon: 'ti-ruler-2', color: P.gold, lines: [[txt(`${n * 10}°–${n * 10 + 10}°`, { mono: true })]] },
@@ -536,6 +564,7 @@ export const buildHouseTooltip = (house: number, ctx: TooltipContext, naturalRul
   const rows: TooltipRow[] = [];
   if (typeof cusp === 'number') rows.push({ label: 'Cúspide', icon: 'ti-compass', color: P.house, lines: [positionLine(cusp, ctx)] });
   if (naturalRuler) rows.push({ label: 'Regente', icon: 'ti-crown', color: ctx.colors[naturalRuler] ?? P.gold, lines: [bodyLine(naturalRuler, ctx)] });
+  rows.push(bodyRow(HOUSE_COPY[house - 1].body, ctx));
   rows.push({
     ...bodiesRow([], ctx),
     lines: here.length ? here.map(id => [...bodyLine(id, ctx), txt(` ${fmtDegInSign(ctx.longitudes[id])}`, { mono: true, muted: true })]) : [[txt('Nenhum agora', { muted: true })]],
@@ -543,8 +572,9 @@ export const buildHouseTooltip = (house: number, ctx: TooltipContext, naturalRul
   return {
     key: `house-${house}`, kind: 'house', glyph: String(house), accent: P.house,
     title: HOUSE_COPY[house - 1].title,
-    keywords: splitKw(HOUSE_COPY[house - 1].kw),
+    keywords: [],
     text: HOUSE_COPY[house - 1].text,
+    sub: [{ label: 'Leitura oculta', text: HOUSE_COPY[house - 1].occult }],
     rows,
   };
 };

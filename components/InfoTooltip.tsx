@@ -201,6 +201,12 @@ const InfoTooltip: React.FC<InfoTooltipProps> = ({ model, anchor, onPointerInsid
           </div>
         )}
         <p className="itt-text">{model.text}</p>
+        {model.sub?.map((l, i) => (
+          <p key={i} className="itt-sub">
+            {l.label && <span className="itt-sub-label">{l.label}</span>}
+            {l.text}
+          </p>
+        ))}
       </div>
 
       {hasDetails && !keepOpen && (
@@ -288,7 +294,9 @@ export const INFO_TOOLTIP_CSS = `
 .itt-x{flex:0 0 auto;width:30px;height:30px;border-radius:8px;border:0;background:rgba(255,255,255,.06);color:#cfc9bd;cursor:pointer}
 .itt-tags{position:relative;display:flex;flex-wrap:wrap;gap:5px;margin:10px 0 9px}
 .itt-tag{font-size:11.5px;font-weight:700;letter-spacing:.01em;line-height:1.3;padding:3px 8px;border-radius:999px}
-.itt-text{position:relative;margin:0;font-size:13.5px;line-height:1.55;color:#D9D4C8}
+.itt-text{position:relative;margin:0;font-size:14px;line-height:1.5;color:#F0ECE2}
+.itt-sub{position:relative;margin:7px 0 0;font-size:12.5px;line-height:1.5;color:#a8a296}
+.itt-sub-label{display:inline-block;margin-right:6px;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:#8e887c}
 .itt-footer{height:38px;display:flex;align-items:center;justify-content:center;gap:7px;border-top:1px solid rgba(255,255,255,.08);
   color:#F5D98A;font:600 12.5px/1 'DM Sans',sans-serif;user-select:none;transition:background .12s}
 .itt-clickable:hover .itt-footer{background:rgba(245,217,138,.07)}
@@ -319,7 +327,7 @@ export const INFO_TOOLTIP_CSS = `
 .itt-sheet{left:10px!important;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));top:auto!important;width:auto!important;max-height:70vh;overflow-y:auto}
 .itt-light{background:rgba(252,250,245,.98);color:#2a2620;border-color:rgba(0,0,0,.10)}
 .itt-light .itt-arrow{background:rgba(252,250,245,.98);border-color:rgba(0,0,0,.10)}
-.itt-light .itt-title{color:#1d1a15}.itt-light .itt-text{color:#3b362d}
+.itt-light .itt-title{color:#1d1a15}.itt-light .itt-text{color:#2a2620}.itt-light .itt-sub{color:#5b554a}.itt-light .itt-sub-label{color:#7a7366}
 .itt-light .itt-footer{color:#8a6a12;border-color:rgba(0,0,0,.08)}
 .itt-light.itt-clickable:hover .itt-footer{background:rgba(212,175,55,.10)}
 .itt-light .itt-details{border-color:rgba(0,0,0,.08)}
