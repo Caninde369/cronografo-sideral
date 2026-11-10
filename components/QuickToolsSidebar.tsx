@@ -632,6 +632,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
               {/* Popover Pesquisar Data / Mapa Natal */}
               {openPopover === 'natal' && (
                 <div
+                  data-tour="natal-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
                   className={`absolute top-0 right-full mr-3 w-80 sm:w-[340px] max-h-[calc(100vh-2rem)] rounded-[14px] p-3 pb-5 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[60] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${

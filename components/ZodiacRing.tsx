@@ -55,7 +55,7 @@ export const ZodiacRing: React.FC<ZodiacRingProps> = ({
     const adaptiveIconColor = isBrightSky ? "text-slate-900" : "text-white dark:text-gray-300";
 
     return (
-        <g transform={`rotate(${rotation}, ${cx}, ${cy})`}>
+        <g data-tour="zodiac" transform={`rotate(${rotation}, ${cx}, ${cy})`}>
             {ZODIAC_DATA.map((sign, i) => {
                 const startLon = i * 30;
                 const endLon = (i + 1) * 30;

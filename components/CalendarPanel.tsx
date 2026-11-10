@@ -694,10 +694,10 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
 
     // ── Coluna direita ────────────────────────────────────────────────────────
     const rightCol = (
-        <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden">
+        <div data-tour="calendar-panel" className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden">
 
             {/* Cabeçalho compacto fixo: Abas Principais + Sub-abas + Controlador de Ano à Direita (Sempre em linha única) */}
-            <div className="flex items-center justify-between px-3 py-1.5 border-b border-brand-border/15 gap-1.5 shrink-0 bg-brand-surface/95 backdrop-blur-md sticky top-0 z-20 shadow-xs min-w-0">
+            <div data-tour="calendar-tabs" className="flex items-center justify-between px-3 py-1.5 border-b border-brand-border/15 gap-1.5 shrink-0 bg-brand-surface/95 backdrop-blur-md sticky top-0 z-20 shadow-xs min-w-0">
                 <div className="flex items-center gap-1.5 min-w-0 flex-nowrap overflow-x-auto no-scrollbar">
                     {onOpenFullCalendar && (
                         <button
@@ -1098,6 +1098,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                 <div 
                                     key={ci} 
                                     ref={isCurrentCycle ? currentCycleRef : null} 
+                                    data-tour={isCurrentCycle ? 'cycle' : undefined}
                                     className={`rounded-2xl border border-brand-border/10 overflow-hidden scroll-mt-4 relative ${isCycleLocked ? 'cursor-pointer hover:border-amber-500/30 transition-colors' : ''}`}
                                     onClick={isCycleLocked ? () => { setShowUpgradeBanner(true); onOpenPaymentPlans?.(); } : undefined}
                                 >
@@ -1184,6 +1185,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                                                 return (
                                                                     <div key={`${phase.name}-${lunarDay}`}
                                                                         ref={isToday ? todayCellRef : null}
+                                                                        data-tour={isToday ? 'day-card' : undefined}
                                                                         onClick={() => handleDaySelect(date.getDate(), date.getMonth())}
                                                                         style={{
                                                                             padding: '5px 3px', display: 'flex', flexDirection: 'column',
@@ -1520,7 +1522,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                     )}
 
                     {/* Digitação Rápida (mesmo padrão do Mapa Natal) */}
-                    <div className="flex flex-col gap-1.5 p-2.5 rounded-xl border border-brand-border/10 bg-brand-surface-highlight/30">
+                    <div data-tour="date-input" className="flex flex-col gap-1.5 p-2.5 rounded-xl border border-brand-border/10 bg-brand-surface-highlight/30">
                         <div className="flex justify-between items-center px-0.5">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-brand-text-muted font-manrope">
                                 Digitação Rápida

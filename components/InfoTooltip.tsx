@@ -147,6 +147,7 @@ const InfoTooltip: React.FC<InfoTooltipProps> = ({ model, anchor, onPointerInsid
     <div
       ref={boxRef}
       role="tooltip"
+      data-kind={model.kind}
       className={`itt ${light ? 'itt-light' : ''} ${isSheet ? 'itt-sheet' : ''} ${hasDetails && !keepOpen ? 'itt-clickable' : ''}`}
       style={isSheet ? undefined : {
         left: pos?.left ?? -9999, top: pos?.top ?? -9999, width: W,

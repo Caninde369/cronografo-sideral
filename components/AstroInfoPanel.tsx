@@ -613,6 +613,7 @@ export const AstroInfoPanel: React.FC<AstroInfoPanelProps> = ({
     return (
         <div 
             ref={panelRef} 
+            data-tour="astros-panel"
             className="flex flex-col h-full font-manrope bg-transparent w-full min-w-0"
         >
                 {!hideHeader && (

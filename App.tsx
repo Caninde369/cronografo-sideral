@@ -41,7 +41,7 @@ import { PaymentPlansModal } from './components/PaymentPlansModal';
 import { EclipsePanel } from './components/EclipsePanel';
 import { ArcaneCalendarModal } from './components/ArcaneCalendarModal';
 import { LoginModal } from './components/LoginModal';
-import OnboardingTour, { ONBOARDING_TOUR_CSS, isTourDone, markTourDone } from './components/OnboardingTour';
+import OnboardingTour, { ONBOARDING_TOUR_CSS, isTourDone, markTourDone, TourScene } from './components/OnboardingTour';
 import { AdminDashboard } from './components/AdminDashboard';
 import { 
     auth, 
@@ -1015,11 +1015,92 @@ useEffect(() => {
         const t = window.setTimeout(() => setShowTour(true), 1800);
         return () => window.clearTimeout(t);
     }, [tourCanAutoOpen, tourSeen, showTour]);
+    // Cenas da história: o tutorial muda a tela e, no fim, devolve tudo como estava
+    const tourSnapshotRef = useRef<null | {
+        visiblePlanets: typeof visiblePlanets; showTimeRing: boolean; showHouseLines: boolean;
+        showHouseMarkers: boolean; showAspectLines: boolean; showAtmosphere: boolean; isZodiacFixed: boolean;
+    }>(null);
+    const tourRevealTimersRef = useRef<number[]>([]);
+    const takeTourSnapshot = () => {
+        if (tourSnapshotRef.current) return;
+        tourSnapshotRef.current = {
+            visiblePlanets, showTimeRing, showHouseLines, showHouseMarkers, showAspectLines, showAtmosphere, isZodiacFixed,
+        };
+    };
+    const handleTourScene = (scene: TourScene) => {
+        tourRevealTimersRef.current.forEach(t => window.clearTimeout(t));
+        tourRevealTimersRef.current = [];
+        const closeOverlays = () => {
+            setShowMoonPopover(false);
+            setShowCalendarPanel(false);
+            setShowSaveMapModal(false);
+        };
+        switch (scene) {
+            case 'story': {
+                // "Que horas são?": só Sol e Lua, relógio 24h, sem casas e sem aspectos
+                takeTourSnapshot();
+                closeOverlays();
+                const onlyLights = Object.fromEntries(
+                    Object.keys(visiblePlanets).map(id => [id, id === 'sun' || id === 'moon'])
+                ) as typeof visiblePlanets;
+                setVisiblePlanets(onlyLights);
+                setShowTimeRing(true);
+                setShowHouseLines(false);
+                setShowHouseMarkers(false);
+                setShowAspectLines(false);
+                break;
+            }
+            case 'planets': {
+                // os planetas entram um a um
+                const original = tourSnapshotRef.current?.visiblePlanets ?? visiblePlanets;
+                const ids = Object.keys(original).filter(id => (original as Record<string, boolean>)[id] && id !== 'sun' && id !== 'moon');
+                ids.forEach((id, k) => {
+                    tourRevealTimersRef.current.push(window.setTimeout(() => {
+                        setVisiblePlanets(prev => ({ ...prev, [id]: true }));
+                    }, 180 * (k + 1)));
+                });
+                break;
+            }
+            case 'houses':
+                setShowHouseLines(true);
+                setShowHouseMarkers(true);
+                break;
+            case 'aspects':
+                setShowAspectLines(true);
+                break;
+            case 'close-overlays':
+                closeOverlays();
+                break;
+            case 'restore': {
+                closeOverlays();
+                const snap = tourSnapshotRef.current;
+                if (snap) {
+                    setVisiblePlanets(snap.visiblePlanets);
+                    setShowTimeRing(snap.showTimeRing);
+                    setShowHouseLines(snap.showHouseLines);
+                    setShowHouseMarkers(snap.showHouseMarkers);
+                    setShowAspectLines(snap.showAspectLines);
+                    setShowAtmosphere(snap.showAtmosphere);
+                    tourSnapshotRef.current = null;
+                }
+                break;
+            }
+        }
+    };
+    // trava do zodíaco: o tutorial pede para travar; ao sair, volta como estava
+    const tourLockRef = useRef<boolean | null>(null);
+    useEffect(() => {
+        if (showTour && tourLockRef.current === null) tourLockRef.current = isZodiacFixed;
+    }, [showTour, isZodiacFixed]);
+
     const closeTour = useCallback(() => {
+        handleTourScene('restore');
+        if (tourLockRef.current !== null) { setIsZodiacFixed(tourLockRef.current); tourLockRef.current = null; }
         setShowTour(false);
         markTourDone(tourUid);
         setTourSeen(true);
-    }, [tourUid]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tourUid, visiblePlanets, showTimeRing, showHouseLines, showHouseMarkers, showAspectLines, showAtmosphere, isZodiacFixed]);
     const openTour = useCallback(() => {
         setShowEclipseModal(false);
         setShowArcaneCalendar(false);
@@ -2446,7 +2527,7 @@ const handlePlanetClick = useCallback((id: string) => {
             </main>
             {showSaveMapModal && (
                 <div className="absolute inset-0 z-[110] flex items-center justify-center bg-brand-dark/80 backdrop-blur-md">
-                    <div className="bg-brand-surface border border-brand-border/10 rounded-2xl shadow-2xl w-full max-w-sm p-6 relative overflow-hidden">
+                    <div data-tour="save-modal" className="bg-brand-surface border border-brand-border/10 rounded-2xl shadow-2xl w-full max-w-sm p-6 relative overflow-hidden">
                         <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-brand-purple/5 to-transparent"></div>
                         <div className="flex justify-between items-center mb-6 relative z-10">
                             <h2 className="text-lg font-bold uppercase text-brand-text tracking-wide">Salvar Mapa</h2>
@@ -2489,7 +2570,7 @@ const handlePlanetClick = useCallback((id: string) => {
             )}
             {showSaveLayoutModal && (
                 <div className="absolute inset-0 z-[110] flex items-center justify-center bg-brand-dark/80 backdrop-blur-md">
-                    <div className="bg-brand-surface border border-brand-border/10 rounded-2xl shadow-2xl w-full max-w-sm p-6 relative overflow-hidden">
+                    <div data-tour="save-modal" className="bg-brand-surface border border-brand-border/10 rounded-2xl shadow-2xl w-full max-w-sm p-6 relative overflow-hidden">
                         <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-brand-purple/5 to-transparent"></div>
                         <div className="flex justify-between items-center mb-6 relative z-10">
                             <h2 className="text-lg font-bold uppercase text-brand-text tracking-wide">Salvar Layout</h2>
@@ -2971,7 +3052,16 @@ const handlePlanetClick = useCallback((id: string) => {
                     open={showTour}
                     onClose={closeTour}
                     onNeedSidebar={ensureSidebarOpenForTour}
-                    state={{ atmosphere: showAtmosphere }}
+                    onScene={handleTourScene}
+                    isFreeTier={isFreeTier}
+                    state={{
+                        atmosphere: showAtmosphere,
+                        houseSelected: selectedHouses.length > 0,
+                        timeMoved: !isRealTime,
+                        realTime: isRealTime,
+                        zodiacLocked: isZodiacFixed,
+                        natal: !!natalTime,
+                    }}
                     theme={theme === 'light' ? 'light' : 'dark'}
                 />
                 <TopBar 

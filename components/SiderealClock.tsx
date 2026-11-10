@@ -4857,7 +4857,7 @@ const horizonStrokePath = `
             return (
               <g
                 key={planetId}
-                data-tour={planetId === "sun" ? "planet" : undefined}
+                data-tour={planetId === "sun" ? "planet" : planetId === "moon" ? "planet-moon" : undefined}
                 onClick={(e) => {
                   e.stopPropagation();
                   onPlanetClick(planetId);
