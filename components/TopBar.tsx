@@ -172,6 +172,10 @@ export interface TopBarProps {
   currentTime?: Date;
   location?: any;
   onOpenLunarCalendar?: () => void;
+  /** Abre o tutorial guiado (botão "?") */
+  onOpenTutorial?: () => void;
+  /** Faz o "?" pulsar até a pessoa abrir o tutorial pela primeira vez */
+  tutorialPulse?: boolean;
 
   // New Date Actions
   onSetTime?: (date: Date) => void;
@@ -319,6 +323,25 @@ export const TopBar: React.FC<TopBarProps> = (props) => {
               <span className={`text-[11px] font-bold leading-none ml-0.5 ${isLight ? 'text-[#8b8370]' : 'text-white/50'}`}>+</span>
             </button>
         ))}
+
+        {/* Tutorial guiado: "?" na altura do logo */}
+        {props.onOpenTutorial && (
+          <button
+            type="button"
+            data-tour="help"
+            onClick={() => props.onOpenTutorial?.()}
+            aria-label="Abrir tutorial"
+            title="Tutorial: conheça o Cronógrafo"
+            className={`w-7 h-7 sm:w-[30px] sm:h-[30px] rounded-full flex items-center justify-center shrink-0 cursor-pointer active:scale-95 transition-all border ${
+              isLight
+                ? 'bg-white/95 border-[#b08a1e]/60 text-[#8a6a12] hover:bg-[#fff8e6]'
+                : 'bg-[#0d0a12]/95 border-[#D4AF37]/70 text-[#F5D98A] hover:bg-[#1a1408]'
+            } ${props.tutorialPulse ? 'tour-help-pulse' : ''}`}
+            style={{ fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: 14 }}
+          >
+            ?
+          </button>
+        )}
       </div>
     </>
   );

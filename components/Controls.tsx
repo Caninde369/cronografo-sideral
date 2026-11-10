@@ -682,6 +682,7 @@ export const TimeControls: React.FC<{
                     {/* Left corner: Hoje button & Minimize Timeline button */}
                     <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 z-20">
                         <button
+                            data-tour="now"
                             onClick={() => { onSetRealTime(true); setIsPlaying(false); }}
                             className={`btn-3d-glow flex items-center justify-center gap-1.5 ${showHojeText ? 'px-3 sm:px-3.5' : 'w-9 px-0'} h-9 rounded-full text-xs font-bold active:scale-95 cursor-pointer shrink-0 ${
                                 isRealTime 
@@ -708,7 +709,7 @@ export const TimeControls: React.FC<{
                     </div>
 
                     {/* Center: Step Back (holdable), Play Reverse, Play Forward, Step Forward (holdable), and Marcha (speed) */}
-                    <div className="flex items-center justify-center shrink-0 z-20 gap-1 sm:gap-1.5 mx-auto">                        {/* Step Back (Press and hold to rewind continuously) */}
+                    <div data-tour="time-step" className="flex items-center justify-center shrink-0 z-20 gap-1 sm:gap-1.5 mx-auto">                        {/* Step Back (Press and hold to rewind continuously) */}
                         <button
                             onPointerDown={(e) => {
                                 if (e.button !== 0 && e.pointerType === 'mouse') return;
@@ -894,6 +895,7 @@ export const TimeControls: React.FC<{
                     {/* Right corner: Bloquear Zodíaco + Apresentar + Minimizar/Maximizar icon button */}
                     <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 z-20">
                         <button
+                            data-tour="zodiac-lock"
                             onClick={onToggleZodiacFixed}
                             className={`btn-3d-glow h-9 ${showZodiacText ? 'px-3 sm:px-3.5' : 'w-9 px-0'} rounded-full flex items-center justify-center gap-1.5 shrink-0 active:scale-95 cursor-pointer text-xs font-bold ${
                                 isZodiacFixed 
@@ -917,6 +919,7 @@ export const TimeControls: React.FC<{
                                         ? 'btn-3d-amber'
                                         : (isLight ? 'btn-3d-white' : 'btn-3d-dark')
                                 }`}
+                                data-tour="present"
                                 title="Alternar Modo Apresentação (Tela Cheia)"
                             >
                                 <i className="ti ti-maximize text-xs sm:text-sm shrink-0" />

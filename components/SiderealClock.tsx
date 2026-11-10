@@ -4090,6 +4090,7 @@ const horizonStrokePath = `
             return (
               <g key={`house-group-${i}`}>
                 <path
+                  data-tour="house"
                   d={wedgePath}
                   fill={houseFill}
                   fillOpacity={fillOpacity}
@@ -4444,6 +4445,7 @@ const horizonStrokePath = `
                   />
                   {/* Área de toque larga e invisível (tooltip do aspecto) */}
                   <line
+                    data-tour="aspect"
                     x1={pos1.x}
                     y1={pos1.y}
                     x2={pos2.x}
@@ -4855,6 +4857,7 @@ const horizonStrokePath = `
             return (
               <g
                 key={planetId}
+                data-tour={planetId === "sun" ? "planet" : undefined}
                 onClick={(e) => {
                   e.stopPropagation();
                   onPlanetClick(planetId);

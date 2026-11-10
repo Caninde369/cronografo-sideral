@@ -605,7 +605,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
             </div>
 
             {/* 2. Pesquisar Data / Mapa Natal (Botão Dourado com +) */}
-            <div className="group relative flex items-center justify-center">
+            <div data-tour="natal" className="group relative flex items-center justify-center">
               <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                 <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                   isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
@@ -865,6 +865,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                 </div>
                 <button
                   type="button"
+                  data-tour="eclipses"
                   onClick={() => { setOpenPopover(null); props.onOpenEclipses?.(); }}
                   className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer active:scale-95 shrink-0 ${
                     isLight ? 'text-orange-700 hover:bg-orange-500/10 hover:text-orange-800' : 'text-orange-300/80 hover:bg-orange-400/15 hover:text-orange-200'
@@ -892,6 +893,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                 </div>
                 <button
                   type="button"
+                  data-tour="arcane"
                   onClick={() => { setOpenPopover(null); props.onOpenArcaneCalendar?.(); }}
                   className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer active:scale-95 shrink-0 ${
                     isLight ? 'text-amber-800 hover:bg-amber-500/10 hover:text-amber-900' : 'text-amber-300/80 hover:bg-amber-400/15 hover:text-amber-200'
@@ -912,7 +914,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
           </div>
 
           {/* Middle Section: Quick Tools Icon Buttons */}
-          <div className="flex flex-col items-center gap-2.5 w-full my-auto">
+          <div data-tour="settings" className="flex flex-col items-center gap-2.5 w-full my-auto">
             {/* 1. Atmosfera */}
             <div className="group relative flex items-center justify-center">
               <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
@@ -923,6 +925,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                 </div>
               </div>
               <button
+                data-tour="atmosphere"
                 onClick={props.onToggleAtmosphere}
                 className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer active:scale-95 shrink-0 ${
                   props.showAtmosphere
@@ -2220,6 +2223,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                   </div>
                 </div>
                 <button
+                  data-tour="save"
                   onClick={props.onSave}
                   className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer active:scale-95 shrink-0 ${
                     isLight ? 'text-neutral-600 hover:bg-black/[0.06] hover:text-neutral-900' : 'text-white/60 hover:bg-white/[0.08] hover:text-amber-400'
@@ -2233,7 +2237,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
 
             {/* Compartilhar / Exportar */}
             {props.exportData && (
-              <ExportPDFButton {...props.exportData} variant="sidebar" />
+              <div data-tour="export"><ExportPDFButton {...props.exportData} variant="sidebar" /></div>
             )}
           </div>
         </motion.aside>

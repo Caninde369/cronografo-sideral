@@ -41,6 +41,7 @@ import { PaymentPlansModal } from './components/PaymentPlansModal';
 import { EclipsePanel } from './components/EclipsePanel';
 import { ArcaneCalendarModal } from './components/ArcaneCalendarModal';
 import { LoginModal } from './components/LoginModal';
+import OnboardingTour, { ONBOARDING_TOUR_CSS, isTourDone, markTourDone } from './components/OnboardingTour';
 import { AdminDashboard } from './components/AdminDashboard';
 import { 
     auth, 
@@ -1002,6 +1003,31 @@ useEffect(() => {
 
     const { trialActive, timeLeft, isExpired, isUnlimited, formattedTimeLeft, resetTrial, startTrial } = useTrialTimer(isAuthenticated, userEmail, isAdmin);
 
+    // ── Tutorial guiado ─────────────────────────────────────────────────────
+    // Abre sozinho no primeiro acesso de cada conta (salvo no navegador) e pelo "?" do topo.
+    const [showTour, setShowTour] = useState(false);
+    const tourUid = isAuthenticated ? (auth.currentUser?.uid ?? null) : null;
+    const [tourSeen, setTourSeen] = useState(true);
+    useEffect(() => { setTourSeen(isTourDone(tourUid)); }, [tourUid]);
+    const tourCanAutoOpen = !isAuthChecking && (isAuthenticated || trialActive) && !showLoginModal && !showPaymentPlansModal;
+    useEffect(() => {
+        if (!tourCanAutoOpen || tourSeen || showTour) return;
+        const t = window.setTimeout(() => setShowTour(true), 1800);
+        return () => window.clearTimeout(t);
+    }, [tourCanAutoOpen, tourSeen, showTour]);
+    const closeTour = useCallback(() => {
+        setShowTour(false);
+        markTourDone(tourUid);
+        setTourSeen(true);
+    }, [tourUid]);
+    const openTour = useCallback(() => {
+        setShowEclipseModal(false);
+        setShowArcaneCalendar(false);
+        setShowCalendarPanel(false);
+        setShowTour(true);
+    }, []);
+    const ensureSidebarOpenForTour = useCallback(() => setIsQuickToolsSidebarOpen(true), []);
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && immersiveMode) {
@@ -1902,6 +1928,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                 >
                                     <div 
                                         ref={clockRef} 
+                                        data-tour="clock"
                                         className="sidereal-clock-capture-container relative flex items-center justify-center overflow-visible pointer-events-auto w-full h-full max-w-full max-h-full" 
                                         style={{ 
                                             aspectRatio: '1 / 1',
@@ -2939,7 +2966,16 @@ const handlePlanetClick = useCallback((id: string) => {
                 <div className="flex-1 relative h-full min-w-0">
                     {renderContent()}
                 </div>
+                <style>{ONBOARDING_TOUR_CSS}</style>
+                <OnboardingTour
+                    open={showTour}
+                    onClose={closeTour}
+                    onNeedSidebar={ensureSidebarOpenForTour}
+                    theme={theme === 'light' ? 'light' : 'dark'}
+                />
                 <TopBar 
+                    onOpenTutorial={openTour}
+                    tutorialPulse={!tourSeen}
                     // Moon Card & Date Actions
                     celestialData={celestialData}
                     currentTime={currentTime}

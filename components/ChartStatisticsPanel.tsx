@@ -405,7 +405,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
     const totalCount = stats.counts.total || 10;
 
     return (
-        <div className={`flex flex-col font-sans w-full bg-transparent relative p-1.5 gap-1.5 ${isLight ? 'text-amber-950' : 'text-white'} overflow-hidden`}>
+        <div data-tour="status" className={`flex flex-col font-sans w-full bg-transparent relative p-1.5 gap-1.5 ${isLight ? 'text-amber-950' : 'text-white'} overflow-hidden`}>
             {/* CABEÇALHO DO PAINEL */}
             {!hideHeader && (
                 <div className={`flex items-center gap-2 select-none border-b ${isLight ? 'border-amber-900/15' : 'border-white/10'} pb-1.5 shrink-0`}>

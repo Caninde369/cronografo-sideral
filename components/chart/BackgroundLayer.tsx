@@ -174,6 +174,7 @@ export const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
 
                 {/* 5. Linha do horizonte acompanhando a curva */}
                 <path
+                    data-tour="horizon"
                     d={horizonLinePath}
                     fill="none"
                     stroke={currentPalette.ground[0]}

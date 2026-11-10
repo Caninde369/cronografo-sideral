@@ -265,6 +265,7 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
                             : 'bg-[#06060a]/95 border border-white/20 text-white/80 hover:bg-[#12101e] hover:text-white hover:border-cyan-400/50 shadow-[0_4px_16px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.3)]'
                     } ${className || ''}`}
                     style={{ height: `${Math.max(26, Math.round(32 * scale))}px` }}
+                    data-tour="lunar"
                     title="Clique para abrir o Calendário Lunar"
                 >
                     {/* Ícone do Ciclo Lunar */}
@@ -328,6 +329,7 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
                         e.stopPropagation();
                         handleTogglePopover();
                     }}
+                    data-tour="lunar"
                     title="Clique para abrir o Calendário Lunar"
                     className={`flex flex-col gap-1.5 backdrop-blur-xl rounded-[14px] transition-all select-none w-full shrink-0 relative cursor-pointer group ${
                         isLight 

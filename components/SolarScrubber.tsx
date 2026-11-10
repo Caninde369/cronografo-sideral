@@ -779,10 +779,11 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
   }
 
   return (
-    <div style={{ padding: '4px 0 0 0', userSelect: 'none' }} ref={containerRef} className="flex-1 min-w-[150px]">
+    <div data-tour="timeline" style={{ padding: '4px 0 0 0', userSelect: 'none' }} ref={containerRef} className="flex-1 min-w-[150px]">
       <div className="flex justify-between items-center mb-1 relative min-h-[38px]">
         <div className="flex items-center gap-2 shrink-0">
           <div
+            data-tour="date-display"
             title="Use a roda do mouse sobre a linha para Zoom | Duplo clique para marcar A e B"
             className={`flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded-lg border border-transparent ${isLight ? 'bg-black/[0.04] text-neutral-800' : 'bg-white/[0.02] text-white'}`}
           >
@@ -839,6 +840,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
             <button
               onClick={onOpenDatePicker}
               className={`p-1.5 rounded-lg transition-all active:scale-95 shrink-0 ${isLight ? 'bg-black/[0.04] hover:bg-black/[0.08] border border-black/[0.05] hover:border-black/20 text-neutral-600 hover:text-neutral-900' : 'bg-white/[0.04] hover:bg-white/[0.1] border border-white/[0.05] hover:border-white/20 text-white/70 hover:text-white'}`}
+              data-tour="date"
               title="Escolher data"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
