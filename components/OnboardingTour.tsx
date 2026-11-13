@@ -55,7 +55,7 @@ type Wait =
   | { dom: string }                       // elemento precisa surgir
   | { domGone: string }                   // elemento precisa sumir
   | { click: string }                     // clique dentro do seletor
-  | { timeMoved: true }                   // o relógio saiu do horário em que estava (> 1 min)
+  | { timeMoved: true; minMs?: number }   // o relógio saiu do horário (> 1 min) e, com minMs, ficou mexendo esse tempo
   | { event: 'wheel' | 'dblclick'; within: string; count?: number };
 
 interface Task {
@@ -69,7 +69,7 @@ interface Task {
   /** a mãozinha aponta para este alvo (data-tour) */
   hand?: string;
   /** desenho do mouse com o botão que deve ser usado */
-  mouse?: 'left' | 'right';
+  mouse?: 'left' | 'right' | 'wheel' | 'double';
 }
 
 type ChapterId = 'cronografo' | 'lua' | 'ferramentas';
@@ -108,6 +108,8 @@ interface TourStep {
   noSelect?: boolean;
   /** foco em anel: o miolo deste alvo (data-tour) fica escuro */
   innerOf?: string;
+  /** libera o zoom do relógio (rodinha) neste passo */
+  allowZoom?: boolean;
   /** missão: tarefas em sequência */
   tasks?: Task[];
   /** explorar: convite */
@@ -197,18 +199,29 @@ export const TOUR_STEPS: TourStep[] = [
       { label: 'Clique no ✕ vermelho, no alto do painel, para limpar', wait: { fn: s => (s.aspectsSelected ?? 0) === 0 }, hand: 'aspects-clear', mouse: 'left' },
     ] },
 
-  { chapter: 'cronografo', kind: 'explore', color: GOLD, title: 'Termos e decanatos', icon: 'ti-ruler-measure', targets: ['rings-outer'], round: true, pad: 2, innerOf: 'rings-inner', scene: 'rings', tips: 'term,decan', rings: ['rings-outer', 'rings-inner'],
-    text: 'Cada signo se divide em pedaços menores, e cada pedaço tem um astro responsável. São os dois anéis finos entre as linhas douradas: por fora, os termos; por dentro, os decanatos.',
-    goal: 'Pare o mouse num pedaço, sem clicar, para ler.',
-    expert: 'Termos egípcios e decanatos caldeus.' },
+  { chapter: 'cronografo', kind: 'explore', color: GOLD, title: 'Termos e decanatos', icon: 'ti-ruler-measure', targets: ['rings-outer', 'clock'], round: true, pad: 2, innerOf: 'rings-inner', scene: 'rings', tips: 'term,decan', rings: ['rings-outer', 'rings-inner'],
+    text: 'Cada signo tem 30 graus. Os decanatos dividem o signo em 3 partes iguais, de 10 graus. Os termos dividem em 5 partes de tamanhos diferentes. Cada parte tem um astro responsável por ela.',
+    goal: 'Pare o mouse num pedaço do anel aceso, sem clicar, para ler: por fora, os termos; por dentro, os decanatos.',
+    expert: 'Termos egípcios (Ptolomeu, Doroteu) e decanatos caldeus (faces).' },
+  { chapter: 'cronografo', kind: 'explore', color: GOLD, title: 'Por que importam', icon: 'ti-bulb', targets: ['rings-outer', 'clock'], round: true, pad: 2, innerOf: 'rings-inner', scene: 'rings', tips: 'term,decan,planet', rings: ['rings-outer', 'rings-inner'],
+    text: 'Dois astros no mesmo signo podem agir de jeitos bem diferentes: depende do pedaço em que estão. O astro responsável pelo pedaço dá o tom a quem passa por ali. Para ler o agora, olhe onde estão o Sol e a Lua: o dono daquele pedaço é quem está no comando deste momento.',
+    goal: 'Ache o Sol e pare o mouse no pedaço logo abaixo dele.',
+    expert: 'Termo e face são dignidades menores: um astro no próprio termo ou face ganha força. Na tradição, os termos marcam os períodos da vida (distribuição pelos termos) e os decanatos dão a imagem e o tom do grau.' },
+  { chapter: 'cronografo', kind: 'mission', color: GOLD, title: 'Ver de perto', icon: 'ti-zoom-in', targets: ['clock'], round: true, pad: 0, scene: 'rings', tips: 'term,decan,planet', rings: ['rings-outer', 'rings-inner'], allowZoom: true, hold: true,
+    text: 'Os pedaços são pequenos. Aproxime o relógio para ver em que grau exato cada astro está e qual pedaço ele ocupa.',
+    tasks: [
+      { label: 'Role a rodinha do mouse sobre o relógio para aproximar', wait: { event: 'wheel', within: '[data-tour="clock"]', count: 4 }, hand: 'clock', mouse: 'wheel' },
+      { label: 'Pare o mouse num termo ou decanato perto de um astro para ler', wait: { dom: '.itt[data-kind="term"], .itt[data-kind="decan"]' } },
+      { label: 'Dê um duplo clique no relógio: ele volta ao centro', wait: { event: 'dblclick', within: '[data-tour="clock"]' }, hand: 'clock', mouse: 'double' },
+    ] },
 
   { chapter: 'cronografo', kind: 'mission', color: C_TIME, title: 'A linha do tempo', icon: 'ti-arrows-horizontal', targets: ['time-controls', 'timeline'], also: ['clock'], pad: 6, scene: 'time', tips: 'all', hold: true,
     text: 'Até aqui você viu o céu de agora. Esta linha leva o relógio para qualquer momento. Olhe o relógio enquanto mexe.',
     tasks: [
-      { label: 'Clique na estrela branca e arraste para os lados', wait: { timeMoved: true }, hand: 'scrub-thumb', mouse: 'left' },
-      { label: 'Muita coisa girando na tela? Trave o zodíaco: clique no cadeado', wait: { fn: s => !!s.zodiacLocked }, targets: ['zodiac-lock'], also: ['clock'], hand: 'zodiac-lock', mouse: 'left' },
-      { label: 'Clique e arraste a estrela de novo: os signos ficam parados e você vê os astros evoluindo', wait: { timeMoved: true }, hand: 'scrub-thumb', mouse: 'left' },
-      { label: 'Role a rodinha do mouse sobre a linha do tempo: zoom', wait: { event: 'wheel', within: '[data-tour="timeline"]' } },
+      { label: 'Clique na estrela branca e arraste para os lados. Continue mexendo e olhe o relógio', wait: { timeMoved: true, minMs: 5000 }, hand: 'scrub-thumb', mouse: 'left' },
+      { label: 'Muita coisa girando na tela? Trave o zodíaco: clique no cadeado', wait: { fn: s => !!s.zodiacLocked }, hand: 'zodiac-lock', mouse: 'left' },
+      { label: 'Zodíaco travado! Agora tente de novo: clique e arraste a estrela. Os signos ficam parados e você vê os astros caminhando', wait: { timeMoved: true, minMs: 3000 }, hand: 'scrub-thumb', mouse: 'left' },
+      { label: 'Com o mouse sobre a linha do tempo, role a rodinha: a linha aproxima (zoom)', wait: { event: 'wheel', within: '[data-tour="timeline"]', count: 3 }, hand: 'timeline', mouse: 'wheel' },
     ] },
   { chapter: 'cronografo', kind: 'mission', color: C_KEEP, title: 'O seu mapa', icon: 'ti-calendar-event', targets: ['date', 'date-display'], also: ['clock'], pad: 6, tips: 'all', hold: true, doneScene: 'close-overlays',
     text: 'Agora vamos montar o SEU mapa: coloque a data e a hora em que você nasceu. Nos próximos passos você salva e exporta esse mapa.',
@@ -381,15 +394,18 @@ const DayCardMedia: React.FC = () => (
 );
 
 /** Mouse desenhado com o botão a usar piscando (esquerdo ou direito). */
-const MouseIcon: React.FC<{ button: 'left' | 'right' }> = ({ button }) => (
+const MouseIcon: React.FC<{ button: 'left' | 'right' | 'wheel' | 'double' }> = ({ button }) => (
   <span className="tour-mouse">
     <svg width="30" height="42" viewBox="0 0 30 42" aria-hidden="true">
       <rect x="1.5" y="1.5" width="27" height="39" rx="13.5" fill="rgba(10,8,18,.92)" stroke="#E8E4DA" strokeWidth="2" />
       <path d="M15 1.5V17" stroke="#E8E4DA" strokeWidth="2" />
       <path d="M1.5 17H28.5" stroke="#E8E4DA" strokeWidth="2" />
-      <path className="tour-mouse-btn" d={button === 'left' ? 'M14 2.6V16H2.6V15A12.4 12.4 0 0 1 14 2.6Z' : 'M16 2.6V16H27.4V15A12.4 12.4 0 0 0 16 2.6Z'} />
+      {button === 'wheel'
+        ? <rect className="tour-mouse-wheel" x="12" y="5" width="6" height="9" rx="3" />
+        : <path className={button === 'double' ? 'tour-mouse-btn tour-mouse-dbl' : 'tour-mouse-btn'} d={button === 'right' ? 'M16 2.6V16H27.4V15A12.4 12.4 0 0 0 16 2.6Z' : 'M14 2.6V16H2.6V15A12.4 12.4 0 0 1 14 2.6Z'} />}
+      {button === 'wheel' && <path className="tour-mouse-arrow" d="M15 22v9m-3.5-3.5L15 31l3.5-3.5" stroke="var(--tc)" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />}
     </svg>
-    <b>{button === 'left' ? 'esquerdo' : 'direito'}</b>
+    <b>{button === 'left' ? 'esquerdo' : button === 'right' ? 'direito' : button === 'wheel' ? 'role a rodinha' : 'duplo clique'}</b>
   </span>
 );
 
@@ -451,6 +467,17 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
   }, [leftWarn]);
   useEffect(() => { setLeftWarn(false); }, [index]);
 
+  // Relógio parado no lugar durante o tutorial (sem arrastar e sem zoom), recentrado a cada passo.
+  // Só o passo "Ver de perto" libera o zoom; o fim libera tudo ("explorar sozinho").
+  useEffect(() => {
+    if (!open || !step) return;
+    if (step.chapter === 'end') { delete document.body.dataset.tourView; return; }
+    document.body.dataset.tourView = step.allowZoom ? 'zoom' : 'locked';
+    if (!step.allowZoom) window.dispatchEvent(new Event('cronografo:reset-zoom'));
+  }, [open, index, step]);
+  useEffect(() => () => { delete document.body.dataset.tourView; }, []);
+  useEffect(() => { if (!open) delete document.body.dataset.tourView; }, [open]);
+
   // Tooltips do relógio liberadas neste passo (Tutorial 1: só o assunto do passo)
   useEffect(() => {
     if (!open || !step) return;
@@ -491,6 +518,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
   const clickedRef = useRef(false);
   const eventCountRef = useRef(0);
   const baseTimeRef = useRef<number | undefined>(undefined);
+  const firstMovedRef = useRef<number | null>(null);
   const finishedRef = useRef(false);
 
   const evaluate = useCallback((w: Wait): boolean => {
@@ -501,7 +529,11 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
     if ('click' in w) return clickedRef.current;
     if ('timeMoved' in w) {
       const t = st.time, b = baseTimeRef.current;
-      return !st.realTime && typeof t === 'number' && typeof b === 'number' && Math.abs(t - b) > 60_000;
+      const moved = !st.realTime && typeof t === 'number' && typeof b === 'number' && Math.abs(t - b) > 60_000;
+      if (!moved) return false;
+      if (!w.minMs) return true;
+      if (firstMovedRef.current === null) firstMovedRef.current = Date.now();
+      return Date.now() - firstMovedRef.current >= w.minMs;
     }
     return eventCountRef.current >= (w.count ?? 1);
   }, []);
@@ -511,6 +543,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
     clickedRef.current = false;
     eventCountRef.current = 0;
     baseTimeRef.current = stateRef.current.time;
+    firstMovedRef.current = null;
     sawAbsentRef.current = t && 'dom' in t.wait ? !isPresent(t.wait.dom) : true;
   }, []);
 
@@ -697,12 +730,15 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
         <div key={`lk${k}`} className="tour-block" style={{ inset: 'auto', left: b.x, top: b.y, width: b.w, height: b.h, borderRadius: b.round ? '50%' : 15 }} onClick={e => e.stopPropagation()} />
       ))}
 
-      {ringBoxes.map((b, k) => (
-        <div key={`rgg${k}`} className="tour-ring-glow" style={{ left: b.x - 1, top: b.y - 1, width: b.w + 2, height: b.h + 2 }} />
-      ))}
-      {ringBoxes.map((b, k) => (
-        <div key={`rg${k}`} className="tour-ring tour-ring-thin" style={{ left: b.x - 2, top: b.y - 2, width: b.w + 4, height: b.h + 4, borderRadius: '50%', animationDirection: k % 2 ? 'reverse' : 'normal' }} />
-      ))}
+      {ringBoxes.map((b, k) => {
+        const o = k === 0 ? 5 : -5; // 1º (de fora) cresce, 2º (de dentro) encolhe: as linhas ficam fora do anel aceso
+        return (
+          <React.Fragment key={`rg${k}`}>
+            <div className="tour-ring-glow" style={{ left: b.x - o, top: b.y - o, width: b.w + 2 * o, height: b.h + 2 * o }} />
+            <div className="tour-ring tour-ring-thin" style={{ left: b.x - o - 1, top: b.y - o - 1, width: b.w + 2 * o + 2, height: b.h + 2 * o + 2, borderRadius: '50%', animationDirection: k % 2 ? 'reverse' : 'normal' }} />
+          </React.Fragment>
+        );
+      })}
       {main && !ringBoxes.length && (
         <div
           className={`tour-ring ${missionLive ? 'tour-ring-live' : ''}`}
@@ -713,7 +749,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
         <div key={k} className="tour-ring-soft" style={{ left: b.x - 1, top: b.y - 1, width: b.w + 2, height: b.h + 2, borderRadius: b.round ? '50%' : 15 }} />
       ))}
       {missionLive && handBox && (
-        <div className="tour-pointer" aria-hidden="true" style={{ left: handBox.left + handBox.width / 2 - 13, top: Math.min(handBox.bottom - 4, window.innerHeight - 70) }}>
+        <div className="tour-pointer" aria-hidden="true" style={{ left: handBox.left + handBox.width / 2 - 13, top: handBox.width > 160 && handBox.height > 160 ? handBox.top + handBox.height / 2 - 10 : Math.min(handBox.bottom - 4, window.innerHeight - 70) }}>
           <i className="ti ti-hand-finger tour-hand-static" />
           {currentTask?.mouse && <MouseIcon button={currentTask.mouse} />}
         </div>
@@ -928,13 +964,18 @@ body.tour-open .itt{z-index:2147483100!important}
 @keyframes tour-help-pulse{0%,100%{box-shadow:0 0 0 0 rgba(212,175,55,.55)}50%{box-shadow:0 0 0 8px rgba(212,175,55,0)}}
 .tour-help-pulse{animation:tour-help-pulse 1.8s ease-in-out infinite}
 .tour-ring-thin{padding:3px;animation-duration:3.2s}
-.tour-ring-glow{position:fixed;pointer-events:none;border-radius:50%;border:1.5px solid rgba(245,217,138,.85);box-shadow:inset 0 0 16px 3px rgba(245,217,138,.45),0 0 10px rgba(245,217,138,.4);transition:all .5s cubic-bezier(.65,0,.35,1)}
+.tour-ring-glow{position:fixed;pointer-events:none;border-radius:50%;border:1.5px solid rgba(245,217,138,.9);box-shadow:0 0 7px rgba(245,217,138,.55);transition:all .3s ease-out}
 .tour-pointer{position:fixed;pointer-events:none;z-index:3;display:flex;align-items:flex-start;gap:6px;animation:tour-tap 1.1s ease-in-out infinite}
 .tour-hand-static{font-size:28px;color:var(--tc);filter:drop-shadow(0 2px 6px rgba(0,0,0,.85))}
 .tour-mouse{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:6px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.85))}
 .tour-mouse b{font:700 11px/1 'DM Sans',sans-serif;color:var(--tc);background:rgba(10,8,18,.92);padding:3px 6px;border-radius:6px;letter-spacing:.03em}
 .tour-mouse-btn{fill:var(--tc);animation:tour-click 1.1s ease-in-out infinite}
 @keyframes tour-click{0%,35%{opacity:.25}45%,70%{opacity:1}100%{opacity:.25}}
+.tour-mouse-dbl{animation:tour-dbl 1.4s ease-in-out infinite}
+@keyframes tour-dbl{0%,30%{opacity:.25}36%,44%{opacity:1}50%,54%{opacity:.25}60%,68%{opacity:1}74%,100%{opacity:.25}}
+.tour-mouse-wheel{fill:var(--tc);animation:tour-wheel 1s ease-in-out infinite}
+@keyframes tour-wheel{0%{transform:translateY(-2px);opacity:.5}60%{transform:translateY(3px);opacity:1}100%{transform:translateY(-2px);opacity:.5}}
+.tour-mouse-arrow{animation:tour-wheel 1s ease-in-out infinite}
 .tour-warn{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:9px 11px;border-radius:11px;font-size:14px;line-height:1.4;color:#fde68a;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.5);animation:tour-pop .35s ease-out}
 .tour-warn i{font-size:18px;margin-top:1px}
 body[data-tour-glow] [data-tour="zodiac"]>g[data-sign]{opacity:.1!important;transition:opacity 1.3s ease,filter 1.3s ease!important}

@@ -664,6 +664,8 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
+      // Tutorial: zoom só no passo que ensina o zoom (body[data-tour-view="zoom"])
+      if (document.body.dataset.tourView === 'locked') return;
 
       if (wheelTimeoutRef.current) {
         clearTimeout(wheelTimeoutRef.current);
@@ -779,8 +781,17 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
     updateTransform(1.0, 0, 0);
   };
 
+  // Tutorial: volta o relógio ao centro a cada passo
+  useEffect(() => {
+    const onReset = () => updateTransform(1.0, 0, 0);
+    window.addEventListener('cronografo:reset-zoom', onReset);
+    return () => window.removeEventListener('cronografo:reset-zoom', onReset);
+  }, []);
+
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
+    // Tutorial: o relógio não sai do lugar (sem arrastar a tela) até "explorar sozinho"
+    if (document.body.dataset.tourView) { hasMovedRef.current = false; return; }
     dragStartRef.current = {
       x: e.clientX,
       y: e.clientY,
@@ -792,6 +803,7 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (document.body.dataset.tourView === 'locked') return;
     if (e.touches.length === 1) {
       const touch = e.touches[0];
       dragStartRef.current = {
