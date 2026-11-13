@@ -677,7 +677,7 @@ export const SizeControlContent: React.FC<SizeControlProps> = (props) => {
               max={2.5}
               step={0.1}
               format={(v) => `${v.toFixed(1)}x`}
-              defaultValue={1.2}
+              defaultValue={2.2}
               isLight={isLight}
             />
           )}

@@ -99,6 +99,7 @@ const BRAZIL_CAPITALS = [
 ];
 
 // Default visible planets
+const TOUR_MAIN_PLANETS = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'];
 const DEFAULT_VISIBLE_PLANETS: Record<string, boolean> = {
     sun: true, moon: true, mercury: true, venus: true, mars: true,
     jupiter: true, saturn: true, uranus: true, neptune: true, pluto: true,
@@ -803,7 +804,7 @@ useEffect(() => {
     const [showChronographMenu, setShowChronographMenu] = useState(false);
     const [activeChronographMenu, setActiveChronographMenu] = useState<'background' | 'display' | 'colors' | null>(null);
 
-    const [timeRingScale, setTimeRingScale] = useState(1.2);
+    const [timeRingScale, setTimeRingScale] = useState(2.2);
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
     const [showToolsMenu, setShowToolsMenu] = useState(false);
     const [showEnergyChart, setShowEnergyChart] = useState(false);
@@ -1032,13 +1033,22 @@ useEffect(() => {
         showHouseMarkers: boolean; showAspectLines: boolean; showAtmosphere: boolean; isZodiacFixed: boolean;
         showTermsRing: boolean; showDecanRing: boolean; showSeasonsRing: boolean;
         zodiacColorMode: typeof zodiacColorMode;
+        timeRingScale: number;
+        panelsOpen: Record<PanelId, boolean>;
     }>(null);
+    // Tutorial 1 monta o céu peça por peça: o card da Lua fica guardado até o fim da montagem
+    const [tourHideMoon, setTourHideMoon] = useState(false);
     const tourRevealTimersRef = useRef<number[]>([]);
     const takeTourSnapshot = () => {
         if (tourSnapshotRef.current) return;
         tourSnapshotRef.current = {
             visiblePlanets, showTimeRing, showHouseLines, showHouseMarkers, showAspectLines, showAtmosphere, isZodiacFixed,
             showTermsRing, showDecanRing, showSeasonsRing, zodiacColorMode,
+            timeRingScale,
+            panelsOpen: {
+                celestial: panelStates.celestial.isOpen, statistics: panelStates.statistics.isOpen,
+                aspects: panelStates.aspects.isOpen, cusps: panelStates.cusps.isOpen,
+            } as Record<PanelId, boolean>,
         };
     };
     const handleTourScene = (scene: TourScene) => {
@@ -1049,86 +1059,73 @@ useEffect(() => {
             setShowCalendarPanel(false);
             setShowSaveMapModal(false);
         };
-        switch (scene) {
-            case 'full-show': {
-                // "Este é o Cronógrafo": tudo ligado — completo e complexo
-                takeTourSnapshot();
-                closeOverlays();
-                const base = tourSnapshotRef.current?.visiblePlanets ?? visiblePlanets;
-                setVisiblePlanets(Object.fromEntries(
-                    Object.keys(base).map(id => [id, !!(base as Record<string, boolean>)[id] || !!DEFAULT_VISIBLE_PLANETS[id]])
-                ) as typeof visiblePlanets);
-                setShowTermsRing(true);
-                setShowDecanRing(true);
-                setShowSeasonsRing(true);
-                setShowTimeRing(true);
-                setShowHouseLines(true);
-                setShowHouseMarkers(true);
-                setShowAspectLines(true);
-                break;
+        const setPanels = (open: Record<PanelId, boolean>) => setPanelStates(prev => {
+            const next = { ...prev };
+            (Object.keys(open) as PanelId[]).forEach(id => { next[id] = { ...prev[id], isOpen: open[id], isCollapsed: open[id] ? false : prev[id].isCollapsed }; });
+            return next;
+        });
+        if (scene === 'close-overlays') { closeOverlays(); return; }
+        if (scene === 'restore') {
+            closeOverlays();
+            const snap = tourSnapshotRef.current;
+            if (snap) {
+                setVisiblePlanets(snap.visiblePlanets);
+                setShowTimeRing(snap.showTimeRing);
+                setShowHouseLines(snap.showHouseLines);
+                setShowHouseMarkers(snap.showHouseMarkers);
+                setShowAspectLines(snap.showAspectLines);
+                setShowAtmosphere(snap.showAtmosphere);
+                setShowTermsRing(snap.showTermsRing);
+                setShowDecanRing(snap.showDecanRing);
+                setShowSeasonsRing(snap.showSeasonsRing);
+                setZodiacColorMode(snap.zodiacColorMode);
+                setTimeRingScale(snap.timeRingScale);
+                setPanels(snap.panelsOpen);
+                tourSnapshotRef.current = null;
             }
-            case 'simplify':
-                // "Ainda não conheço o mapa": sem termos e decanatos, com o anel de 24 horas
-                takeTourSnapshot();
-                setShowTermsRing(false);
-                setShowDecanRing(false);
-                setShowTimeRing(true);
-                break;
-            case 'story': {
-                // "Que horas são?": só Sol e Lua, relógio 24h, sem casas e sem aspectos
-                takeTourSnapshot();
-                closeOverlays();
-                const onlyLights = Object.fromEntries(
-                    Object.keys(tourSnapshotRef.current?.visiblePlanets ?? visiblePlanets).map(id => [id, id === 'sun' || id === 'moon'])
-                ) as typeof visiblePlanets;
-                setVisiblePlanets(onlyLights);
-                setShowTimeRing(true);
-                setShowHouseLines(false);
-                setShowHouseMarkers(false);
-                setShowAspectLines(false);
-                break;
-            }
-            case 'planets': {
-                // os planetas entram um a um
-                const original = tourSnapshotRef.current?.visiblePlanets ?? visiblePlanets;
-                const ids = Object.keys(original).filter(id => (original as Record<string, boolean>)[id] && id !== 'sun' && id !== 'moon');
-                ids.forEach((id, k) => {
-                    tourRevealTimersRef.current.push(window.setTimeout(() => {
-                        setVisiblePlanets(prev => ({ ...prev, [id]: true }));
-                    }, 180 * (k + 1)));
-                });
-                break;
-            }
-            case 'houses':
-                setShowHouseLines(true);
-                setShowHouseMarkers(true);
-                break;
-            case 'aspects':
-                setShowAspectLines(true);
-                break;
-            case 'close-overlays':
-                closeOverlays();
-                break;
-            case 'restore': {
-                closeOverlays();
-                const snap = tourSnapshotRef.current;
-                if (snap) {
-                    setVisiblePlanets(snap.visiblePlanets);
-                    setShowTimeRing(snap.showTimeRing);
-                    setShowHouseLines(snap.showHouseLines);
-                    setShowHouseMarkers(snap.showHouseMarkers);
-                    setShowAspectLines(snap.showAspectLines);
-                    setShowAtmosphere(snap.showAtmosphere);
-                    setShowTermsRing(snap.showTermsRing);
-                    setShowDecanRing(snap.showDecanRing);
-                    setShowSeasonsRing(snap.showSeasonsRing);
-                    setZodiacColorMode(snap.zodiacColorMode);
-                    tourSnapshotRef.current = null;
-                }
-                setHighlightFilter(null);
-                break;
-            }
+            setTourHideMoon(false);
+            setHighlightFilter(null);
+            return;
         }
+        // ── Tutorial 1: o céu é montado peça por peça. Cada cena é um estágio completo
+        //    (vale para avançar e para voltar). O que entra em cada estágio:
+        //    sun → só o Sol e o anel de 24h · moon → + Lua · planets → + painel Astros
+        //    select → + todos os planetas · signs/colors → só os signos (colors abre o Status)
+        //    summary → astros de volta, signos coloridos · houses → + casas e painel Casas
+        //    aspects → + linhas e painel Aspectos · rings → + termos e decanatos · time → destrava o zodíaco
+        const ORDER: TourScene[] = ['sun', 'moon', 'planets', 'select', 'signs', 'colors', 'summary', 'houses', 'aspects', 'rings', 'time'];
+        const i = ORDER.indexOf(scene);
+        if (i < 0) return;
+        const at = (st: TourScene) => i >= ORDER.indexOf(st);
+        takeTourSnapshot();
+        closeOverlays();
+        const snap = tourSnapshotRef.current;
+        const original = (snap?.visiblePlanets ?? visiblePlanets) as Record<string, boolean>;
+        const show = (id: string): boolean => {
+            if (scene === 'sun') return id === 'sun';
+            if (scene === 'moon' || scene === 'planets') return id === 'sun' || id === 'moon';
+            if (scene === 'signs' || scene === 'colors') return false;
+            return !!original[id] || TOUR_MAIN_PLANETS.includes(id);
+        };
+        setVisiblePlanets(Object.fromEntries(Object.keys(original).map(id => [id, show(id)])) as typeof visiblePlanets);
+        setPanels({ celestial: at('planets'), statistics: at('colors'), cusps: at('houses'), aspects: at('aspects') } as Record<PanelId, boolean>);
+        setShowTimeRing(true);
+        setTimeRingScale(2.2);
+        setShowHouseLines(at('houses'));
+        setShowHouseMarkers(at('houses'));
+        setShowAspectLines(at('aspects'));
+        setShowTermsRing(at('rings'));
+        setShowDecanRing(at('rings'));
+        setShowSeasonsRing(at('rings') ? (snap?.showSeasonsRing ?? true) : false);
+        if (!at('summary')) setZodiacColorMode('none');
+        else if (scene === 'summary') setZodiacColorMode('element');
+        if (scene === 'sun') setShowAtmosphere(false);
+        if (scene === 'time') setIsZodiacFixed(false);
+        setTourHideMoon(!at('time'));
+        setSelectedPlanets([]);
+        setSelectedAspects([]);
+        setSelectedHouses([]);
+        setHighlightFilter(null);
     };
     // trava do zodíaco: o tutorial pede para travar; ao sair, volta como estava
     const tourLockRef = useRef<boolean | null>(null);
@@ -1143,7 +1140,7 @@ useEffect(() => {
         markTourDone(tourUid);
         setTourSeen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tourUid, visiblePlanets, showTimeRing, showHouseLines, showHouseMarkers, showAspectLines, showAtmosphere, isZodiacFixed, showTermsRing, showDecanRing, showSeasonsRing, zodiacColorMode]);
+    }, [tourUid, visiblePlanets, showTimeRing, showHouseLines, showHouseMarkers, showAspectLines, showAtmosphere, isZodiacFixed, showTermsRing, showDecanRing, showSeasonsRing, zodiacColorMode, timeRingScale, panelStates]);
     const openTour = useCallback(() => {
         setShowEclipseModal(false);
         setShowArcaneCalendar(false);
@@ -2184,7 +2181,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                     isOptionsRailOpen={isOptionsRailOpen}
                                     leftDockOffset={screenLeft}
                                     rightDockOffset={screenRight}
-                                    isFreeTier={isFreeTier}
+                                    isFreeTier={isFreeTier && !showTour}
                                     onOpenPaymentPlans={() => setShowPaymentPlansModal(true)}
                                 />
                             )}
@@ -2224,7 +2221,7 @@ const handlePlanetClick = useCallback((id: string) => {
                         >
                             {/* Painel ASTROS (Superior Esquerdo) */}
                             {panelStates.celestial.isOpen && (
-                                <div className="pointer-events-auto flex-1 min-h-[140px] flex flex-col overflow-hidden">
+                                <div data-tour="planets-panel" className="pointer-events-auto flex-1 min-h-[140px] flex flex-col overflow-hidden">
                                     <PanelFrame
                                         title={t ? t('Astros') : 'Astros'}
                                         isOpen={panelStates.celestial.isOpen}
@@ -2396,7 +2393,7 @@ const handlePlanetClick = useCallback((id: string) => {
                             }}
                         >
                             {/* Card de Lua (Topo Superior Direito) */}
-                            {celestialData && currentTime && (
+                            {celestialData && currentTime && !(showTour && tourHideMoon) && (
                                 <div className="pointer-events-auto flex-shrink-0 w-full">
                                     <MoonInfoPanel
                                         moonPhase={celestialData.moonPhase}
@@ -2499,6 +2496,7 @@ const handlePlanetClick = useCallback((id: string) => {
                     {/* Painel CASAS (Abaixo de Aspectos) */}
                     {panelStates.cusps.isOpen && (
                         <div 
+                            data-tour="cusps-panel"
                             className="pointer-events-auto flex-shrink-0 flex flex-col overflow-hidden"
                             style={{ height: panelStates.cusps.isCollapsed ? 'auto' : `${sidebarCuspsHeight}px` }}
                         >
@@ -3109,6 +3107,8 @@ const handlePlanetClick = useCallback((id: string) => {
                         aspectsSelected: selectedAspects.length,
                         colorMode: zodiacColorMode,
                         highlight: !!highlightFilter,
+                        planetsVisible: TOUR_MAIN_PLANETS.filter(id => (visiblePlanets as Record<string, boolean>)[id]).length,
+                        planetsSelected: selectedPlanets.length,
                     }}
                     theme={theme === 'light' ? 'light' : 'dark'}
                 />

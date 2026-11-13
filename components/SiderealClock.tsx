@@ -1934,6 +1934,13 @@ const horizonStrokePath = `
   /** Agenda a abertura; só abre se o mouse continuar sobre o item. */
   const openTip = useCallback((req: TooltipRequest, anchor: AnchorRect) => {
     clearTipTimers();
+    // Tutorial: só abre a tooltip do assunto do passo (ex.: "planet:sun", "sign", "term,decan", "none")
+    const tourTips = typeof document !== 'undefined' ? document.body.dataset.tourTips : undefined;
+    if (tourTips && tourTips !== 'all') {
+      const id = 'id' in req ? String(req.id) : '';
+      const ok = tourTips.split(',').some(t => t === req.type || t === `${req.type}:${id}`);
+      if (!ok) return;
+    }
     hoverTimeout.current = window.setTimeout(() => {
       const model = buildTipRef.current(req);
       if (model) { tipOpenRef.current = true; setTip({ model, anchor }); }

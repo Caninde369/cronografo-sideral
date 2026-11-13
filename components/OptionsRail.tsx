@@ -1073,7 +1073,7 @@ export const OptionsRail: React.FC<OptionsRailProps> = (props) => {
                     <Toggle on={props.showTimeRing} onToggle={() => props.setShowTimeRing(!props.showTimeRing)} isLight={isLight} />
                   </CtrlRow>
                   <CtrlRow label="Escala do Relógio" isLight={isLight}>
-                    <Stepper value={props.timeRingScale} onChange={props.setTimeRingScale} min={0.5} max={2} step={0.1} format={v => `${v.toFixed(1)}x`} isLight={isLight} />
+                    <Stepper value={props.timeRingScale} onChange={props.setTimeRingScale} min={0.5} max={2.5} step={0.1} format={v => `${v.toFixed(1)}x`} isLight={isLight} />
                   </CtrlRow>
                   <CtrlRow label="Espessura (Borda)" isLight={isLight}>
                     <Stepper value={props.graduationRingWidth} onChange={props.setGraduationRingWidth} min={2} max={30} step={1} format={v => `${v}px`} isLight={isLight} />
