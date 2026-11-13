@@ -1039,6 +1039,7 @@ useEffect(() => {
     // Tutorial 1 monta o céu peça por peça: o card da Lua fica guardado até o fim da montagem
     const [tourHideMoon, setTourHideMoon] = useState(false);
     const tourRevealTimersRef = useRef<number[]>([]);
+    const tourSunTravelRef = useRef(false);
     const takeTourSnapshot = () => {
         if (tourSnapshotRef.current) return;
         tourSnapshotRef.current = {
@@ -1064,6 +1065,12 @@ useEffect(() => {
             (Object.keys(open) as PanelId[]).forEach(id => { next[id] = { ...prev[id], isOpen: open[id], isCollapsed: open[id] ? false : prev[id].isCollapsed }; });
             return next;
         });
+        // Passeio do Sol pelos signos (cena 'signs'): ao sair dela, o relógio volta para agora
+        const endSunTour = () => {
+            delete document.body.dataset.tourGlow;
+            if (tourSunTravelRef.current) { tourSunTravelRef.current = false; setIsRealTime(true); setCurrentTime(new Date()); }
+        };
+        if (scene === 'clear-select') { setSelectedPlanets([]); return; }
         if (scene === 'close-overlays') { closeOverlays(); return; }
         if (scene === 'restore') {
             closeOverlays();
@@ -1085,6 +1092,7 @@ useEffect(() => {
             }
             setTourHideMoon(false);
             setHighlightFilter(null);
+            endSunTour();
             return;
         }
         // ── Tutorial 1: o céu é montado peça por peça. Cada cena é um estágio completo
@@ -1104,15 +1112,20 @@ useEffect(() => {
         const show = (id: string): boolean => {
             if (scene === 'sun') return id === 'sun';
             if (scene === 'moon' || scene === 'planets') return id === 'sun' || id === 'moon';
-            if (scene === 'signs' || scene === 'colors') return false;
+            if (scene === 'signs') return id === 'sun';
+            if (scene === 'colors') return false;
             return !!original[id] || TOUR_MAIN_PLANETS.includes(id);
         };
         setVisiblePlanets(Object.fromEntries(Object.keys(original).map(id => [id, show(id)])) as typeof visiblePlanets);
         setPanels({ celestial: at('planets'), statistics: at('colors'), cusps: at('houses'), aspects: at('aspects') } as Record<PanelId, boolean>);
-        setShowTimeRing(true);
+        // anel de 24h: só na montagem do relógio (até 'select') e de volta no tempo
+        setShowTimeRing(!at('signs') || scene === 'time');
         setTimeRingScale(2.2);
-        setShowHouseLines(at('houses'));
-        setShowHouseMarkers(at('houses'));
+        // casas: só no passo das casas (nos aspectos, só as linhas de aspecto) e de volta no tempo
+        setShowHouseLines(scene === 'houses' || scene === 'time');
+        setShowHouseMarkers(scene === 'houses' || scene === 'time');
+        // horizonte apagado dos signos até termos e decanatos
+        if (at('signs') && !at('time')) setShowAtmosphere(false);
         setShowAspectLines(at('aspects'));
         setShowTermsRing(at('rings'));
         setShowDecanRing(at('rings'));
@@ -1120,7 +1133,27 @@ useEffect(() => {
         if (!at('summary')) setZodiacColorMode('none');
         else if (scene === 'summary') setZodiacColorMode('element');
         if (scene === 'sun') setShowAtmosphere(false);
-        if (scene === 'time') setIsZodiacFixed(false);
+        // zodíaco travado só no passeio do Sol (os signos ficam parados e o Sol anda)
+        setIsZodiacFixed(scene === 'signs');
+        endSunTour();
+        if (scene === 'signs') {
+            // Sol viaja de Áries a Peixes e cada signo acende na sua vez (devagar)
+            const L0 = celestialData.sunEclipticLongitude || 0;
+            const t0 = Date.now();
+            tourSunTravelRef.current = true;
+            setIsRealTime(false);
+            document.body.dataset.tourGlow = '-1';
+            for (let k = 0; k < 12; k++) {
+                const days = (((k * 30 + 15) - L0) % 360 + 360) % 360 / 0.9856;
+                tourRevealTimersRef.current.push(window.setTimeout(() => {
+                    setCurrentTime(new Date(t0 + days * 86400000));
+                    document.body.dataset.tourGlow = String(k);
+                }, 700 + k * 1500));
+            }
+            tourRevealTimersRef.current.push(window.setTimeout(() => {
+                document.body.dataset.tourGlow = 'all';
+            }, 700 + 12 * 1500));
+        }
         setTourHideMoon(!at('time'));
         setSelectedPlanets([]);
         setSelectedAspects([]);

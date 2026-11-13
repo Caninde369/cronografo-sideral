@@ -122,6 +122,7 @@ export const ZodiacRing: React.FC<ZodiacRingProps> = ({
                 return (
                     <g 
                         key={sign.id} 
+                        data-sign={i}
                         className="group"
                         onMouseEnter={() => onHover(sign.id)}
                         onMouseLeave={onLeave}

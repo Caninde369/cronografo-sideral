@@ -167,9 +167,9 @@ const ASPECT_INFO: Record<string, { name: string; symbol: string; angle: number;
   square: { name: 'Quadratura', symbol: '□', angle: 90, color: '#FB923C', connector: 'em quadratura com', verb: 'se desafiam e geram movimento',
     kw: 'Desafio · Atrito · Ação', text: 'Dois astros em ângulo reto: desafio que gera movimento.' },
   trine: { name: 'Trígono', symbol: '△', angle: 120, color: '#4ade80', connector: 'em trígono com', verb: 'fluem juntas',
-    kw: 'Fluidez · Harmonia · Talento', text: 'Dois astros que se ajudam com facilidade: harmonia e talento.' },
+    kw: 'Fluidez · Harmonia · Talento', text: 'Dois astros a um terço do círculo: harmonia e talento.' },
   sextile: { name: 'Sextil', symbol: '✶', angle: 60, color: '#60a5fa', connector: 'em sextil com', verb: 'se ajudam',
-    kw: 'Oportunidade · Cooperação · Estímulo', text: 'Dois astros que abrem oportunidades: cooperação e estímulo.' },
+    kw: 'Oportunidade · Cooperação · Estímulo', text: 'Dois astros a um sexto do círculo: oportunidade e cooperação.' },
 };
 
 /**
@@ -468,6 +468,15 @@ export const buildSignTooltip = (signIndexOrId: number | string, ctx: TooltipCon
   };
 };
 
+/** "O que é uma quadratura?" + a geometria e o sentido em linhas separadas (tirados de info.text). */
+const ASPECT_ARTICLE: Record<string, string> = { conjunction: 'uma', opposition: 'uma', square: 'uma', trine: 'um', sextile: 'um' };
+const aspectWhat = (type: string, info: { name: string }) => ({ text: `O que é ${ASPECT_ARTICLE[type] ?? 'um'} ${info.name.toLowerCase()}?` });
+const aspectLines = (info: { text: string }): { label?: string; text: string }[] => {
+  const [geo, mean] = info.text.split(': ');
+  const cap = (t: string) => t.trim().replace(/^./, c => c.toUpperCase()).replace(/\.?$/, '.');
+  return mean ? [{ text: cap(geo) }, { text: cap(mean) }] : [{ text: cap(info.text) }];
+};
+
 export const buildAspectTooltip = (aspect: Aspect, ctx: TooltipContext): TooltipModel | null => {
   const info = ASPECT_INFO[aspect.type];
   if (!info) return null;
@@ -498,8 +507,8 @@ export const buildAspectTooltip = (aspect: Aspect, ctx: TooltipContext): Tooltip
   return {
     key: `aspect-${aspect.id}`, kind: 'aspect', glyph: info.symbol, accent: info.color,
     title: `${BODY_NAMES[a] ?? a} ${info.connector} ${BODY_NAMES[b] ?? b}${natal}`,
-    keywords: splitKw(info.kw), text: info.text,
-    sub: [{ text: `Aqui, ${ASPECT_KEY[a] ?? 'a energia'} e ${ASPECT_KEY[b] ?? 'a energia'} ${info.verb}.` }],
+    keywords: splitKw(info.kw), ...aspectWhat(aspect.type, info),
+    sub: [...aspectLines(info), { label: 'Neste par', text: `${ASPECT_KEY[a] ?? 'a energia'} e ${ASPECT_KEY[b] ?? 'a energia'} ${info.verb}.`.replace(/^./, c => c.toUpperCase()) }],
     rows,
   };
 };

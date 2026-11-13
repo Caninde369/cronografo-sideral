@@ -5,7 +5,7 @@ import { ZODIAC_ICONS, CELESTIAL_GLYPHS, UI_ICONS } from './icons';
 import { ZODIAC_DATA, ELEMENT_COLORS, getZodiacColorClass } from './zodiac';
 import { Aspect, ASPECT_ORBS, getAspectTransitRange, formatDateCompact } from '../lib/astrology/aspects';
 import { WidgetId } from '../App';
-import { SizeControl, PopupToggle, SegmentedControl } from './Controls';
+import { SizeControl, PopupToggle, SegmentedControl, MicroToggle } from './Controls';
 import { toRoman } from '../lib/astrology/utils';
 import { PlanetSphere } from './CelestialBodyPanel';
 import { Tooltip } from './Tooltip';
@@ -893,6 +893,35 @@ export const AstroInfoPanel: React.FC<AstroInfoPanelProps> = ({
                         </div>
                     </PopupMenu>
                 )}
+
+                {/* Barra da lista: ✕ limpa a seleção de aspectos; sem seleção, a chave liga e desliga as linhas */}
+                <div
+                    className={`mx-1.5 mt-1 flex justify-between items-center px-2 rounded-md select-none flex-none ${
+                        theme === 'light'
+                            ? 'bg-[#8b8370]/[0.06] border border-[#8b8370]/15 text-amber-950'
+                            : 'bg-white/[0.03] border border-white/5 text-slate-300'
+                    }`}
+                    style={{ height: `${Math.max(18, Math.round(22 * scale))}px` }}
+                >
+                    <span className="text-[9px] font-bold uppercase tracking-[0.12em] opacity-80">
+                        {selectedAspects.length > 0 ? `Aspectos · ${selectedAspects.length} selecionado${selectedAspects.length > 1 ? 's' : ''}` : `Aspectos · ${sortedAspects.length}`}
+                    </span>
+                    {selectedAspects.length > 0 ? (
+                        <button
+                            type="button"
+                            data-tour="aspects-clear"
+                            onClick={onClearAllSelections}
+                            className="p-0.5 rounded hover:bg-red-500/20 text-red-400 transition-colors cursor-pointer"
+                            title="Limpar seleção de aspectos"
+                        >
+                            <UI_ICONS.CloseIcon className="w-3.5 h-3.5" />
+                        </button>
+                    ) : setShowAspectLines ? (
+                        <span data-tour="aspects-toggle" className="inline-flex">
+                            <MicroToggle isChecked={!!showAspectLines} onToggle={setShowAspectLines} title="Linhas de aspecto no relógio" theme={theme === 'light' ? 'light' : 'dark'} />
+                        </span>
+                    ) : null}
+                </div>
 
                 <div 
                     className={`flex-1 overflow-y-auto pl-1.5 pr-1.5 py-1 min-h-0 space-y-1 custom-scrollbar ${panelPosition === 'left' ? '[direction:rtl]' : ''}`}

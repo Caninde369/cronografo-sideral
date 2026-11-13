@@ -1941,10 +1941,11 @@ const horizonStrokePath = `
       const ok = tourTips.split(',').some(t => t === req.type || t === `${req.type}:${id}`);
       if (!ok) return;
     }
+    const fast = typeof document !== 'undefined' && document.body.dataset.tourTipFast === '1';
     hoverTimeout.current = window.setTimeout(() => {
       const model = buildTipRef.current(req);
       if (model) { tipOpenRef.current = true; setTip({ model, anchor }); }
-    }, TIP_OPEN_DELAY);
+    }, fast ? 120 : TIP_OPEN_DELAY);
   }, []);
 
   /** Fecha com uma pequena folga, para o mouse conseguir entrar na tooltip. */
@@ -3575,6 +3576,13 @@ const horizonStrokePath = `
           className="pointer-events-none transition-colors duration-500"
           transform={`rotate(${isZodiacFixed ? 0 : zodiacRotation}, ${cx}, ${cy})`}
         >
+          {/* Marcas invisíveis para o tutorial: borda de fora e de dentro de termos + decanatos */}
+          {(showTermsRing || showDecanRing) && (
+            <>
+              <circle data-tour="rings-outer" cx={cx} cy={cy} r={graduationRingRadius} fill="none" stroke="transparent" strokeWidth={1} />
+              <circle data-tour="rings-inner" cx={cx} cy={cy} r={graduationRingRadius - termTrackHeight - decanTrackHeight} fill="none" stroke="transparent" strokeWidth={1} />
+            </>
+          )}
           {/* Background track for high contrast */}
           <circle
             cx={cx}

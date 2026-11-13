@@ -957,7 +957,7 @@ export const ExportPDFButton: React.FC<ExportPDFButtonProps> = (props) => {
                     pdfDoc.setFont('helvetica', 'bold');
                     pdfDoc.setFontSize(7.5);
                     pdfDoc.setTextColor(180, 83, 9);
-                    pdfDoc.text('CRONÓGRAFO SIDERAL · VERSÃO GRATUITA DE DEGUSTAÇÃO (1 DE 1)', w / 2, 4.5, { align: 'center' });
+                    pdfDoc.text('CRONÓGRAFO SIDERAL · VERSÃO GRATUITA', w / 2, 4.5, { align: 'center' });
 
                     // Faixa Inferior
                     pdfDoc.setFillColor(241, 245, 249);

@@ -99,8 +99,8 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = (props) => 
     useEffect(() => {
         if (props.isOpen) {
             try {
-                const count = parseInt(localStorage.getItem('cronografo_free_exports_count') || '0', 10);
-                setFreeExportsCount(count);
+                // Sem limite de exportações no plano gratuito (decisão do Rafa, 13/11/2026)
+                setFreeExportsCount(0);
             } catch {
                 setFreeExportsCount(0);
             }
@@ -214,7 +214,7 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = (props) => 
                                 <div className="flex items-center gap-2">
                                     <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
                                     <span>
-                                        <strong>Plano Gratuito:</strong> Você tem <strong>1 exportação de teste</strong> disponível (inclui marca d'água oficial).
+                                        <strong>Plano Gratuito:</strong> exportações <strong>ilimitadas</strong>, com marca d'água oficial.
                                     </span>
                                 </div>
                                 {props.onOpenPaymentPlans && (
@@ -741,7 +741,7 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = (props) => 
                                         {props.isExporting 
                                             ? 'Processando PDF...' 
                                             : props.isFreeTier 
-                                            ? 'Baixar 1ª Exportação Gratuita (com marca d\'água)' 
+                                            ? 'Baixar PDF (com marca d\'água)' 
                                             : 'Confirmar & Baixar PDF'}
                                     </span>
                                 </button>

@@ -449,6 +449,7 @@ const CelestialBodyCard: React.FC<{
                 paddingLeft: `${cardPaddingX}px`,
                 paddingRight: `${cardPaddingX}px`
             }}
+            data-tour={`body-${body.id}`}
             onMouseEnter={(e) => { onHover(body.id); onTooltip(e, body.id); }}
             onMouseLeave={() => { onHover(null); onTooltipLeave(); }}
             onClick={() => onClick(body.id)}
@@ -1195,6 +1196,7 @@ return (
                                 sec.collapsible ? () => toggleSection(sec.label) : undefined,
                                 (sec.key === 'planets' && anySelected) ? (
                                     <button
+                                        data-tour="planets-clear"
                                         onClick={onClearSelections}
                                         className="p-0.5 rounded hover:bg-red-500/20 text-red-400 transition-colors cursor-pointer"
                                         title="Limpar Seleção"
@@ -1215,12 +1217,14 @@ return (
                                         <span>Bloqueado</span>
                                     </button>
                                 ) : (
+                                    <span data-tour={`${sec.key}-toggle`} className="inline-flex">
                                     <MicroToggle
                                         isChecked={allVisible}
                                         onToggle={() => handleToggleSectionVisibility(sec.key)}
                                         title={`Visibilidade · ${sec.label}`}
                                         theme={theme}
                                     />
+                                    </span>
                                 )
                             )}
                             {!isCollapsed && bodies.map(renderBodyCard)}
