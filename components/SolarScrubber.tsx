@@ -824,6 +824,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
               <span className="text-pink-600 dark:text-pink-300 font-bold">{loopB ? formatDateShort(loopB) : '?'}</span>
               {onClearLoop && (
                 <button
+                  data-tour="loop-close"
                   onClick={(e) => { e.stopPropagation(); onClearLoop(); }}
                   className={`ml-1 px-1 rounded transition-colors cursor-pointer text-[10px] ${isLight ? 'hover:bg-black/10 text-neutral-500 hover:text-neutral-800' : 'hover:bg-white/20 text-white/70 hover:text-white'}`}
                   title="Limpar Loop A-B"
@@ -948,6 +949,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
         {!isMacro && moonPhaseMarkers.map(mp => (
           <div
             key={mp.key}
+            data-tour={mp.phaseName === 'Lua Nova' ? 'moon-new' : undefined}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();

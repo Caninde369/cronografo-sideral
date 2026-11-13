@@ -441,10 +441,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                     <i className={`ti ${icon}`} style={{ fontSize: `${Math.max(13, Math.round(15 * scale))}px` }} />
                     {label}
                 </span>
-                <span className={`flex items-center gap-1 font-semibold whitespace-nowrap rounded-full px-1.5 py-0.5 ${active ? (isLight ? 'bg-amber-600/15' : 'bg-amber-300/15') : (isLight ? 'bg-black/5 text-amber-950/60' : 'bg-white/5 text-white/55')}`} style={{ fontSize: `${Math.max(9, Math.round(10 * scale))}px` }}>
-                    <i className={`ti ${active ? 'ti-check' : 'ti-palette'}`} style={{ fontSize: `${Math.max(10, Math.round(11 * scale))}px` }} />
-                    {active ? 'No zodíaco' : 'Colorir zodíaco'}
-                </span>
+                {active && <i className="ti ti-check" style={{ fontSize: `${Math.max(12, Math.round(13 * scale))}px` }} />}
             </button>
         );
     };

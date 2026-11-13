@@ -422,7 +422,7 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
                                 </div>
                             )}
                         </div>
-                        <button type="button" style={ghostBtn} onClick={() => setMode(mode === 'list' ? 'detail' : 'list')}>
+                        <button type="button" data-tour="eclipse-list" style={ghostBtn} onClick={() => setMode(mode === 'list' ? 'detail' : 'list')}>
                             <i className={`ti ${mode === 'list' ? 'ti-arrow-left' : 'ti-list'}`} aria-hidden="true" style={{ fontSize: 15 }} />
                             {mode === 'list' ? 'Voltar' : 'Lista de eclipses'}
                         </button>
@@ -524,7 +524,7 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
                                 </div>
 
                                 {/* Globo */}
-                                <div style={cardBox}>
+                                <div data-tour="eclipse-globe" style={cardBox}>
                                     <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11, color: C.muted }}>
                                         <span>{selected.type === 'solar' ? 'Sombra da Lua na Terra' : 'Onde a Lua está visível'}</span>
                                         <span>arraste o globo</span>
@@ -541,6 +541,7 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                         <button
                                             type="button"
+                                            data-tour="eclipse-play"
                                             aria-label={playing ? 'Pausar' : 'Reproduzir'}
                                             style={{ ...ghostBtn, padding: '6px 9px' }}
                                             onClick={() => {
@@ -589,7 +590,7 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
                             )}
 
                             {/* Locais */}
-                            <div>
+                            <div data-tour="eclipse-places">
                                 <p style={secTitle}>Ver de onde</p>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                                     {places.map(p => (

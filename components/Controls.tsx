@@ -759,6 +759,7 @@ export const TimeControls: React.FC<{
 
                         {/* Play Forward (Avançar no Tempo Continuamente) */}
                         <button
+                            data-tour="play"
                             onClick={() => {
                                 if (isPlaying && playbackDirection === 1) {
                                     setIsPlaying(false);
@@ -808,6 +809,7 @@ export const TimeControls: React.FC<{
                         <div className="relative shrink-0 flex items-center ml-0.5">
                             <div
                                 ref={speedBtnRef}
+                                data-tour="speed"
                                 onPointerDown={handleSpeedPointerDown}
                                 className={`btn-3d-glow flex items-center gap-1.5 px-3 sm:px-3.5 h-9 rounded-full select-none touch-none cursor-ns-resize active:scale-95 ${
                                     isDraggingSpeed

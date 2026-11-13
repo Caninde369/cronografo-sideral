@@ -1568,7 +1568,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                             className={`w-full bg-brand-surface-highlight/50 border border-brand-border/10 rounded-lg px-3 py-2.5 text-brand-text focus:ring-2 ${accentRing} outline-none font-manrope text-sm`} />
                     </div>
 
-                    <div>
+                    <div data-tour="location">
                         <label className="block text-[11px] font-bold uppercase text-brand-text-muted mb-1.5 font-manrope tracking-wider">Local</label>
                         {!isEditingLocation ? (
                             <button onClick={() => setIsEditingLocation(true)}

@@ -42,13 +42,15 @@ export type TourState = {
   colorMode?: string;
   /** há destaque ativo vindo do painel Status */
   highlight?: boolean;
+  /** cidade do relógio */
+  place?: string;
   /** quantos dos 10 astros principais estão visíveis */
   planetsVisible?: number;
   planetsSelected?: number;
 };
 
 /** Cenas que o App monta a pedido do tutorial. */
-export type TourScene = 'clear-select' | 'day-spin' | 'sun' | 'moon' | 'planets' | 'select' | 'signs' | 'colors' | 'summary' | 'houses' | 'aspects' | 'rings' | 'time' | 'restore' | 'close-overlays';
+export type TourScene = 'clear-select' | 'day-spin' | 'sun' | 'moon' | 'planets' | 'select' | 'signs' | 'colors' | 'summary' | 'houses' | 'aspects' | 'rings' | 'rings-sun' | 'time' | 'restore' | 'close-overlays';
 
 type Wait =
   | { fn: (s: TourState) => boolean }
@@ -56,7 +58,10 @@ type Wait =
   | { domGone: string }                   // elemento precisa sumir
   | { click: string }                     // clique dentro do seletor
   | { timeMoved: true; minMs?: number }   // o relógio saiu do horário (> 1 min) e, com minMs, ficou mexendo esse tempo
-  | { event: 'wheel' | 'dblclick'; within: string; count?: number };
+  | { event: 'wheel' | 'dblclick'; within: string; count?: number }
+  | { delay: number }                     // só olhar: segue sozinho depois desse tempo (ms)
+  | { drag: string }                      // clicar e arrastar dentro do seletor
+  | { placeChanged: true };               // o local (cidade) mudou
 
 interface Task {
   label: string;
@@ -70,6 +75,8 @@ interface Task {
   hand?: string;
   /** desenho do mouse com o botão que deve ser usado */
   mouse?: 'left' | 'right' | 'wheel' | 'double';
+  /** contorno brilhante neste alvo (sem mudar o que fica aceso na tela) */
+  ring?: string;
 }
 
 type ChapterId = 'cronografo' | 'lua' | 'ferramentas';
@@ -120,7 +127,7 @@ interface TourStep {
 export const TOUR_CHAPTERS: { id: ChapterId; label: string; sub: string; icon: string; color: string }[] = [
   { id: 'cronografo', label: 'O Cronógrafo', sub: 'Aprenda a ler o céu deste instante, peça por peça.', icon: 'ti-clock', color: '#FBBF24' },
   { id: 'lua', label: 'A Lua e o calendário', sub: 'Fases, ciclos e os meses lunares.', icon: 'ti-moon', color: '#A5B4FC' },
-  { id: 'ferramentas', label: 'Ferramentas', sub: 'Seu mapa natal, eclipses, Calendário Arcano e ajustes.', icon: 'ti-tools', color: '#22D3EE' },
+  { id: 'ferramentas', label: 'Ferramentas', sub: 'Loop no tempo, seu mapa natal, eclipses e ajustes.', icon: 'ti-tools', color: '#22D3EE' },
 ];
 const GOLD = '#F5D98A';
 const chapterNumber = (id: string) => TOUR_CHAPTERS.findIndex(c => c.id === id) + 1;
@@ -148,8 +155,10 @@ export const TOUR_STEPS: TourStep[] = [
   { chapter: 'cronografo', kind: 'mission', color: C_PLANETS, title: 'Os planetas', icon: 'ti-planet', targets: ['planets-panel'], also: ['clock'], pad: 4, scene: 'planets', tips: 'planet', noSelect: true,
     text: 'Cada astro é um ponteiro com velocidade própria. O painel Astros lista todos. O botão DIREITO do mouse mostra ou esconde um astro no céu.',
     tasks: [
-      { label: 'Clique com o botão DIREITO do mouse em Mercúrio: ele aparece no céu', wait: { fn: s => (s.planetsVisible ?? 0) >= 3 }, hand: 'body-mercury', mouse: 'right' },
+      { label: 'Clique com o botão DIREITO do mouse em Mercúrio', wait: { fn: s => (s.planetsVisible ?? 0) >= 3 }, hand: 'body-mercury', mouse: 'right' },
+      { label: 'Olhe o relógio: Mercúrio apareceu no céu', wait: { delay: 3000 }, targets: ['planet-mercury', 'clock'], round: true, pad: 10, also: ['planets-panel'] },
       { label: 'Ligue a chave ao lado de PLANETAS para mostrar todos de uma vez', wait: { fn: s => (s.planetsVisible ?? 0) >= 10 }, hand: 'planets-toggle', mouse: 'left' },
+      { label: 'Olhe o relógio: agora todos os planetas estão no céu', wait: { delay: 3500 }, targets: ['clock'], round: true, pad: 0, also: ['planets-panel'] },
     ] },
   { chapter: 'cronografo', kind: 'mission', color: C_PLANETS, title: 'Destacar um astro', icon: 'ti-focus-2', targets: ['planets-panel'], also: ['clock'], pad: 4, scene: 'select', tips: 'planet',
     text: 'O botão ESQUERDO destaca o astro e apaga o resto, para você olhar só para ele. Nada some de verdade: outro clique devolve tudo.',
@@ -158,6 +167,7 @@ export const TOUR_STEPS: TourStep[] = [
       { label: 'Clique nele de novo: tudo volta ao normal', wait: { fn: s => (s.planetsSelected ?? 0) === 0 }, hand: 'body-mercury', mouse: 'left' },
       { label: 'Agora clique em Vênus', wait: { fn: s => (s.planetsSelected ?? 0) >= 1 }, hand: 'body-venus', mouse: 'left' },
       { label: 'E em Marte: os dois ficam em destaque juntos', wait: { fn: s => (s.planetsSelected ?? 0) >= 2 }, hand: 'body-mars', mouse: 'left' },
+      { label: 'Olhe o relógio: só Vênus e Marte ficam acesos', wait: { delay: 3000 }, targets: ['clock'], round: true, pad: 0, also: ['planets-panel'] },
       { label: 'Clique no ✕ vermelho, ao lado de PLANETAS, para limpar tudo', wait: { fn: s => (s.planetsSelected ?? 0) === 0 }, hand: 'planets-clear', mouse: 'left' },
     ] },
 
@@ -200,33 +210,36 @@ export const TOUR_STEPS: TourStep[] = [
     ] },
 
   { chapter: 'cronografo', kind: 'explore', color: GOLD, title: 'Termos e decanatos', icon: 'ti-ruler-measure', targets: ['rings-outer', 'clock'], round: true, pad: 2, innerOf: 'rings-inner', scene: 'rings', tips: 'term,decan', rings: ['rings-outer', 'rings-inner'],
-    text: 'Cada signo tem 30 graus. Os decanatos dividem o signo em 3 partes iguais, de 10 graus. Os termos dividem em 5 partes de tamanhos diferentes. Cada parte tem um astro responsável por ela.',
-    goal: 'Pare o mouse num pedaço do anel aceso, sem clicar, para ler: por fora, os termos; por dentro, os decanatos.',
-    expert: 'Termos egípcios (Ptolomeu, Doroteu) e decanatos caldeus (faces).' },
-  { chapter: 'cronografo', kind: 'explore', color: GOLD, title: 'Por que importam', icon: 'ti-bulb', targets: ['rings-outer', 'clock'], round: true, pad: 2, innerOf: 'rings-inner', scene: 'rings', tips: 'term,decan,planet', rings: ['rings-outer', 'rings-inner'],
-    text: 'Dois astros no mesmo signo podem agir de jeitos bem diferentes: depende do pedaço em que estão. O astro responsável pelo pedaço dá o tom a quem passa por ali. Para ler o agora, olhe onde estão o Sol e a Lua: o dono daquele pedaço é quem está no comando deste momento.',
-    goal: 'Ache o Sol e pare o mouse no pedaço logo abaixo dele.',
-    expert: 'Termo e face são dignidades menores: um astro no próprio termo ou face ganha força. Na tradição, os termos marcam os períodos da vida (distribuição pelos termos) e os decanatos dão a imagem e o tom do grau.' },
-  { chapter: 'cronografo', kind: 'mission', color: GOLD, title: 'Ver de perto', icon: 'ti-zoom-in', targets: ['clock'], round: true, pad: 0, scene: 'rings', tips: 'term,decan,planet', rings: ['rings-outer', 'rings-inner'], allowZoom: true, hold: true,
-    text: 'Os pedaços são pequenos. Aproxime o relógio para ver em que grau exato cada astro está e qual pedaço ele ocupa.',
+    text: 'Cada signo é dividido em pedaços, e cada pedaço tem um astro como dono. O dono dá um tom extra a quem passa por ali.',
+    goal: 'Pare o mouse no anel aceso: por fora estão os termos (5 por signo); por dentro, os decanatos (3 por signo).',
+    expert: 'Termos egípcios e decanatos caldeus (faces).' },
+  { chapter: 'cronografo', kind: 'mission', color: GOLD, title: 'Por que importam', icon: 'ti-bulb', targets: ['clock'], round: true, pad: 0, scene: 'rings-sun', tips: 'term,decan,planet', allowZoom: true,
+    text: 'Dois astros no mesmo signo podem agir diferente: depende do pedaço em que cada um está. O Sol está em destaque: chegue perto dele para ver em que pedaço ele está agora.',
+    expert: 'Termo e face são dignidades menores. Na tradição, os termos também marcam os períodos da vida (distribuição pelos termos).',
     tasks: [
-      { label: 'Role a rodinha do mouse sobre o relógio para aproximar', wait: { event: 'wheel', within: '[data-tour="clock"]', count: 4 }, hand: 'clock', mouse: 'wheel' },
-      { label: 'Pare o mouse num termo ou decanato perto de um astro para ler', wait: { dom: '.itt[data-kind="term"], .itt[data-kind="decan"]' } },
-      { label: 'Dê um duplo clique no relógio: ele volta ao centro', wait: { event: 'dblclick', within: '[data-tour="clock"]' }, hand: 'clock', mouse: 'double' },
+      { label: 'Com o mouse sobre o Sol, role a rodinha para aproximar', wait: { event: 'wheel', within: '[data-tour="clock"]', count: 4 }, hand: 'planet', mouse: 'wheel' },
+    ] },
+  { chapter: 'cronografo', kind: 'mission', color: GOLD, title: 'Ver de perto', icon: 'ti-zoom-in', targets: ['clock'], round: true, pad: 0, tips: 'term,decan,planet', allowZoom: true, hold: true,
+    text: 'De perto, você navega pelo relógio como num mapa: a rodinha aproxima e afasta, e clicar e arrastar move a vista.',
+    tasks: [
+      { label: 'Clique e arraste o relógio para trazer o Sol ao centro da tela', wait: { drag: '[data-tour="clock"]' }, hand: 'planet', mouse: 'left' },
+      { label: 'Pare o mouse no termo ou no decanato logo abaixo do Sol: veja quem é o dono', wait: { dom: '.itt[data-kind="term"], .itt[data-kind="decan"]' } },
+      { label: 'Dê um duplo clique no relógio: ele volta ao tamanho e ao centro', wait: { event: 'dblclick', within: '[data-tour="clock"]' }, hand: 'clock', mouse: 'double' },
     ] },
 
   { chapter: 'cronografo', kind: 'mission', color: C_TIME, title: 'A linha do tempo', icon: 'ti-arrows-horizontal', targets: ['time-controls', 'timeline'], also: ['clock'], pad: 6, scene: 'time', tips: 'all', hold: true,
     text: 'Até aqui você viu o céu de agora. Esta linha leva o relógio para qualquer momento. Olhe o relógio enquanto mexe.',
     tasks: [
       { label: 'Clique na estrela branca e arraste para os lados. Continue mexendo e olhe o relógio', wait: { timeMoved: true, minMs: 5000 }, hand: 'scrub-thumb', mouse: 'left' },
-      { label: 'Muita coisa girando na tela? Trave o zodíaco: clique no cadeado', wait: { fn: s => !!s.zodiacLocked }, hand: 'zodiac-lock', mouse: 'left' },
+      { label: 'Muita coisa girando na tela? Trave o zodíaco: clique em Bloquear Zodíaco', wait: { fn: s => !!s.zodiacLocked }, hand: 'zodiac-lock', mouse: 'left', ring: 'zodiac-lock' },
       { label: 'Zodíaco travado! Agora tente de novo: clique e arraste a estrela. Os signos ficam parados e você vê os astros caminhando', wait: { timeMoved: true, minMs: 3000 }, hand: 'scrub-thumb', mouse: 'left' },
       { label: 'Com o mouse sobre a linha do tempo, role a rodinha: a linha aproxima (zoom)', wait: { event: 'wheel', within: '[data-tour="timeline"]', count: 3 }, hand: 'timeline', mouse: 'wheel' },
     ] },
   { chapter: 'cronografo', kind: 'mission', color: C_KEEP, title: 'O seu mapa', icon: 'ti-calendar-event', targets: ['date', 'date-display'], also: ['clock'], pad: 6, tips: 'all', hold: true, doneScene: 'close-overlays',
-    text: 'Agora vamos montar o SEU mapa: coloque a data e a hora em que você nasceu. Nos próximos passos você salva e exporta esse mapa.',
+    text: 'Agora vamos montar o SEU mapa: a cidade, a data e a hora em que você nasceu. Nos próximos passos você salva e exporta esse mapa.',
     tasks: [
       { label: 'Clique no calendário da data', wait: { dom: '[data-tour="date-input"]' } },
+      { label: 'Em Local, clique e busque a cidade onde você nasceu', wait: { placeChanged: true }, targets: ['location', 'calendar-panel'], also: ['clock'], hand: 'location', mouse: 'left' },
       { label: 'Digite só os números do seu nascimento, confira e clique em OK (ex.: 210319900815 = 21/03/1990 às 08:15)', wait: { click: '[data-tour="date-ok"]' }, targets: ['date-input', 'calendar-panel'], also: ['clock'], hand: 'date-ok', mouse: 'left' },
     ] },
 
@@ -253,31 +266,37 @@ export const TOUR_STEPS: TourStep[] = [
       { label: 'Clique num dia e veja o relógio ir até ele', wait: { timeMoved: true }, targets: ['calendar-panel', 'lunar'], also: ['clock'] },
     ] },
 
-  // ══ Tutorial 3 · Ferramentas (provisório) ═══════════════════════════════════
-  { chapter: 'ferramentas', kind: 'mission', title: 'Zoom e repetição', text: 'Aproxime a linha do tempo e repita um trecho em loop.', icon: 'ti-zoom-in', targets: ['time-controls', 'timeline'], also: ['clock'], pad: 6, scene: 'restore',
+  // ══ Tutorial 3 · Ferramentas ═══════════════════════════════════════════════
+  { chapter: 'ferramentas', kind: 'mission', title: 'Repetir um trecho (loop)', icon: 'ti-repeat', targets: ['time-controls', 'timeline'], also: ['clock'], pad: 6, scene: 'restore', hold: true,
+    text: 'O loop repete um pedaço do tempo sem parar. Bom para ver uma semana da Lua, uma estação ou um trânsito acontecendo várias vezes.',
     tasks: [
-      { label: 'Role o mouse sobre a linha do tempo: zoom', wait: { event: 'wheel', within: '[data-tour="timeline"]' } },
-      { label: 'Crie um loop: dois duplos cliques na linha (A e B)', wait: { dom: '[data-tour="loop-chip"][data-complete="true"]' } },
-      { label: 'Feche o loop no ✕', wait: { domGone: '[data-tour="loop-chip"]' } },
+      { label: 'Dê um duplo clique numa Lua Nova da linha do tempo (o círculo azul)', wait: { dom: '[data-tour="loop-chip"][data-complete="true"]' }, hand: 'moon-new', mouse: 'double' },
+      { label: 'Pronto: o loop vai dessa Lua Nova até 7 dias depois. Aperte o play para o relógio andar sozinho', wait: { click: '[data-tour="play"]' }, hand: 'play', mouse: 'left', ring: 'play' },
+      { label: 'Com o mouse sobre a marcha (velocidade), role a rodinha para acelerar ou frear', wait: { event: 'wheel', within: '[data-tour="speed"]', count: 3 }, hand: 'speed', mouse: 'wheel', ring: 'speed' },
+      { label: 'Trave o zodíaco para ver só os astros andando dentro do loop', wait: { fn: s => !!s.zodiacLocked }, hand: 'zodiac-lock', mouse: 'left', ring: 'zodiac-lock' },
+      { label: 'Olhe o relógio repetindo o trecho', wait: { delay: 5000 } },
+      { label: 'Para sair do loop, clique no ✕ ao lado das datas do loop', wait: { domGone: '[data-tour="loop-chip"]' }, hand: 'loop-close', mouse: 'left', ring: 'loop-chip' },
     ] },
-  { chapter: 'ferramentas', kind: 'mission', title: 'Seu mapa natal', text: 'Seu mapa por baixo, o céu de hoje por cima.', icon: 'ti-circles', targets: ['natal'], pad: 6, needsSidebar: true, hold: true,
+  { chapter: 'ferramentas', kind: 'mission', title: 'Seu mapa natal', text: 'Seu mapa de nascimento fica por baixo, e o céu de agora gira por cima.', icon: 'ti-circles', targets: ['natal'], pad: 6, needsSidebar: true, hold: true,
     tasks: [
-      { label: 'Clique no +', wait: { dom: '[data-tour="natal-popover"]' } },
+      { label: 'Clique no +', wait: { dom: '[data-tour="natal-popover"]' }, hand: 'natal', mouse: 'left' },
       { label: 'Use um mapa salvo ou digite sua data e aplique', wait: { fn: s => !!s.natal }, targets: ['natal-popover', 'natal'], also: ['clock'] },
-      { label: 'Clique em Agora', wait: { fn: s => !!s.realTime }, targets: ['now'], also: ['clock'] },
+      { label: 'Clique em Agora', wait: { fn: s => !!s.realTime }, targets: ['now'], also: ['clock'], hand: 'now', mouse: 'left' },
     ] },
-  { chapter: 'ferramentas', kind: 'explore', title: 'Os trânsitos', text: 'Cada linha é o céu de hoje tocando o seu mapa.', icon: 'ti-affiliate', targets: ['clock'], round: true, pad: 0, also: ['astros-panel'], goal: 'Pare o mouse nas linhas, sem clicar, para ler.' },
-  { chapter: 'ferramentas', kind: 'mission', title: 'Eclipses', text: 'Data, local e animação de cada eclipse.', icon: 'ti-sun-low', targets: ['eclipses'], pad: 6, needsSidebar: true,
+  { chapter: 'ferramentas', kind: 'explore', title: 'Trânsitos natais', icon: 'ti-affiliate', targets: ['clock'], round: true, pad: 0, also: ['astros-panel'], tips: 'all',
+    text: 'Com o mapa natal ligado, as linhas mudam de sentido: em vez de ligar os astros de hoje entre si, ligam os astros de hoje aos do seu nascimento. São os trânsitos natais: o que o momento toca na sua vida.',
+    goal: 'Pare o mouse numa linha, sem clicar, para ler qual astro de hoje toca qual astro seu.' },
+  { chapter: 'ferramentas', kind: 'mission', title: 'Eclipses', icon: 'ti-sun-low', targets: ['eclipses'], pad: 6, needsSidebar: true, hold: true,
+    text: 'Cada eclipse tem duas leituras: como ele aparece no céu de onde você está, e por onde a sombra passa no planeta.',
     tasks: [
-      { label: 'Clique em Eclipses', wait: { dom: '[data-tour="eclipse-panel"]' } },
-      { label: 'Explore e feche quando quiser', wait: { domGone: '[data-tour="eclipse-panel"]' }, targets: ['eclipse-panel'] },
+      { label: 'Clique em Eclipses, na barra da direita', wait: { dom: '[data-tour="eclipse-panel"]' }, hand: 'eclipses', mouse: 'left' },
+      { label: 'Aperte o play: veja o eclipse acontecer, do início ao fim', wait: { click: '[data-tour="eclipse-play"]' }, targets: ['eclipse-panel'], hand: 'eclipse-play', mouse: 'left', ring: 'eclipse-play' },
+      { label: 'Clique e arraste o globo: a faixa mostra onde o eclipse pode ser visto', wait: { drag: '[data-tour="eclipse-globe"]' }, targets: ['eclipse-panel'], hand: 'eclipse-globe', mouse: 'left' },
+      { label: 'Em "Ver de onde", troque a cidade para ver como ele aparece em outro lugar', wait: { click: '[data-tour="eclipse-places"] button' }, targets: ['eclipse-panel'], hand: 'eclipse-places', mouse: 'left' },
+      { label: 'Abra a lista para ver os outros eclipses do ano', wait: { click: '[data-tour="eclipse-list"]' }, targets: ['eclipse-panel'], hand: 'eclipse-list', mouse: 'left', ring: 'eclipse-list' },
+      { label: 'Feche o painel quando quiser', wait: { domGone: '[data-tour="eclipse-panel"]' }, targets: ['eclipse-panel'] },
     ] },
-  { chapter: 'ferramentas', kind: 'mission', title: 'Calendário Arcano', text: 'O arcano de cada dia.', icon: 'ti-cards', targets: ['arcane'], pad: 6, needsSidebar: true,
-    tasks: [
-      { label: 'Clique no Calendário Arcano', wait: { dom: '[data-tour="arcane-panel"]' } },
-      { label: 'Explore e feche quando quiser', wait: { domGone: '[data-tour="arcane-panel"]' }, targets: ['arcane-panel'] },
-    ] },
-  { chapter: 'ferramentas', kind: 'explore', title: 'Tela cheia', text: 'Para aulas e atendimentos. A tecla Esc sai da tela cheia.', icon: 'ti-maximize', targets: ['present'], pad: 6, goal: 'Experimente, se quiser.' },
+  { chapter: 'ferramentas', kind: 'explore', title: 'Apresentar', text: 'Para aulas e atendimentos: fecha todos os painéis e deixa só o relógio em tela cheia. A tecla Esc sai e os painéis voltam.', icon: 'ti-maximize', targets: ['present'], pad: 6, goal: 'Experimente, se quiser.' },
   { chapter: 'ferramentas', kind: 'explore', title: 'Do seu jeito', text: 'Planetas, casas, graus, anéis, céu e tamanhos.', icon: 'ti-adjustments', targets: ['settings'], also: ['sidebar-popover'], pad: 6, needsSidebar: true, goal: 'Abra os ajustes que quiser.' },
 
   { chapter: 'end', kind: 'info', title: 'Muito bem!', text: 'Quer aprender mais ou explorar sozinho? O botão "?" no alto abre os tutoriais quando você quiser.', icon: 'ti-confetti', targets: ['help'], round: true, pad: 6, scene: 'restore' },
@@ -302,7 +321,7 @@ export const markTourDone = (uid?: string | null) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Alvos e furos no escurecido
 // ─────────────────────────────────────────────────────────────────────────────
-interface Box { x: number; y: number; w: number; h: number; round: boolean; inner?: number; full?: Box }
+interface Box { x: number; y: number; w: number; h: number; round: boolean; inner?: number; full?: Box; rect?: boolean }
 
 const visibleRect = (el: Element): DOMRect | null => {
   const r = el.getBoundingClientRect();
@@ -519,6 +538,9 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
   const eventCountRef = useRef(0);
   const baseTimeRef = useRef<number | undefined>(undefined);
   const firstMovedRef = useRef<number | null>(null);
+  const armedAtRef = useRef(0);
+  const basePlaceRef = useRef<string | undefined>(undefined);
+  const draggedRef = useRef(false);
   const finishedRef = useRef(false);
 
   const evaluate = useCallback((w: Wait): boolean => {
@@ -527,6 +549,9 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
     if ('dom' in w) return isPresent(w.dom);
     if ('domGone' in w) return !isPresent(w.domGone);
     if ('click' in w) return clickedRef.current;
+    if ('delay' in w) return Date.now() - armedAtRef.current >= w.delay;
+    if ('drag' in w) return draggedRef.current;
+    if ('placeChanged' in w) return !!st.place && st.place !== basePlaceRef.current;
     if ('timeMoved' in w) {
       const t = st.time, b = baseTimeRef.current;
       const moved = !st.realTime && typeof t === 'number' && typeof b === 'number' && Math.abs(t - b) > 60_000;
@@ -544,6 +569,9 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
     eventCountRef.current = 0;
     baseTimeRef.current = stateRef.current.time;
     firstMovedRef.current = null;
+    armedAtRef.current = Date.now();
+    basePlaceRef.current = stateRef.current.place;
+    draggedRef.current = false;
     sawAbsentRef.current = t && 'dom' in t.wait ? !isPresent(t.wait.dom) : true;
   }, []);
 
@@ -566,6 +594,16 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
       const on = (e: MouseEvent) => { if ((e.target as Element)?.closest?.(w.click)) clickedRef.current = true; };
       document.addEventListener('click', on, true);
       return () => document.removeEventListener('click', on, true);
+    }
+    if ('drag' in w) {
+      let start: { x: number; y: number } | null = null;
+      const down = (e: PointerEvent) => { start = (e.target as Element)?.closest?.(w.drag) ? { x: e.clientX, y: e.clientY } : null; };
+      const move = (e: PointerEvent) => { if (start && (e.buttons & 1) && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 50) draggedRef.current = true; };
+      const up = () => { start = null; };
+      document.addEventListener('pointerdown', down, true);
+      document.addEventListener('pointermove', move, true);
+      document.addEventListener('pointerup', up, true);
+      return () => { document.removeEventListener('pointerdown', down, true); document.removeEventListener('pointermove', move, true); document.removeEventListener('pointerup', up, true); };
     }
     if ('event' in w) {
       let last = 0;
@@ -629,7 +667,10 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
     }
     setBoxes(found);
     setHandBox(t?.hand ? rectOf(t.hand) : null);
-    setRingBoxes((step.rings ?? []).map(n => rectOf(n)).filter(Boolean).map(r => toBox(r as DOMRect, true, 0)));
+    const taskRing = t?.ring ? rectOf(t.ring) : null;
+    setRingBoxes(taskRing
+      ? [{ ...toBox(taskRing, false, 5), rect: true } as Box]
+      : (t?.targets ? [] : (step.rings ?? []).map(n => rectOf(n)).filter(Boolean).map(r => toBox(r as DOMRect, true, 0))));
   }, [open, step, currentTask, missionDone]);
 
   useEffect(() => {
@@ -651,17 +692,29 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
     if (!all.length) { setCardPos({ left: (vw - CARD_W) / 2, top: Math.max(10, (vh - ch) / 2) }); return; }
     const m = boxes.main ?? all[0];
     const gap = 16;
-    const hits = (l: number, t: number) => all.some(b => !(l + CARD_W <= b.x || b.x + b.w <= l || t + ch <= b.y || b.y + b.h <= t));
-    const cands: Array<[number, number]> = [];
-    if (m.x + m.w + gap + CARD_W < vw - 10) cands.push([m.x + m.w + gap, m.y + m.h / 2 - ch / 2]);
-    if (m.x - gap - CARD_W > 10) cands.push([m.x - gap - CARD_W, m.y + m.h / 2 - ch / 2]);
-    cands.push([m.x + m.w / 2 - CARD_W / 2, m.y - gap - ch]);
-    cands.push([m.x + m.w / 2 - CARD_W / 2, m.y + m.h + gap]);
-    cands.push([vw - CARD_W - 16, vh - ch - 16], [16, vh - ch - 16], [vw - CARD_W - 16, 16], [16, 16]);
+    // Cartão o mais perto possível da ação (alvo principal), sem cobri-lo.
+    // Pode encostar no relógio de apoio, mas cobrir menos é melhor.
     const clampL = (l: number) => Math.max(10, Math.min(l, vw - CARD_W - 10));
     const clampT = (t: number) => Math.max(10, Math.min(t, vh - ch - 10));
-    let pick = cands.map(([l, t]) => [clampL(l), clampT(t)] as [number, number]).find(([l, t]) => !hits(l, t));
-    if (!pick) pick = [clampL(cands[0][0]), clampT(cands[0][1])];
+    const over = (l: number, t: number, b: Box) => Math.max(0, Math.min(l + CARD_W, b.x + b.w) - Math.max(l, b.x)) * Math.max(0, Math.min(t + ch, b.y + b.h) - Math.max(t, b.y));
+    const raw: Array<[number, number]> = [
+      [m.x + m.w + gap, m.y], [m.x + m.w + gap, m.y + m.h / 2 - ch / 2],
+      [m.x - gap - CARD_W, m.y], [m.x - gap - CARD_W, m.y + m.h / 2 - ch / 2],
+      [m.x, m.y + m.h + gap], [m.x + m.w / 2 - CARD_W / 2, m.y + m.h + gap],
+      [m.x, m.y - gap - ch], [m.x + m.w / 2 - CARD_W / 2, m.y - gap - ch],
+      [vw - CARD_W - 16, vh - ch - 16], [16, vh - ch - 16], [vw - CARD_W - 16, 16], [16, 16],
+    ];
+    const mcx = m.x + m.w / 2, mcy = m.y + m.h / 2;
+    let best: [number, number] | null = null, bestScore = Infinity;
+    for (const [l0, t0] of raw) {
+      const l = clampL(l0), t = clampT(t0);
+      const onMain = over(l, t, m) / (CARD_W * ch);
+      const cover = boxes.extra.reduce((acc, b) => acc + over(l, t, b), 0) / (CARD_W * ch) + onMain * 8;
+      const dx = Math.max(0, m.x - (l + CARD_W), l - (m.x + m.w)), dy = Math.max(0, m.y - (t + ch), t - (m.y + m.h));
+      const score = Math.hypot(dx, dy) + cover * 260 + Math.hypot(l + CARD_W / 2 - mcx, t + ch / 2 - mcy) * 0.05;
+      if (score < bestScore) { bestScore = score; best = [l, t]; }
+    }
+    const pick = best ?? [clampL(raw[0][0]), clampT(raw[0][1])];
     setCardPos({ left: pick[0], top: pick[1] });
   }, [open, boxes, isSheet, index, taskIdx, missionDone]);
 
@@ -730,7 +783,10 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
         <div key={`lk${k}`} className="tour-block" style={{ inset: 'auto', left: b.x, top: b.y, width: b.w, height: b.h, borderRadius: b.round ? '50%' : 15 }} onClick={e => e.stopPropagation()} />
       ))}
 
-      {ringBoxes.map((b, k) => {
+      {ringBoxes.filter(b => b.rect).map((b, k) => (
+        <div key={`rq${k}`} className="tour-ring tour-ring-live" style={{ left: b.x - 3, top: b.y - 3, width: b.w + 6, height: b.h + 6, borderRadius: 14 }} />
+      ))}
+      {ringBoxes.filter(b => !b.rect).map((b, k) => {
         const o = k === 0 ? 5 : -5; // 1º (de fora) cresce, 2º (de dentro) encolhe: as linhas ficam fora do anel aceso
         return (
           <React.Fragment key={`rg${k}`}>
@@ -748,12 +804,17 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
       {boxes.extra.map((b, k) => (
         <div key={k} className="tour-ring-soft" style={{ left: b.x - 1, top: b.y - 1, width: b.w + 2, height: b.h + 2, borderRadius: b.round ? '50%' : 15 }} />
       ))}
-      {missionLive && handBox && (
-        <div className="tour-pointer" aria-hidden="true" style={{ left: handBox.left + handBox.width / 2 - 13, top: handBox.width > 160 && handBox.height > 160 ? handBox.top + handBox.height / 2 - 10 : Math.min(handBox.bottom - 4, window.innerHeight - 70) }}>
+      {missionLive && handBox && (() => {
+        const big = handBox.width > 160 && handBox.height > 160;
+        const low = !big && handBox.bottom > window.innerHeight - 90;
+        const top = big ? handBox.top + handBox.height / 2 - 10 : low ? handBox.top - 64 : handBox.bottom - 4;
+        return (
+        <div className={`tour-pointer ${low ? 'tour-pointer-down' : ''}`} aria-hidden="true" style={{ left: handBox.left + handBox.width / 2 - 13, top }}>
           <i className="ti ti-hand-finger tour-hand-static" />
           {currentTask?.mouse && <MouseIcon button={currentTask.mouse} />}
         </div>
-      )}
+        );
+      })()}
       {missionLive && !handBox && currentTask?.mouse && main && !main.round && (
         <div className="tour-pointer" aria-hidden="true" style={{ left: main.x + main.w / 2 - 13, top: Math.min(main.y + main.h - 6, window.innerHeight - 70) }}>
           <i className="ti ti-hand-finger tour-hand-static" />
@@ -964,6 +1025,10 @@ body.tour-open .itt{z-index:2147483100!important}
 @keyframes tour-help-pulse{0%,100%{box-shadow:0 0 0 0 rgba(212,175,55,.55)}50%{box-shadow:0 0 0 8px rgba(212,175,55,0)}}
 .tour-help-pulse{animation:tour-help-pulse 1.8s ease-in-out infinite}
 .tour-ring-thin{padding:3px;animation-duration:3.2s}
+.tour-pointer-down .tour-hand-static{transform:rotate(180deg)}
+.tour-pointer-down{flex-direction:row-reverse;align-items:flex-end}
+body[data-tour-view] [data-tour="zodiac"] .text-slate-900{color:#fff!important}
+body[data-tour-view] [data-time-ring] text{fill:#fff!important}
 .tour-ring-glow{position:fixed;pointer-events:none;border-radius:50%;border:1.5px solid rgba(245,217,138,.9);box-shadow:0 0 7px rgba(245,217,138,.55);transition:all .3s ease-out}
 .tour-pointer{position:fixed;pointer-events:none;z-index:3;display:flex;align-items:flex-start;gap:6px;animation:tour-tap 1.1s ease-in-out infinite}
 .tour-hand-static{font-size:28px;color:var(--tc);filter:drop-shadow(0 2px 6px rgba(0,0,0,.85))}

@@ -791,7 +791,7 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     // Tutorial: o relógio não sai do lugar (sem arrastar a tela) até "explorar sozinho"
-    if (document.body.dataset.tourView) { hasMovedRef.current = false; return; }
+    if (document.body.dataset.tourView === 'locked') { hasMovedRef.current = false; return; }
     dragStartRef.current = {
       x: e.clientX,
       y: e.clientY,
@@ -4284,7 +4284,7 @@ const horizonStrokePath = `
           </g>
         )}
 
-        <g className="pointer-events-none select-none" style={{ zIndex: 50 }}>
+        <g data-time-ring="" className="pointer-events-none select-none" style={{ zIndex: 50 }}>
           {showTimeRing && !isNatalMode && (
             <>
               {timeRingElements}
@@ -4304,7 +4304,7 @@ const horizonStrokePath = `
 
         <g
           className={`select-none ${onClockClick ? "cursor-pointer pointer-events-auto" : "pointer-events-none"}`}
-          onClick={onClockClick}
+          onClick={onClockClick ? (e: any) => { if (document.body.dataset.tourView) return; (onClockClick as any)(e); } : undefined}
           style={{
             filter: showAtmosphere ? "drop-shadow(0 1px 2px rgba(0,0,0,0.35))" : "none"
           }}
@@ -4906,7 +4906,7 @@ const horizonStrokePath = `
             return (
               <g
                 key={planetId}
-                data-tour={planetId === "sun" ? "planet" : planetId === "moon" ? "planet-moon" : undefined}
+                data-tour={planetId === "sun" ? "planet" : planetId === "moon" ? "planet-moon" : `planet-${planetId}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onPlanetClick(planetId);

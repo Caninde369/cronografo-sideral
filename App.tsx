@@ -778,8 +778,16 @@ useEffect(() => {
     const [viewMode, setViewMode] = useState<'grid' | 'fullscreen'>('grid');
     const [isFullscreen, setIsFullscreen] = useState(false);
 
+    // Apresentar: fecha todos os painéis; ao sair da tela cheia, eles voltam como estavam
+    const presentPanelsRef = useRef<Record<string, boolean> | null>(null);
     const handleToggleFullscreen = () => {
         if (!document.fullscreenElement) {
+            setPanelStates(prev => {
+                presentPanelsRef.current = Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, v.isOpen]));
+                return Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, { ...v, isOpen: false }])) as typeof prev;
+            });
+            setShowCalendarPanel(false);
+            setShowMoonPopover(false);
             document.documentElement.requestFullscreen().catch(() => {});
             setIsFullscreen(true);
         } else {
@@ -793,6 +801,11 @@ useEffect(() => {
     useEffect(() => {
         const onFullscreenChange = () => {
             setIsFullscreen(!!document.fullscreenElement);
+            if (!document.fullscreenElement && presentPanelsRef.current) {
+                const saved = presentPanelsRef.current;
+                presentPanelsRef.current = null;
+                setPanelStates(prev => Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, { ...v, isOpen: saved[k] ?? v.isOpen }])) as typeof prev);
+            }
         };
         document.addEventListener('fullscreenchange', onFullscreenChange);
         return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
@@ -1040,6 +1053,7 @@ useEffect(() => {
     const [tourHideMoon, setTourHideMoon] = useState(false);
     const tourRevealTimersRef = useRef<number[]>([]);
     const tourSunTravelRef = useRef(false);
+    const tourRafRef = useRef<number | null>(null);
     const takeTourSnapshot = () => {
         if (tourSnapshotRef.current) return;
         tourSnapshotRef.current = {
@@ -1067,6 +1081,7 @@ useEffect(() => {
         });
         // Passeio do Sol pelos signos (cena 'signs'): ao sair dela, o relógio volta para agora
         const endSunTour = () => {
+            if (tourRafRef.current !== null) { cancelAnimationFrame(tourRafRef.current); tourRafRef.current = null; }
             delete document.body.dataset.tourGlow;
             if (tourSunTravelRef.current) { tourSunTravelRef.current = false; setIsRealTime(true); setCurrentTime(new Date()); }
         };
@@ -1081,9 +1096,22 @@ useEffect(() => {
             tourRevealTimersRef.current.push(window.setTimeout(() => endSunTour(), 300 + frames * every + 1400));
         };
         if (scene === 'day-spin') {
-            // Sol dá a volta de 24h: do meio-dia de hoje ao meio-dia de amanhã (pôr do sol, noite, nascer)
+            // Sol dá a volta de 24h, minuto a minuto: do meio-dia de hoje ao de amanhã (pôr do sol, noite, nascer)
             const noon = new Date(); noon.setHours(12, 0, 0, 0);
-            playTime(noon.getTime(), 20 * 60000, 72, 110);
+            const t0 = noon.getTime(), span = 24 * 3600000, dur = 9000;
+            tourSunTravelRef.current = true;
+            setIsRealTime(false);
+            const startAt = performance.now() + 300;
+            let lastMin = -1;
+            const frame = (now: number) => {
+                if (!tourSunTravelRef.current) return;
+                const k = Math.min(1, Math.max(0, (now - startAt) / dur));
+                const min = Math.round((k * span) / 60000);
+                if (min !== lastMin) { lastMin = min; setCurrentTime(new Date(t0 + min * 60000)); }
+                if (k < 1) tourRafRef.current = requestAnimationFrame(frame);
+                else tourRevealTimersRef.current.push(window.setTimeout(() => endSunTour(), 1400));
+            };
+            tourRafRef.current = requestAnimationFrame(frame);
             return;
         }
         if (scene === 'close-overlays') { closeOverlays(); return; }
@@ -1116,7 +1144,7 @@ useEffect(() => {
         //    select → + todos os planetas · signs/colors → só os signos (colors abre o Status)
         //    summary → astros de volta, signos coloridos · houses → + casas e painel Casas
         //    aspects → + linhas e painel Aspectos · rings → + termos e decanatos · time → destrava o zodíaco
-        const ORDER: TourScene[] = ['sun', 'moon', 'planets', 'select', 'signs', 'colors', 'summary', 'houses', 'aspects', 'rings', 'time'];
+        const ORDER: TourScene[] = ['sun', 'moon', 'planets', 'select', 'signs', 'colors', 'summary', 'houses', 'aspects', 'rings', 'rings-sun', 'time'];
         const i = ORDER.indexOf(scene);
         if (i < 0) return;
         const at = (st: TourScene) => i >= ORDER.indexOf(st);
@@ -1146,7 +1174,7 @@ useEffect(() => {
         setShowDecanRing(at('rings'));
         setShowSeasonsRing(at('rings') ? (snap?.showSeasonsRing ?? true) : false);
         // cores: brancos até o resumo; sem cor em termos e decanatos; por elemento na linha do tempo
-        if (!at('summary') || scene === 'rings') setZodiacColorMode('none');
+        if (!at('summary') || scene === 'rings' || scene === 'rings-sun') setZodiacColorMode('none');
         else if (scene === 'summary' || scene === 'time') setZodiacColorMode('element');
         if (scene === 'sun') setShowAtmosphere(false);
         // zodíaco travado só no passeio do Sol (os signos ficam parados e o Sol anda)
@@ -1168,14 +1196,14 @@ useEffect(() => {
                 tourRevealTimersRef.current.push(window.setTimeout(() => {
                     setCurrentTime(new Date(t0 + days * 86400000));
                     document.body.dataset.tourGlow = String(k);
-                }, 700 + k * 1500));
+                }, 600 + k * 550));
             }
             tourRevealTimersRef.current.push(window.setTimeout(() => {
                 document.body.dataset.tourGlow = 'all';
-            }, 700 + 12 * 1500));
+            }, 600 + 12 * 550));
         }
         setTourHideMoon(!at('time'));
-        setSelectedPlanets([]);
+        setSelectedPlanets(scene === 'rings-sun' ? ['sun'] : []);
         setSelectedAspects([]);
         setSelectedHouses([]);
         setHighlightFilter(null);
@@ -3163,6 +3191,7 @@ const handlePlanetClick = useCallback((id: string) => {
                         highlight: !!highlightFilter,
                         planetsVisible: TOUR_MAIN_PLANETS.filter(id => (visiblePlanets as Record<string, boolean>)[id]).length,
                         planetsSelected: selectedPlanets.length,
+                        place: location?.displayName || '',
                     }}
                     theme={theme === 'light' ? 'light' : 'dark'}
                 />
