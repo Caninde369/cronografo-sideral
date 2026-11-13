@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
     FileText, 
@@ -109,6 +109,22 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = (props) => 
             }
         }
     }, [props.isOpen, props.currentTheme]);
+
+    // Barra de progresso: cada etapa da exportação tem uma faixa; dentro dela a linha avança devagar
+    const [exportPct, setExportPct] = useState(0);
+    const progressMsgRef = useRef('');
+    progressMsgRef.current = props.exportProgress || '';
+    useEffect(() => {
+        if (!props.isExporting) { setExportPct(0); return; }
+        const STAGES: [RegExp, number][] = [[/Configurando/i, 6], [/Renderizando/i, 20], [/Capturando/i, 38], [/Montando|Diagramando/i, 68]];
+        const t = window.setInterval(() => {
+            const msg = progressMsgRef.current;
+            const base = STAGES.reduce((acc, [re, v]) => (re.test(msg) ? v : acc), 2);
+            const cap = Math.min(97, base + 24);
+            setExportPct(p => (p < base ? base : Math.min(cap, p + (cap - p) * 0.05 + 0.15)));
+        }, 120);
+        return () => window.clearInterval(t);
+    }, [props.isExporting]);
 
     // Close on Escape key
     useEffect(() => {
@@ -692,16 +708,19 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = (props) => 
                                     <div className="w-3.5 h-3.5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
                                     <span>{props.exportProgress || 'Gerando documento em alta resolução...'}</span>
                                 </span>
-                                <span className="text-[10px] uppercase font-mono text-neutral-400 tracking-wider">
-                                    Processando
+                                <span className="text-xs font-mono font-bold text-cyan-200 tabular-nums">
+                                    {Math.round(exportPct)}%
                                 </span>
                             </div>
                             {/* Linha com gradiente espectral */}
                             <div className="w-full h-1.5 rounded-full overflow-hidden bg-white/10 relative">
                                 <div 
-                                    className="h-full w-full rounded-full animate-pulse"
+                                    className="h-full rounded-full"
                                     style={{
+                                        width: `${exportPct}%`,
+                                        transition: 'width .3s ease-out',
                                         background: 'linear-gradient(90deg, #6366F1 0%, #22D3EE 25%, #10B981 40%, #FDE047 60%, #FB923C 80%, #EF4444 100%)',
+                                        backgroundSize: '100vw 100%',
                                         boxShadow: '0 0 12px rgba(34, 211, 238, 0.8)'
                                     }}
                                 />

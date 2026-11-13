@@ -2457,7 +2457,26 @@ const horizonStrokePath = `
       />
     );
 
-    // Hourly cell division lines inside the 24h track have been removed per request
+    // 1. Graduação de relógio: marcas de 15 min na borda interna (hora maior, 0/6/12/18 maiores ainda)
+    for (let q = 0; q < 96; q++) {
+      const h = q / 4;
+      const isHour = q % 4 === 0;
+      const isCardinal = isHour && (q / 4) % 6 === 0;
+      const len = (isCardinal ? 8 : isHour ? 5.5 : 3) * timeRingScale;
+      const a = getTimeAngle(h);
+      const p1 = polarToCartesian(cx, cy, timeRingInner, a);
+      const p2 = polarToCartesian(cx, cy, timeRingInner + len, a);
+      elements.push(
+        <line
+          key={`time-tick-${q}`}
+          x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
+          stroke={ringLineColor}
+          strokeWidth={isCardinal ? 1.6 : isHour ? 1.1 : 0.7}
+          strokeOpacity={isHour ? 0.85 : 0.5}
+          strokeLinecap="round"
+        />
+      );
+    }
 
     // 2. 24h Numbers centered at timeRingCenter
     for (let h = 0; h < 24; h++) {

@@ -858,7 +858,7 @@ useEffect(() => {
 
     const handleSaveMap = () => {
         if (!newMapName.trim()) return;
-        if (isFreeTier && savedMaps.length >= 2) {
+        if (isFreeTier && savedMaps.length >= 2 && !showTour) {
             setShowSaveMapModal(false);
             setShowPaymentPlansModal(true);
             return;
@@ -1071,6 +1071,21 @@ useEffect(() => {
             if (tourSunTravelRef.current) { tourSunTravelRef.current = false; setIsRealTime(true); setCurrentTime(new Date()); }
         };
         if (scene === 'clear-select') { setSelectedPlanets([]); return; }
+        // Animações do tempo: o relógio anda sozinho e depois volta para agora
+        const playTime = (start: number, stepMs: number, frames: number, every: number) => {
+            tourSunTravelRef.current = true;
+            setIsRealTime(false);
+            for (let f = 0; f <= frames; f++) {
+                tourRevealTimersRef.current.push(window.setTimeout(() => setCurrentTime(new Date(start + f * stepMs)), 300 + f * every));
+            }
+            tourRevealTimersRef.current.push(window.setTimeout(() => endSunTour(), 300 + frames * every + 1400));
+        };
+        if (scene === 'day-spin') {
+            // Sol dá a volta de 24h: do meio-dia de hoje ao meio-dia de amanhã (pôr do sol, noite, nascer)
+            const noon = new Date(); noon.setHours(12, 0, 0, 0);
+            playTime(noon.getTime(), 20 * 60000, 72, 110);
+            return;
+        }
         if (scene === 'close-overlays') { closeOverlays(); return; }
         if (scene === 'restore') {
             closeOverlays();
@@ -1119,23 +1134,28 @@ useEffect(() => {
         setVisiblePlanets(Object.fromEntries(Object.keys(original).map(id => [id, show(id)])) as typeof visiblePlanets);
         setPanels({ celestial: at('planets'), statistics: at('colors'), cusps: at('houses'), aspects: at('aspects') } as Record<PanelId, boolean>);
         // anel de 24h: só na montagem do relógio (até 'select') e de volta no tempo
-        setShowTimeRing(!at('signs') || scene === 'time');
+        setShowTimeRing(!at('signs'));
         setTimeRingScale(2.2);
         // casas: só no passo das casas (nos aspectos, só as linhas de aspecto) e de volta no tempo
         setShowHouseLines(scene === 'houses' || scene === 'time');
         setShowHouseMarkers(scene === 'houses' || scene === 'time');
         // horizonte apagado dos signos até termos e decanatos
         if (at('signs') && !at('time')) setShowAtmosphere(false);
-        setShowAspectLines(at('aspects'));
+        setShowAspectLines(scene === 'aspects' || scene === 'time');
         setShowTermsRing(at('rings'));
         setShowDecanRing(at('rings'));
         setShowSeasonsRing(at('rings') ? (snap?.showSeasonsRing ?? true) : false);
-        if (!at('summary')) setZodiacColorMode('none');
-        else if (scene === 'summary') setZodiacColorMode('element');
+        // cores: brancos até o resumo; sem cor em termos e decanatos; por elemento na linha do tempo
+        if (!at('summary') || scene === 'rings') setZodiacColorMode('none');
+        else if (scene === 'summary' || scene === 'time') setZodiacColorMode('element');
         if (scene === 'sun') setShowAtmosphere(false);
         // zodíaco travado só no passeio do Sol (os signos ficam parados e o Sol anda)
         setIsZodiacFixed(scene === 'signs');
         endSunTour();
+        if (scene === 'moon') {
+            // Lua dá uma volta: 30 dias, um por quadro, sempre na mesma hora
+            playTime(Date.now(), 86400000, 30, 260);
+        }
         if (scene === 'signs') {
             // Sol viaja de Áries a Peixes e cada signo acende na sua vez (devagar)
             const L0 = celestialData.sunEclipticLongitude || 0;
@@ -1168,6 +1188,7 @@ useEffect(() => {
 
     const closeTour = useCallback(() => {
         handleTourScene('restore');
+        setShowPaymentPlansModal(false);
         if (tourLockRef.current !== null) { setIsZodiacFixed(tourLockRef.current); tourLockRef.current = null; }
         setShowTour(false);
         markTourDone(tourUid);
@@ -1940,7 +1961,7 @@ const handlePlanetClick = useCallback((id: string) => {
                 )}
 
                 {/* Modal de Opções de Pagamento (Mensal, Vitalício e Gratuito — preços em lib/paymentConfig.ts) */}
-                {showPaymentPlansModal && !showLoginModal && (
+                {showPaymentPlansModal && !showLoginModal && !showTour && (
                     <PaymentPlansModal
                         isOpen={showPaymentPlansModal && !showLoginModal}
                         onClose={() => setShowPaymentPlansModal(false)}

@@ -412,29 +412,38 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
     };
     const isPinned = (type: string, value: string) => !!pinnedFilter && pinnedFilter.type === type && pinnedFilter.value === value;
 
-    /** Clicar no título da seção: colore o zodíaco por essa categoria (clique de novo desliga). */
+    /** Cada seção é um cartão grande; o título é um botão que colore o zodíaco (clique de novo desliga). */
+    const groupClass = (mode: 'element' | 'modality' | 'polarity') => {
+        const active = zodiacColorMode === mode;
+        return `flex flex-col gap-1.5 shrink-0 rounded-xl p-1.5 border transition-colors ${
+            active
+                ? (isLight ? 'border-amber-600/50 bg-amber-500/[0.07]' : 'border-amber-300/45 bg-amber-300/[0.05]')
+                : (isLight ? 'border-black/10 bg-black/[0.02]' : 'border-white/10 bg-white/[0.02]')
+        }`;
+    };
     const renderSectionHeader = (label: string, mode: 'element' | 'modality' | 'polarity', icon: string) => {
         const active = zodiacColorMode === mode;
         return (
             <button
                 type="button"
                 data-status-section={mode}
+                data-tour={`status-${mode}`}
                 onClick={() => onZodiacColorModeChange?.(active ? 'none' : mode)}
                 title={active ? 'Clique para tirar as cores do zodíaco' : `Clique para colorir o zodíaco por ${label.toLowerCase()}`}
-                className={`w-full flex items-center justify-between px-1.5 rounded-md transition-colors cursor-pointer ${
+                className={`w-full flex items-center justify-between px-2 rounded-lg border transition-colors cursor-pointer ${
                     active
-                        ? (isLight ? 'bg-amber-500/15 text-amber-900' : 'bg-amber-400/15 text-amber-200')
-                        : (isLight ? 'text-amber-950/60 hover:bg-black/5' : 'text-white/45 hover:bg-white/5 hover:text-white/75')
+                        ? (isLight ? 'bg-amber-500/15 border-amber-600/40 text-amber-900' : 'bg-amber-400/15 border-amber-300/40 text-amber-100')
+                        : (isLight ? 'bg-white/60 border-black/10 text-amber-950/80 hover:bg-black/5' : 'bg-white/[0.04] border-white/10 text-white/80 hover:bg-white/[0.08] hover:text-white')
                 }`}
-                style={{ height: `${Math.max(16, Math.round(18 * scale))}px`, fontSize: `${Math.max(8, Math.round(9 * scale))}px` }}
+                style={{ height: `${Math.max(24, Math.round(28 * scale))}px` }}
             >
-                <span className="font-extrabold uppercase tracking-[0.12em] flex items-center gap-1">
-                    <i className={`ti ${icon}`} style={{ fontSize: `${Math.max(10, Math.round(11 * scale))}px` }} />
+                <span className="font-bold flex items-center gap-1.5" style={{ fontSize: `${Math.max(11, Math.round(12.5 * scale))}px` }}>
+                    <i className={`ti ${icon}`} style={{ fontSize: `${Math.max(13, Math.round(15 * scale))}px` }} />
                     {label}
                 </span>
-                <span className="flex items-center gap-1 font-bold normal-case tracking-normal whitespace-nowrap">
-                    <i className="ti ti-palette" style={{ fontSize: `${Math.max(10, Math.round(11 * scale))}px` }} />
-                    {active ? 'No zodíaco' : 'Colorir'}
+                <span className={`flex items-center gap-1 font-semibold whitespace-nowrap rounded-full px-1.5 py-0.5 ${active ? (isLight ? 'bg-amber-600/15' : 'bg-amber-300/15') : (isLight ? 'bg-black/5 text-amber-950/60' : 'bg-white/5 text-white/55')}`} style={{ fontSize: `${Math.max(9, Math.round(10 * scale))}px` }}>
+                    <i className={`ti ${active ? 'ti-check' : 'ti-palette'}`} style={{ fontSize: `${Math.max(10, Math.round(11 * scale))}px` }} />
+                    {active ? 'No zodíaco' : 'Colorir zodíaco'}
                 </span>
             </button>
         );
@@ -582,7 +591,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                     </div>
 
                     {/* SESSÃO 1: POLARIDADES */}
-                    <div className="flex flex-col gap-1 shrink-0">
+                    <div data-status-group="polarity" className={groupClass('polarity')}>
                         {renderSectionHeader('Polaridade', 'polarity', 'ti-yin-yang')}
                         <div 
                             className={`rounded-xl border ${isLight ? 'border-amber-900/15 bg-black/[0.03]' : 'border-white/10 bg-white/[0.03]'} flex flex-col gap-1`}
@@ -679,7 +688,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                     </div>
 
                     {/* SESSÃO 2: ELEMENTOS */}
-                    <div className="flex flex-col gap-1 shrink-0">
+                    <div data-status-group="element" className={groupClass('element')}>
                         {renderSectionHeader('Elementos', 'element', 'ti-flame')}
                         <div className="grid grid-cols-2 gap-1">
                             {(['fire', 'earth', 'air', 'water'] as const).map(elKey => {
@@ -764,7 +773,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                     </div>
 
                     {/* SESSÃO 3: MODALIDADES */}
-                    <div className="flex flex-col gap-1 shrink-0">
+                    <div data-status-group="modality" className={groupClass('modality')}>
                         {renderSectionHeader('Ritmos', 'modality', 'ti-arrows-exchange')}
                         {/* Compact Bento 3-Column Grid for Modalities with Planet SVG Glyphs */}
                         <div className="grid grid-cols-3 gap-1">

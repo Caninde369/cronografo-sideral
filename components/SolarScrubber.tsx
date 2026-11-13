@@ -1209,7 +1209,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
             </div>
           )}
           
-          <div className="scrub-thumb" style={{
+          <div className="scrub-thumb" data-tour="scrub-thumb" style={{
             position: 'absolute',
             left: `${cursorPct * 100}%`,
             top: '50%',

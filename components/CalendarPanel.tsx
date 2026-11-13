@@ -1542,6 +1542,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                             />
                             <button
                                 type="button"
+                                data-tour="date-ok"
                                 onClick={handleApplyQuickDate}
                                 className="px-2.5 py-1.5 rounded-lg bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-xs active:scale-95 transition-all cursor-pointer shadow-sm shrink-0 font-manrope"
                                 title="Aplicar data e hora rápida"
