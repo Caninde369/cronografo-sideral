@@ -3602,18 +3602,21 @@ const horizonStrokePath = `
           )}
         </g>
 
+        {/* Marcas invisíveis para o tutorial: borda de fora e de dentro de termos + decanatos.
+            Ficam FORA do grupo que gira: dentro dele, o retângulo medido de um círculo girado
+            sai maior que o círculo (era o erro do destaque). */}
+        {(showTermsRing || showDecanRing) && !isNatalMode && (
+          <g className="pointer-events-none">
+            <circle data-tour="rings-outer" cx={cx} cy={cy} r={graduationRingRadius} fill="none" stroke="transparent" strokeWidth={1} />
+            <circle data-tour="rings-inner" cx={cx} cy={cy} r={graduationRingRadius - termTrackHeight - decanTrackHeight} fill="none" stroke="transparent" strokeWidth={1} />
+          </g>
+        )}
+
         {/* --- LAYER 2: RINGS & GRADUATIONS --- */}
         <g
           className="pointer-events-none transition-colors duration-500"
           transform={`rotate(${isZodiacFixed ? 0 : zodiacRotation}, ${cx}, ${cy})`}
         >
-          {/* Marcas invisíveis para o tutorial: borda de fora e de dentro de termos + decanatos */}
-          {(showTermsRing || showDecanRing) && (
-            <>
-              <circle data-tour="rings-outer" cx={cx} cy={cy} r={graduationRingRadius} fill="none" stroke="transparent" strokeWidth={1} />
-              <circle data-tour="rings-inner" cx={cx} cy={cy} r={graduationRingRadius - termTrackHeight - decanTrackHeight} fill="none" stroke="transparent" strokeWidth={1} />
-            </>
-          )}
           {/* Background track for high contrast */}
           <circle
             cx={cx}
