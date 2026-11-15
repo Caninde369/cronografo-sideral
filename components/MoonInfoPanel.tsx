@@ -26,6 +26,8 @@ export interface MoonInfoPanelProps {
     onClosePopover?: () => void;
     /** Abre a janela de eclipse (card "Eclipse detectado" / "Eclipse em N dias") */
     onEclipseClick?: () => void;
+    /** Celular: sempre na forma de pílula, sem o botão de expandir */
+    forceMinimized?: boolean;
 }
 
 const PHASE_ABBR: Record<string, string> = {
@@ -55,7 +57,8 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
     isOpen,
     onTogglePopover,
     onClosePopover,
-    onEclipseClick
+    onEclipseClick,
+    forceMinimized = false
 }) => {
     const isLight = theme === 'light';
     const [localShowPopover, setLocalShowPopover] = useState(false);
@@ -252,7 +255,7 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
 
     return (
         <div ref={containerRef} className="relative w-full shrink-0 font-sans">
-            {isMinimized ? (
+            {(isMinimized || forceMinimized) ? (
                 <div
                     ref={cardRef}
                     onClick={(e) => {
@@ -306,7 +309,7 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
                     </span>
 
                     {/* Botão de Restaurar / Expandir Card */}
-                    <button
+                    {!forceMinimized && <button
                         type="button"
                         data-no-drag="true"
                         onClick={(e) => {
@@ -320,7 +323,7 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
                         title="Expandir Card da Lua"
                     >
                         <span className="font-bold leading-none" style={{ fontSize: `${Math.max(8, Math.round(9 * scale))}px` }}>＋</span>
-                    </button>
+                    </button>}
                 </div>
             ) : (
                 <div 

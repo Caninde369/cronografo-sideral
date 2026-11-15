@@ -604,6 +604,7 @@ export const TimeControls: React.FC<{
 
     return (
         <div 
+            data-time-controls=""
             className={`fixed bottom-0 z-30 flex flex-col justify-end font-sans selection:bg-brand-purple/30 select-none transition-all duration-300 pointer-events-none ${
                 isLight ? 'text-neutral-800' : 'text-[#F5F2EB]'
             }`}
@@ -696,6 +697,7 @@ export const TimeControls: React.FC<{
                             {showHojeText && <span className="text-xs font-bold hidden min-[480px]:inline">Hoje</span>}
                         </button>
                         <button
+                            data-m-hide=""
                             onClick={() => setIsTimelineMinimized(!isTimelineMinimized)}
                             className={`btn-3d-glow ${isLight ? 'btn-3d-white' : 'btn-3d-dark'} flex items-center justify-center gap-1.5 ${showTimelineText ? 'px-3 sm:px-3.5' : 'w-9 px-0'} h-9 rounded-full text-xs font-bold active:scale-95 cursor-pointer shrink-0`}
                             title={isTimelineMinimized ? "Ver linha do tempo" : "Ocultar linha do tempo"}

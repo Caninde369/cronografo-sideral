@@ -1,0 +1,110 @@
+/**
+ * Versão celular do Cronógrafo (aprovada pelo Rafa em 14/11/2026).
+ *
+ * Só interface e navegação. O App marca o <body> com:
+ *   .is-mobile            → está no celular
+ *   data-morient          → "portrait" (em pé) ou "landscape" (deitado)
+ *   data-mtab             → aba ativa: ceu | astros | aspectos | casas | mais
+ *   data-mimmersive       → tela cheia (Apresentar)
+ *   --m-col               → (deitado) onde começa a coluna da direita
+ *
+ * Peças:
+ *   .m-head   topo: logo, Entrar/Upgrade, tela cheia, + (mapa natal); data + pílula da Lua
+ *   .m-tabs   barra de abas (embaixo em pé; à esquerda deitado)
+ *   aside[data-dock]   as docas de painéis viram gavetas que sobem de baixo
+ *   .qts-root          a barra lateral de ferramentas vira a página "Mais"
+ *   .qts-pop           os popovers da barra viram gavetas
+ *   [data-time-controls]  controles de tempo acima da barra de abas
+ */
+export const MOBILE_CSS = `
+body.is-mobile .app-root{height:100dvh;--m-bg:#0C0A12;--m-card:#13111B;--m-fg:#F0ECE2;--m-mut:#A8A296;--m-line:rgba(255,255,255,.12);--m-gold:#F5D98A;--m-tabs:68px;--m-rail:72px}
+body.is-mobile .app-root.m-light{--m-bg:#F4F1EA;--m-card:#FFFFFF;--m-fg:#231714;--m-mut:#6B6559;--m-line:rgba(35,23,20,.16);--m-gold:#8A6A12}
+body.is-mobile{overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+body.is-mobile .app-main{padding:0!important}
+body.is-mobile .app-stage{border:0!important;border-radius:0!important;box-shadow:none!important;--tw-ring-shadow:0 0 #0000!important}
+
+/* ── topo ── */
+.m-head{position:fixed;top:0;left:0;right:0;z-index:45;display:flex;flex-direction:column;padding:0 10px;font-family:'DM Sans',sans-serif;color:var(--m-fg);pointer-events:none}
+.m-head-row{height:52px;display:flex;align-items:center;gap:8px;pointer-events:auto;min-width:0}
+.m-logo{flex:1;min-width:0;display:flex;align-items:baseline;gap:6px;padding-left:4px;white-space:nowrap;overflow:hidden}
+.m-logo span{font-family:'Playfair Display',Georgia,serif;font-size:20px;line-height:1}
+.m-logo b{font-family:'Inter','DM Sans',sans-serif;font-size:12px;letter-spacing:.14em;font-weight:700}
+.m-chip{height:32px;padding:0 12px;border-radius:16px;border:1px solid var(--m-line);background:var(--m-card);color:var(--m-fg);font:700 11px/1 'DM Sans',sans-serif;letter-spacing:.06em;text-transform:uppercase;flex:none;cursor:pointer}
+.m-chip-gold{border-color:transparent;background:linear-gradient(90deg,#D4AF37,#F5D98A);color:#1A1408}
+.m-ico{width:44px;height:44px;border-radius:22px;border:1px solid var(--m-line);background:var(--m-card);color:var(--m-fg);display:flex;align-items:center;justify-content:center;font-size:19px;flex:none;cursor:pointer}
+.m-ico-gold{border-color:color-mix(in srgb,var(--m-gold) 60%,transparent);background:color-mix(in srgb,var(--m-gold) 12%,var(--m-card));color:var(--m-gold)}
+.m-ico-gold.is-on{background:color-mix(in srgb,var(--m-gold) 30%,var(--m-card))}
+.m-date{flex:1;min-width:0;height:46px;display:flex;align-items:center;gap:9px;padding:0 12px;border-radius:14px;border:1px solid var(--m-line);background:var(--m-card);color:var(--m-fg);text-align:left;cursor:pointer}
+.m-date-dot{width:8px;height:8px;border-radius:50%;background:var(--m-mut);flex:none}
+.m-date-dot.is-live{background:#F43F5E;box-shadow:0 0 0 4px rgba(244,63,94,.18)}
+.m-date-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.m-date-txt b{font:700 14px/1.1 'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-date-txt small{font:400 11.5px/1.1 'DM Sans',sans-serif;color:var(--m-mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-date i{font-size:16px;color:var(--m-mut);flex:none}
+.m-moon{flex:none;max-width:46%}
+.m-moon [data-tour="lunar"]{height:46px!important;border-radius:14px!important}
+
+/* ── abas ── */
+.m-tabs{position:fixed;left:0;right:0;bottom:0;height:calc(var(--m-tabs) + env(safe-area-inset-bottom,0px));padding-bottom:env(safe-area-inset-bottom,0px);z-index:9991;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:var(--m-bg);border-top:1px solid var(--m-line);font-family:'DM Sans',sans-serif}
+.m-tabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:0;background:transparent;color:var(--m-mut);font:500 11px/1 'DM Sans',sans-serif;cursor:pointer}
+.m-tabs button i{font-size:22px}
+.m-tabs button.is-on{color:var(--m-gold);font-weight:700}
+.m-exit-full{position:fixed;top:10px;right:10px;z-index:9992;width:44px;height:44px;border-radius:22px;border:1px solid rgba(255,255,255,.2);background:rgba(10,8,18,.7);color:#F0ECE2;font-size:19px;display:flex;align-items:center;justify-content:center}
+
+/* ── controles de tempo ── */
+body.is-mobile [data-time-controls]{left:0!important;right:0!important;bottom:var(--m-tabs)!important}
+body.is-mobile:not([data-mtab="ceu"]) [data-time-controls]{display:none!important}
+body.is-mobile [data-time-controls] [data-m-hide],body.is-mobile [data-time-controls] [data-tour="present"]{display:none!important}
+body.is-mobile [data-tour="time-step"] > button{width:40px!important;height:40px!important}
+body.is-mobile [data-tour="zodiac-lock"],body.is-mobile [data-tour="now"]{height:40px!important;min-width:40px}
+body.is-mobile [data-time-controls] .h-9.relative{height:auto!important;min-height:40px}
+
+/* ── painéis → gavetas ── */
+body.is-mobile aside[data-dock]{left:0!important;right:0!important;top:auto!important;bottom:var(--m-tabs)!important;width:100%!important;height:50dvh;max-height:none!important;display:none;gap:0!important;z-index:60;font-family:'DM Sans',sans-serif}
+body.is-mobile[data-mtab="astros"] aside[data-dock="left"],
+body.is-mobile[data-mtab="aspectos"] aside[data-dock="right"],
+body.is-mobile[data-mtab="casas"] aside[data-dock="right"]{display:flex}
+body.is-mobile[data-mimmersive] aside[data-dock]{display:none!important}
+body.is-mobile aside[data-dock] > div:not(.m-seg){flex:1 1 auto!important;height:auto!important;min-height:0!important;width:100%}
+body.is-mobile aside[data-dock] section{border-radius:20px 20px 0 0!important;border-bottom:0!important}
+body.is-mobile aside[data-dock="left"] section{border-radius:0!important;border-top:0!important}
+body.is-mobile aside[data-dock] button[title="Recolher"],body.is-mobile aside[data-dock] button[title="Expandir"]{display:none!important}
+body.is-mobile aside[data-dock] button[title="Fechar"],body.is-mobile aside[data-dock] button[title="Opções"]{width:36px!important;height:36px!important}
+.m-seg{display:none}
+body.is-mobile .m-seg{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:10px 12px 8px;background:var(--m-bg);border:1px solid var(--m-line);border-bottom:0;border-radius:20px 20px 0 0}
+.m-seg button{height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--m-line);background:transparent;color:var(--m-fg);font:500 13px/1 'DM Sans',sans-serif;cursor:pointer}
+.m-seg button.is-on{background:var(--m-gold);border-color:transparent;color:#1A1408;font-weight:700}
+.m-seg-hint{flex-basis:100%;font:400 11.5px/1.2 'DM Sans',sans-serif;color:var(--m-mut)}
+
+/* ── barra de ferramentas → página "Mais" ── */
+body.is-mobile .qts-expand{display:none!important}
+body.is-mobile .qts-root{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:var(--m-tabs)!important;width:auto!important;height:auto!important;transform:none!important;will-change:auto!important;opacity:1!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:16px;padding:14px 12px 24px!important;overflow-y:auto!important;overflow-x:hidden!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:var(--m-bg)!important;border:0!important;box-shadow:none!important;visibility:hidden;pointer-events:none!important;z-index:9990}
+body.is-mobile[data-mtab="mais"]:not([data-mimmersive]) .qts-root{visibility:visible;pointer-events:auto!important}
+body.is-mobile .qts-root::before{content:"Mais";font:500 26px/1.1 'Playfair Display',Georgia,serif;color:var(--m-fg);padding:4px 4px 0}
+body.is-mobile .qts-collapse,body.is-mobile .qts-desktop,body.is-mobile .qts-sec > .w-6{display:none!important}
+body.is-mobile .qts-sec{flex-direction:row!important;flex-wrap:wrap!important;align-items:stretch!important;justify-content:flex-start!important;gap:8px!important;margin:0!important;padding:0!important;width:100%!important}
+body.is-mobile .qts-sec::before{content:attr(data-m-title);flex-basis:100%;font:700 11px/1 'DM Sans',sans-serif;letter-spacing:.12em;color:var(--m-mut);padding:2px 4px}
+body.is-mobile .qts-sec > .qts-item,body.is-mobile .qts-sec > [data-tour="export"]{flex:0 0 calc(25% - 6px);max-width:calc(25% - 6px)}
+body.is-mobile .qts-sec > [data-tour="export"]{display:flex}
+body.is-mobile .qts-sec > [data-tour="export"] > .qts-item{flex:1}
+body.is-mobile .qts-item{position:relative;flex-direction:column!important;justify-content:flex-start!important;gap:7px;min-height:78px;padding:11px 4px 8px;border:1px solid var(--m-line);border-radius:14px;background:var(--m-card)}
+body.is-mobile .qts-item > button{order:1}
+body.is-mobile .qts-item > button::after{content:"";position:absolute;inset:0;border-radius:14px}
+body.is-mobile .qts-label{order:2;position:static!important;opacity:1!important;transform:none!important;margin:0!important;pointer-events:none;width:100%}
+body.is-mobile .qts-label > div{background:none!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;height:auto!important;padding:0 2px!important;white-space:normal!important;justify-content:center;text-align:center;font-size:11px!important;font-weight:500!important;line-height:1.2;color:var(--m-fg)!important}
+body.is-mobile .qts-pop{visibility:visible!important;pointer-events:auto!important;position:fixed!important;left:0!important;right:0!important;top:auto!important;bottom:var(--m-tabs)!important;transform:none!important;width:100%!important;max-width:none!important;max-height:72dvh!important;margin:0!important;border-radius:20px 20px 0 0!important;overflow-y:auto!important;z-index:9995!important;cursor:default}
+
+/* ── tela cheia ── */
+body.is-mobile[data-mimmersive] .qts-root{visibility:hidden!important}
+
+/* ── deitado ── */
+body.is-mobile[data-morient="landscape"] .m-tabs{top:0;bottom:0;right:auto;width:var(--m-rail);height:auto;padding:0;grid-template-columns:none;grid-auto-rows:minmax(0,1fr);border-top:0;border-right:1px solid var(--m-line)}
+body.is-mobile[data-morient="landscape"] .m-tabs button i{font-size:20px}
+body.is-mobile[data-morient="landscape"] .m-head{left:var(--m-col);padding:0 10px 0 4px}
+body.is-mobile[data-morient="landscape"] .m-head-row{height:48px}
+body.is-mobile[data-morient="landscape"] [data-time-controls]{left:var(--m-col)!important;bottom:0!important}
+body.is-mobile[data-morient="landscape"] aside[data-dock]{left:var(--m-col)!important;top:48px!important;bottom:0!important;width:auto!important;height:auto}
+body.is-mobile[data-morient="landscape"] .qts-root{left:var(--m-rail)!important;bottom:0!important}
+body.is-mobile[data-morient="landscape"] .qts-sec > .qts-item,body.is-mobile[data-morient="landscape"] .qts-sec > [data-tour="export"]{flex:0 0 calc(12.5% - 7px);max-width:calc(12.5% - 7px)}
+body.is-mobile[data-morient="landscape"] .qts-pop{left:var(--m-col)!important;top:0!important;bottom:0!important;max-height:none!important;border-radius:0!important}
+`;

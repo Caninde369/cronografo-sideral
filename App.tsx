@@ -20,6 +20,7 @@ import { EnergyChartPanel } from './components/EnergyChartPanel';
 import { TransitChart } from './components/TransitChart';
 import { StarField } from './components/StarField';
 import { Dashboard } from './components/Dashboard';
+import { MOBILE_CSS } from './components/mobileStyles';
 import { TimeControls, SizeControl, CompactToggle, SegmentedControl } from './components/Controls';
 import { UI_ICONS, ZODIAC_ICONS } from './components/icons';
 import { LocationSearchInput } from './components/LocationSearchInput';
@@ -99,6 +100,20 @@ const BRAZIL_CAPITALS = [
 ];
 
 // Default visible planets
+/** Versão celular: 'portrait' (em pé), 'landscape' (deitado) ou null (computador/tablet). */
+const getMobileKind = (): null | 'portrait' | 'landscape' => {
+    if (typeof window === 'undefined') return null;
+    const w = window.innerWidth, h = window.innerHeight;
+    if (w <= 540) return 'portrait';            // largura de celular em pé (mesmo com o teclado aberto)
+    if (w <= 820 && h >= w) return 'portrait';
+    if (h <= 520 && w > h && w <= 1100) return 'landscape';
+    return null;
+};
+const M_TABS_H = 68;      // barra de abas (em pé)
+const M_RAIL_W = 72;      // barra de abas (deitado)
+const M_HEAD_H = 104;     // topo: logo + data
+const M_HEAD_ROW = 52;
+
 const TOUR_MAIN_PLANETS = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'];
 const DEFAULT_VISIBLE_PLANETS: Record<string, boolean> = {
     sun: true, moon: true, mercury: true, venus: true, mars: true,
@@ -364,6 +379,50 @@ export const App: React.FC = () => {
     const [isQuickToolsSidebarOpen, setIsQuickToolsSidebarOpen] = useState(true);
     const [isTimeControlsMinimized, setIsTimeControlsMinimized] = useState(false);
     const [immersiveMode, setImmersiveMode] = useState(false);
+
+    // ── Versão celular ──────────────────────────────────────────────────────
+    // Só interface e navegação: os cálculos astronômicos são os mesmos do computador.
+    const [mobileKind, setMobileKind] = useState(getMobileKind);
+    const [viewport, setViewport] = useState(() => ({ w: typeof window !== 'undefined' ? window.innerWidth : 1400, h: typeof window !== 'undefined' ? window.innerHeight : 900 }));
+    const isMobile = mobileKind !== null;
+    const [mTab, setMTab] = useState<'ceu' | 'astros' | 'aspectos' | 'casas' | 'mais'>('ceu');
+    const [mSub, setMSub] = useState<'lista' | 'resumo'>('lista');
+    const [mControlsH, setMControlsH] = useState(200);
+    const [mNatalReq, setMNatalReq] = useState(0);
+    useEffect(() => {
+        const onResize = () => { setMobileKind(getMobileKind()); setViewport({ w: window.innerWidth, h: window.innerHeight }); };
+        window.addEventListener('resize', onResize);
+        window.addEventListener('orientationchange', onResize);
+        return () => { window.removeEventListener('resize', onResize); window.removeEventListener('orientationchange', onResize); };
+    }, []);
+    // relógio (deitado): quadrado à esquerda; o resto vira a coluna de controles
+    const mLandClock = Math.max(180, Math.min(viewport.h, viewport.w - M_RAIL_W - 300));
+    const mColLeft = M_RAIL_W + mLandClock;
+    useEffect(() => {
+        const b = document.body;
+        if (!isMobile) {
+            b.classList.remove('is-mobile');
+            delete b.dataset.mtab; delete b.dataset.morient; delete b.dataset.mimmersive;
+            return;
+        }
+        b.classList.add('is-mobile');
+        b.dataset.mtab = mTab;
+        b.dataset.morient = mobileKind as string;
+        if (immersiveMode) b.dataset.mimmersive = '1'; else delete b.dataset.mimmersive;
+        b.style.setProperty('--m-col', `${mColLeft}px`);
+    }, [isMobile, mobileKind, mTab, immersiveMode, mColLeft]);
+    // altura real dos controles de tempo (para o relógio ocupar todo o espaço livre)
+    useEffect(() => {
+        if (!isMobile) return;
+        const read = () => {
+            const el = document.querySelector('[data-tour="time-controls"]') as HTMLElement | null;
+            const h = el ? el.offsetHeight : 0;
+            if (h > 40) setMControlsH(prev => (Math.abs(prev - h) > 2 ? h : prev));
+        };
+        read();
+        const t = window.setInterval(read, 700);
+        return () => window.clearInterval(t);
+    }, [isMobile]);
     const [showEclipseModal, setShowEclipseModal] = useState(false);
     const [showArcaneCalendar, setShowArcaneCalendar] = useState(false);
     const [activeAstronomyTab, setActiveAstronomyTab] = useState<'phases' | 'eclipses' | 'other'>('phases');
@@ -1034,7 +1093,7 @@ useEffect(() => {
     const tourUid = isAuthenticated ? (auth.currentUser?.uid ?? null) : null;
     const [tourSeen, setTourSeen] = useState(true);
     useEffect(() => { setTourSeen(isTourDone(tourUid)); }, [tourUid]);
-    const tourCanAutoOpen = !isAuthChecking && (isAuthenticated || trialActive) && !showLoginModal && !showPaymentPlansModal;
+    const tourCanAutoOpen = !isMobile && !isAuthChecking && (isAuthenticated || trialActive) && !showLoginModal && !showPaymentPlansModal;
     useEffect(() => {
         if (!tourCanAutoOpen || tourSeen || showTour) return;
         const t = window.setTimeout(() => setShowTour(true), 1800);
@@ -2064,7 +2123,7 @@ const handlePlanetClick = useCallback((id: string) => {
                     onUpdateUsername={(newName: string) => setUsername(newName)}
                 />
             )}
-            <main className={`h-full min-h-0 flex-grow flex overflow-hidden relative bg-transparent ${immersiveMode ? '' : 'p-1.5 gap-1.5'}`}>
+            <main className={`app-main h-full min-h-0 flex-grow flex overflow-hidden relative bg-transparent ${immersiveMode ? '' : 'p-1.5 gap-1.5'}`}>
                 {/* Left and Right side panels have been transformed into floating windows */}
 
                 {/* Chronograph Section */}
@@ -2085,17 +2144,30 @@ const handlePlanetClick = useCallback((id: string) => {
 
                     const mainPadX = immersiveMode ? 0 : 6;
                     const sidebarFlexWidth = isQuickToolsSidebarOpen ? 56 : 0;
-                    const leftOccupied = Math.max(0, screenLeft - mainPadX);
-                    const rightOccupied = Math.max(0, screenRight - (sidebarFlexWidth + mainPadX));
-                    const bottomOccupied = !immersiveMode ? 140 : 0;
-                    const topOccupied = !immersiveMode ? 40 : 0;
+                    const leftOccupiedDesk = Math.max(0, screenLeft - mainPadX);
+                    const rightOccupiedDesk = Math.max(0, screenRight - (sidebarFlexWidth + mainPadX));
+                    const bottomOccupiedDesk = !immersiveMode ? 140 : 0;
+                    const topOccupiedDesk = !immersiveMode ? 40 : 0;
+                    // Celular: o relógio ocupa todo o espaço livre entre o topo e os controles (ou a gaveta aberta)
+                    let leftOccupied = leftOccupiedDesk, rightOccupied = rightOccupiedDesk, topOccupied = topOccupiedDesk, bottomOccupied = bottomOccupiedDesk;
+                    if (isMobile) {
+                        if (immersiveMode) { leftOccupied = 0; rightOccupied = 0; topOccupied = 0; bottomOccupied = 0; }
+                        else if (mobileKind === 'portrait') {
+                            leftOccupied = 0; rightOccupied = 0;
+                            topOccupied = mTab === 'ceu' ? M_HEAD_H : M_HEAD_ROW;
+                            bottomOccupied = M_TABS_H + (mTab === 'ceu' ? mControlsH : Math.round(viewport.h * 0.5));
+                        } else {
+                            leftOccupied = M_RAIL_W; topOccupied = 0; bottomOccupied = 0;
+                            rightOccupied = Math.max(0, viewport.w - mColLeft);
+                        }
+                    }
 
                     return (
                         <section 
                             className="flex-1 relative flex flex-col overflow-visible"
                         >
 
-                            <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-brand-border/10 shadow-sm overflow-visible relative ring-1 ring-white/5 bg-transparent">
+                            <div className="app-stage flex-1 min-h-0 flex flex-col rounded-3xl border border-brand-border/10 shadow-sm overflow-visible relative ring-1 ring-white/5 bg-transparent">
                                 {/* Drag Handle (Hidden but functional) */}
                                 <div 
                                     draggable 
@@ -2135,7 +2207,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                         className="sidereal-clock-capture-container relative flex items-center justify-center overflow-visible pointer-events-auto w-full h-full max-w-full max-h-full" 
                                         style={{ 
                                             aspectRatio: '1 / 1',
-                                            transform: `scale(${clockScale})`, 
+                                            transform: `scale(${isMobile ? 1 : clockScale})`, 
                                             transformOrigin: 'center center' 
                                         }}
                                     >
@@ -2298,17 +2370,26 @@ const handlePlanetClick = useCallback((id: string) => {
                     const dockPixelWidth = Math.max(220, Math.ceil(unifiedLeftDockWidth * uiScale));
                     return (
                         <aside 
+                            data-dock="left"
                             style={{ width: `${dockPixelWidth}px` }}
                             className="fixed left-3 top-2 sm:top-3 bottom-2 z-50 flex flex-col gap-1.5 pointer-events-none max-h-[calc(100vh-16px)] sm:max-h-[calc(100vh-24px)] overflow-hidden select-none transition-[width] duration-200"
                         >
+                            {/* Celular: a gaveta Astros alterna entre a lista de astros e o Resumo (Status) */}
+                            {isMobile && (
+                                <div className="m-seg pointer-events-auto">
+                                    <button type="button" className={mSub === 'lista' ? 'is-on' : ''} onClick={() => setMSub('lista')}>Astros</button>
+                                    <button type="button" className={mSub === 'resumo' ? 'is-on' : ''} onClick={() => setMSub('resumo')}>Resumo do céu</button>
+                                    <span className="m-seg-hint">Toque: destaca · Segure: mostra ou esconde</span>
+                                </div>
+                            )}
                             {/* Painel ASTROS (Superior Esquerdo) */}
-                            {panelStates.celestial.isOpen && (
+                            {(isMobile ? (mTab === 'astros' && mSub === 'lista') : panelStates.celestial.isOpen) && (
                                 <div data-tour="planets-panel" className="pointer-events-auto flex-1 min-h-[140px] flex flex-col overflow-hidden">
                                     <PanelFrame
                                         title={t ? t('Astros') : 'Astros'}
                                         isOpen={panelStates.celestial.isOpen}
-                                        isCollapsed={panelStates.celestial.isCollapsed}
-                                        onClose={() => setPanelStates(prev => ({ ...prev, celestial: { ...prev.celestial, isOpen: false } }))}
+                                        isCollapsed={!isMobile && panelStates.celestial.isCollapsed}
+                                        onClose={() => { if (isMobile) { setMTab('ceu'); return; } setPanelStates(prev => ({ ...prev, celestial: { ...prev.celestial, isOpen: false } })); }}
                                         onToggleCollapse={() => setPanelStates(prev => ({ ...prev, celestial: { ...prev.celestial, isCollapsed: !prev.celestial.isCollapsed } }))}
                                         onResetLayout={resetAllPanelLayouts}
                                         onFocus={() => focusPanel('celestial')}
@@ -2394,7 +2475,7 @@ const handlePlanetClick = useCallback((id: string) => {
                             )}
 
                             {/* Painel STATUS (Diretamente abaixo de Astros) */}
-                            {panelStates.statistics.isOpen && (
+                            {(isMobile ? (mTab === 'astros' && mSub === 'resumo') : panelStates.statistics.isOpen) && (
                                 <div 
                                     ref={statusPanelRef}
                                     className="pointer-events-auto flex-shrink-0 flex flex-col overflow-hidden"
@@ -2403,8 +2484,8 @@ const handlePlanetClick = useCallback((id: string) => {
                                     <PanelFrame
                                         title={t ? t('Status') : 'Status'}
                                         isOpen={panelStates.statistics.isOpen}
-                                        isCollapsed={panelStates.statistics.isCollapsed}
-                                        onClose={() => setPanelStates(prev => ({ ...prev, statistics: { ...prev.statistics, isOpen: false } }))}
+                                        isCollapsed={!isMobile && panelStates.statistics.isCollapsed}
+                                        onClose={() => { if (isMobile) { setMTab('ceu'); return; } setPanelStates(prev => ({ ...prev, statistics: { ...prev.statistics, isOpen: false } })); }}
                                         onToggleCollapse={() => setPanelStates(prev => ({ ...prev, statistics: { ...prev.statistics, isCollapsed: !prev.statistics.isCollapsed } }))}
                                         onResetLayout={resetAllPanelLayouts}
                                         onFocus={() => focusPanel('statistics')}
@@ -2468,6 +2549,7 @@ const handlePlanetClick = useCallback((id: string) => {
                     const dockPixelWidth = Math.max(200, unifiedRightDockWidth * uiScale);
                     return (
                         <aside 
+                            data-dock="right"
                             className="fixed top-2 sm:top-3 bottom-2 z-50 flex flex-col gap-1.5 pointer-events-none max-h-[calc(100vh-16px)] sm:max-h-[calc(100vh-24px)] overflow-hidden transition-[right,width] duration-300 ease-out select-none"
                             style={{
                                 width: `${dockPixelWidth}px`,
@@ -2475,7 +2557,7 @@ const handlePlanetClick = useCallback((id: string) => {
                             }}
                         >
                             {/* Card de Lua (Topo Superior Direito) */}
-                            {celestialData && currentTime && !(showTour && tourHideMoon) && (
+                            {celestialData && currentTime && !isMobile && !(showTour && tourHideMoon) && (
                                 <div className="pointer-events-auto flex-shrink-0 w-full">
                                     <MoonInfoPanel
                                         moonPhase={celestialData.moonPhase}
@@ -2496,13 +2578,13 @@ const handlePlanetClick = useCallback((id: string) => {
                             )}
 
                             {/* Painel ASPECTOS (Abaixo do Card da Lua) */}
-                            {panelStates.aspects.isOpen && (
+                            {(isMobile ? mTab === 'aspectos' : panelStates.aspects.isOpen) && (
                                 <div className="pointer-events-auto flex-1 min-h-[140px] flex flex-col overflow-hidden">
                                     <PanelFrame
                                         title={t ? t('Aspectos') : 'Aspectos'}
                                         isOpen={panelStates.aspects.isOpen}
-                                        isCollapsed={panelStates.aspects.isCollapsed}
-                                        onClose={() => setPanelStates(prev => ({ ...prev, aspects: { ...prev.aspects, isOpen: false } }))}
+                                        isCollapsed={!isMobile && panelStates.aspects.isCollapsed}
+                                        onClose={() => { if (isMobile) { setMTab('ceu'); return; } setPanelStates(prev => ({ ...prev, aspects: { ...prev.aspects, isOpen: false } })); }}
                                         onToggleCollapse={() => setPanelStates(prev => ({ ...prev, aspects: { ...prev.aspects, isCollapsed: !prev.aspects.isCollapsed } }))}
                                         onResetLayout={resetAllPanelLayouts}
                                         onFocus={() => focusPanel('aspects')}
@@ -2565,7 +2647,7 @@ const handlePlanetClick = useCallback((id: string) => {
                     )}
 
                     {/* Resizer interativo unificado entre Aspectos e Casas - Hairline Elegante */}
-                    {panelStates.aspects.isOpen && panelStates.cusps.isOpen && !panelStates.cusps.isCollapsed && (
+                    {!isMobile && panelStates.aspects.isOpen && panelStates.cusps.isOpen && !panelStates.cusps.isCollapsed && (
                         <div
                             onPointerDown={handleRightSidebarSplitResizePointerDown}
                             className="h-2 w-full cursor-ns-resize py-0.5 flex items-center justify-center shrink-0 -my-0.5 z-30 group select-none pointer-events-auto"
@@ -2576,7 +2658,7 @@ const handlePlanetClick = useCallback((id: string) => {
                     )}
 
                     {/* Painel CASAS (Abaixo de Aspectos) */}
-                    {panelStates.cusps.isOpen && (
+                    {(isMobile ? mTab === 'casas' : panelStates.cusps.isOpen) && (
                         <div 
                             data-tour="cusps-panel"
                             className="pointer-events-auto flex-shrink-0 flex flex-col overflow-hidden"
@@ -2585,8 +2667,8 @@ const handlePlanetClick = useCallback((id: string) => {
                             <PanelFrame
                                 title={t ? t('Casas') : 'Casas'}
                                 isOpen={panelStates.cusps.isOpen}
-                                isCollapsed={panelStates.cusps.isCollapsed}
-                                onClose={() => setPanelStates(prev => ({ ...prev, cusps: { ...prev.cusps, isOpen: false } }))}
+                                isCollapsed={!isMobile && panelStates.cusps.isCollapsed}
+                                onClose={() => { if (isMobile) { setMTab('ceu'); return; } setPanelStates(prev => ({ ...prev, cusps: { ...prev.cusps, isOpen: false } })); }}
                                 onToggleCollapse={() => setPanelStates(prev => ({ ...prev, cusps: { ...prev.cusps, isCollapsed: !prev.cusps.isCollapsed } }))}
                                 onResetLayout={resetAllPanelLayouts}
                                 onFocus={() => focusPanel('cusps')}
@@ -3150,7 +3232,7 @@ const handlePlanetClick = useCallback((id: string) => {
     }
 
     return (
-        <div className={`h-screen w-screen ${bgClass} text-brand-text overflow-hidden flex flex-col font-sans selection:bg-brand-purple/30 relative`}>
+        <div className={`app-root h-screen w-screen ${bgClass} text-brand-text overflow-hidden flex flex-col font-sans selection:bg-brand-purple/30 relative ${theme === 'light' ? 'm-light' : ''}`}>
             <GlobalSvgDefs />
         {showStars && (
             <StarfieldBackground
@@ -3171,6 +3253,7 @@ const handlePlanetClick = useCallback((id: string) => {
                     {renderContent()}
                 </div>
                 <style>{ONBOARDING_TOUR_CSS}</style>
+                <style>{MOBILE_CSS}</style>
                 <OnboardingTour
                     open={showTour}
                     onClose={closeTour}
@@ -3195,7 +3278,7 @@ const handlePlanetClick = useCallback((id: string) => {
                     }}
                     theme={theme === 'light' ? 'light' : 'dark'}
                 />
-                <TopBar 
+                {!isMobile && <TopBar 
                     onOpenTutorial={openTour}
                     tutorialPulse={!tourSeen}
                     // Moon Card & Date Actions
@@ -3397,8 +3480,87 @@ const handlePlanetClick = useCallback((id: string) => {
                     isAuthenticated={isAuthenticated}
                     onOpenLogin={() => setShowLoginModal(true)}
                     onOpenPaymentPlans={() => setShowPaymentPlansModal(true)}
-                />
+                />}
+
+                {/* ── Celular: topo (logo, tela cheia, mapa natal), data + Lua, e barra de abas ── */}
+                {isMobile && !immersiveMode && (
+                    <>
+                        <header className="m-head">
+                            <div className="m-head-row">
+                                <div className="m-logo"><span>Cronógrafo</span><b>SIDERAL</b></div>
+                                {isFreeTier && !isAuthenticated && (
+                                    <button type="button" className="m-chip" onClick={() => setShowLoginModal(true)}>Entrar</button>
+                                )}
+                                {isFreeTier && (
+                                    <button type="button" className="m-chip m-chip-gold" onClick={() => setShowPaymentPlansModal(true)}>Upgrade</button>
+                                )}
+                                <button type="button" className="m-ico" aria-label="Apresentar em tela cheia" onClick={() => setImmersiveMode(true)}>
+                                    <i className="ti ti-maximize" aria-hidden="true" />
+                                </button>
+                                <button type="button" className={`m-ico m-ico-gold ${natalTime ? 'is-on' : ''}`} aria-label="Pesquisar data ou mapa natal" onClick={() => setMNatalReq(n => n + 1)}>
+                                    <i className="ti ti-plus" aria-hidden="true" />
+                                </button>
+                            </div>
+                            {mTab === 'ceu' && (
+                                <div className="m-head-row m-head-date">
+                                    <button type="button" className="m-date" onClick={() => { setCalendarConfig({}); setShowCalendarPanel(true); }} aria-label="Mudar data, hora e local">
+                                        <span className={`m-date-dot ${isRealTime ? 'is-live' : ''}`} />
+                                        <span className="m-date-txt">
+                                            <b>{`${String(currentTime.getDate()).padStart(2, '0')} ${['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][currentTime.getMonth()]} ${currentTime.getFullYear()} · ${String(currentTime.getHours()).padStart(2, '0')}:${String(currentTime.getMinutes()).padStart(2, '0')}`}</b>
+                                            <small>{`${location?.displayName || 'Local'} · ${isRealTime ? 'Agora' : ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][currentTime.getDay()]}`}</small>
+                                        </span>
+                                        <i className="ti ti-pencil" aria-hidden="true" />
+                                    </button>
+                                    {celestialData && (
+                                        <div className="m-moon">
+                                            <MoonInfoPanel
+                                                moonPhase={celestialData.moonPhase}
+                                                moonIllumination={celestialData.moonIllumination}
+                                                moonEclipticLongitude={celestialData.moonEclipticLongitude}
+                                                moonriseTime={celestialData.moonriseTime}
+                                                moonsetTime={celestialData.moonsetTime}
+                                                currentDate={currentTime}
+                                                latitude={location?.latitude ?? 0}
+                                                theme={theme}
+                                                forceMinimized
+                                                onClick={handleLunarCalendarClick}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </header>
+                        <nav className="m-tabs" aria-label="Navegação">
+                            {([
+                                ['ceu', 'Céu', 'ti-circle-dot'],
+                                ['astros', 'Astros', 'ti-planet'],
+                                ['aspectos', 'Aspectos', 'ti-star'],
+                                ['casas', 'Casas', 'ti-home'],
+                                ['mais', 'Mais', 'ti-layout-grid'],
+                            ] as const).map(([id, label, icon]) => (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    className={mTab === id ? 'is-on' : ''}
+                                    aria-current={mTab === id ? 'page' : undefined}
+                                    onClick={() => setMTab(prev => (prev === id && id !== 'ceu' ? 'ceu' : id))}
+                                >
+                                    <i className={`ti ${icon}`} aria-hidden="true" />
+                                    <span>{label}</span>
+                                </button>
+                            ))}
+                        </nav>
+                    </>
+                )}
+                {isMobile && immersiveMode && (
+                    <button type="button" className="m-exit-full" onClick={() => setImmersiveMode(false)} aria-label="Sair da tela cheia">
+                        <i className="ti ti-minimize" aria-hidden="true" />
+                    </button>
+                )}
+
                 <QuickToolsSidebar 
+                    mobile={isMobile}
+                    openRequest={mNatalReq}
                     isOpen={isQuickToolsSidebarOpen}
                     onToggle={() => setIsQuickToolsSidebarOpen(prev => !prev)}
                     theme={theme}

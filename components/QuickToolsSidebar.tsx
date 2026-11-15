@@ -6,6 +6,10 @@ import { ExportPDFButton } from './ExportPDFButton';
 export type PointerHeadTail = 'arrow' | 'circle' | 'square' | 'none';
 
 export interface QuickToolsSidebarProps {
+  /** Celular: a barra vira a página "Mais" (o layout é feito por CSS em mobileStyles.ts) */
+  mobile?: boolean;
+  /** Celular: cada mudança neste número abre a gaveta do mapa natal */
+  openRequest?: number;
   isOpen: boolean;
   onToggle: () => void;
   theme: 'dark' | 'light';
@@ -523,6 +527,11 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
     setOpenPopover(null);
   };
 
+  // Celular: o "+" do topo pede para abrir a gaveta do mapa natal
+  useEffect(() => {
+    if (props.openRequest) setOpenPopover('natal');
+  }, [props.openRequest]);
+
   const togglePopover = (key: string) => {
     setOpenPopover(prev => (prev === key ? null : key));
   };
@@ -545,7 +554,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
       {!props.isOpen && (
         <button
           onClick={props.onToggle}
-          className={`fixed top-3 sm:top-3.5 right-2 z-[9995] w-9 h-9 rounded-full flex items-center justify-center cursor-pointer shadow-xl border active:scale-95 transition-all select-none ${
+          className={`qts-expand fixed top-3 sm:top-3.5 right-2 z-[9995] w-9 h-9 rounded-full flex items-center justify-center cursor-pointer shadow-xl border active:scale-95 transition-all select-none ${
             isLight
               ? 'bg-white/95 text-neutral-900 border-[#8b8370]/30 shadow-[0_4px_16px_rgba(0,0,0,0.12)] hover:bg-white'
               : 'bg-[#06060a]/90 text-amber-400 border-white/20 shadow-[0_4px_20px_rgba(0,0,0,0.5)] hover:bg-[#12101e]'
@@ -565,16 +574,16 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
         }}
         transition={{ type: 'spring', stiffness: 350, damping: 30 }}
         style={{ pointerEvents: props.isOpen ? 'auto' : 'none' }}
-        className={`${props.isOpen ? 'w-14' : 'w-0 !p-0 !border-l-0'} shrink-0 flex flex-col items-center justify-between py-2.5 px-1.5 z-[9990] border-l select-none relative overflow-visible ${
+        className={`qts-root ${props.isOpen ? 'w-14' : 'w-0 !p-0 !border-l-0'} shrink-0 flex flex-col items-center justify-between py-2.5 px-1.5 z-[9990] border-l select-none relative overflow-visible ${
           isLight
             ? 'bg-[#f4f1ea]/95 border-[#8b8370]/20 text-[#231714] shadow-[-4px_0_15px_rgba(0,0,0,0.04)] backdrop-blur-xl'
             : 'bg-[#06060a]/85 border-white/10 text-white shadow-[-4px_0_20px_rgba(0,0,0,0.6)] backdrop-blur-2xl'
         }`}
       >
           {/* Top Section: Collapse button, Perfil & Pesquisar Data (+) */}
-          <div className="flex flex-col items-center gap-2 w-full">
+          <div className="qts-sec flex flex-col items-center gap-2 w-full" data-m-title="MAPA E CALENDÁRIOS">
             {/* 0. Botão de Recolher Barra Lateral */}
-            <div className="flex items-center justify-center w-full pb-1 border-b border-black/10 dark:border-white/10">
+            <div className="qts-collapse flex items-center justify-center w-full pb-1 border-b border-black/10 dark:border-white/10">
               <button
                 onClick={props.onToggle}
                 className={`w-8 h-7 flex items-center justify-center rounded-lg transition-all cursor-pointer active:scale-95 ${
@@ -587,8 +596,8 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
             </div>
 
             {/* 1. Perfil (Topo da Sidebar) */}
-            <div className="group relative flex items-center justify-center">
-              <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+            <div className="qts-item group relative flex items-center justify-center">
+              <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                 <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                   isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                 }`}>
@@ -609,8 +618,8 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
             </div>
 
             {/* 2. Pesquisar Data / Mapa Natal (Botão Dourado com +) */}
-            <div data-tour="natal" className="group relative flex items-center justify-center">
-              <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+            <div data-tour="natal" className="qts-item group relative flex items-center justify-center">
+              <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                 <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                   isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                 }`}>
@@ -639,7 +648,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                   data-tour="natal-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
-                  className={`absolute top-0 right-full mr-3 w-80 sm:w-[340px] max-h-[calc(100vh-2rem)] rounded-[14px] p-3 pb-5 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[60] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
+                  className={`qts-pop absolute top-0 right-full mr-3 w-80 sm:w-[340px] max-h-[calc(100vh-2rem)] rounded-[14px] p-3 pb-5 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[60] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
                     isLight ? 'bg-white/95 border-black/15 text-[#231714]' : 'bg-[#06060a]/[0.975] border-white/20 text-white'
                   }`}
                 >
@@ -908,8 +917,8 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
 
             {/* 3. Eclipses (abre a janela de eclipses a qualquer momento) */}
             {props.onOpenEclipses && (
-              <div className="group relative flex items-center justify-center">
-                <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+              <div className="qts-item group relative flex items-center justify-center">
+                <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                   <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                     isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                   }`}>
@@ -936,8 +945,8 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
 
             {/* 4. Calendário Arcano */}
             {props.onOpenArcaneCalendar && (
-              <div className="group relative flex items-center justify-center">
-                <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+              <div className="qts-item group relative flex items-center justify-center">
+                <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                   <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                     isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                   }`}>
@@ -967,10 +976,10 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
           </div>
 
           {/* Middle Section: Quick Tools Icon Buttons */}
-          <div data-tour="settings" className="flex flex-col items-center gap-2.5 w-full my-auto">
+          <div data-tour="settings" className="qts-sec flex flex-col items-center gap-2.5 w-full my-auto" data-m-title="NO RELÓGIO">
             {/* 1. Atmosfera */}
-            <div className="group relative flex items-center justify-center">
-              <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+            <div className="qts-item group relative flex items-center justify-center">
+              <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                 <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                   isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                 }`}>
@@ -996,8 +1005,8 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
             </div>
 
             {/* 2. Agulha */}
-            <div className="group relative flex items-center justify-center">
-              <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+            <div className="qts-item group relative flex items-center justify-center">
+              <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                 <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                   isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                 }`}>
@@ -1026,7 +1035,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                   data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
-                  className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[340px] rounded-[14px] p-3 pb-5 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
+                  className={`qts-pop fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[340px] rounded-[14px] p-3 pb-5 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
                     isLight ? 'bg-white/95 border-black/15 text-neutral-900' : 'bg-[#06060a]/[0.975] border-white/20 text-white'
                   }`}
                 >
@@ -1094,8 +1103,8 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
             </div>
 
             {/* 3. Planetas & Órbitas */}
-            <div className="group relative flex items-center justify-center">
-              <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+            <div className="qts-item group relative flex items-center justify-center">
+              <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                 <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                   isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                 }`}>
@@ -1124,7 +1133,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                   data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
-                  className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[350px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
+                  className={`qts-pop fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[350px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
                     isLight ? 'bg-white/95 border-black/15 text-[#231714]' : 'bg-[#06060a]/[0.975] border-white/20 text-white'
                   }`}
                 >
@@ -1234,8 +1243,8 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
             </div>
 
             {/* 4. Casas */}
-            <div className="group relative flex items-center justify-center">
-              <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+            <div className="qts-item group relative flex items-center justify-center">
+              <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                 <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                   isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                 }`}>
@@ -1264,7 +1273,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                   data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
-                  className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[340px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
+                  className={`qts-pop fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[340px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
                     isLight ? 'bg-white/95 border-black/15 text-[#231714]' : 'bg-[#06060a]/[0.975] border-white/20 text-white'
                   }`}
                 >
@@ -1407,8 +1416,8 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
             </div>
 
             {/* 5. Aspectos */}
-            <div className="group relative flex items-center justify-center">
-              <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+            <div className="qts-item group relative flex items-center justify-center">
+              <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                 <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                   isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                 }`}>
@@ -1437,7 +1446,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                   data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
-                  className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[340px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
+                  className={`qts-pop fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[340px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
                     isLight ? 'bg-white/95 border-black/15 text-[#231714]' : 'bg-[#06060a]/[0.975] border-white/20 text-white'
                   }`}
                 >
@@ -1534,8 +1543,8 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
             </div>
 
             {/* 6. Graus */}
-            <div className="group relative flex items-center justify-center">
-              <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+            <div className="qts-item group relative flex items-center justify-center">
+              <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                 <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                   isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                 }`}>
@@ -1564,7 +1573,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                   data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
-                  className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[340px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
+                  className={`qts-pop fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[340px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
                     isLight ? 'bg-white/95 border-black/15 text-[#231714]' : 'bg-[#06060a]/[0.975] border-white/20 text-white'
                   }`}
                 >
@@ -1622,8 +1631,8 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
             </div>
 
             {/* 7. Anéis & Cronógrafo (Decanatos, Termos, Estações, Horas) */}
-            <div className="group relative flex items-center justify-center">
-              <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+            <div className="qts-item group relative flex items-center justify-center">
+              <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                 <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                   isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                 }`}>
@@ -1652,7 +1661,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                   data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
-                  className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[350px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
+                  className={`qts-pop fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[350px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
                     isLight ? 'bg-white/95 border-black/15 text-[#231714]' : 'bg-[#06060a]/[0.975] border-white/20 text-white'
                   }`}
                 >
@@ -1784,8 +1793,8 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
             </div>
 
             {/* 8. Céu Estrelado & Qualidade Óptica */}
-            <div className="group relative flex items-center justify-center">
-              <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+            <div className="qts-item group relative flex items-center justify-center">
+              <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                 <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                   isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                 }`}>
@@ -1814,7 +1823,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                   data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
-                  className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[350px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
+                  className={`qts-pop fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[350px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
                     isLight ? 'bg-white/95 border-black/15 text-[#231714]' : 'bg-[#06060a]/[0.975] border-white/20 text-white'
                   }`}
                 >
@@ -1983,8 +1992,8 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
             </div>
 
             {/* 9. Tamanho e Escala (Migrado e Unificado) */}
-            <div className="group relative flex items-center justify-center">
-              <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+            <div className="qts-item qts-desktop group relative flex items-center justify-center">
+              <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                 <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                   isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                 }`}>
@@ -2013,7 +2022,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                   data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
-                  className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-[340px] sm:w-[380px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
+                  className={`qts-pop fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-[340px] sm:w-[380px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
                     isLight ? 'bg-white/95 border-black/15 text-[#231714]' : 'bg-[#06060a]/[0.975] border-white/20 text-white'
                   }`}
                 >
@@ -2093,12 +2102,12 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
           </div>
 
           {/* Bottom Section: Settings, Save, Share */}
-          <div className="flex flex-col items-center gap-2 w-full pt-1">
+          <div className="qts-sec flex flex-col items-center gap-2 w-full pt-1" data-m-title="SISTEMA">
             <div className={`w-6 border-b my-0.5 ${isLight ? 'border-black/10' : 'border-white/10'}`} />
 
             {/* Opções / Configurações */}
-            <div className="group relative flex items-center justify-center">
-              <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+            <div className="qts-item group relative flex items-center justify-center">
+              <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                 <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                   isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                 }`}>
@@ -2128,7 +2137,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                   data-tour="sidebar-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
-                  className={`fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[340px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
+                  className={`qts-pop fixed right-16 sm:right-20 top-1/2 -translate-y-1/2 max-h-[calc(100vh-2.5rem)] my-auto w-80 sm:w-[340px] rounded-[14px] p-3 pb-6 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[100] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
                     isLight ? 'bg-white/95 border-black/15 text-[#231714]' : 'bg-[#06060a]/[0.975] border-white/20 text-white'
                   }`}
                 >
@@ -2228,8 +2237,8 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
 
             {/* Planos de Acesso */}
             {props.onOpenPaymentPlans && (
-              <div className="group relative flex items-center justify-center">
-                <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+              <div className="qts-item group relative flex items-center justify-center">
+                <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                   <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                     isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                   }`}>
@@ -2252,8 +2261,8 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
 
             {/* Alternar Tema: Modo Claro / Modo Escuro (Botão Nativo) */}
             {props.setTheme && (
-              <div className="group relative flex items-center justify-center">
-                <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+              <div className="qts-item group relative flex items-center justify-center">
+                <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                   <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                     isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                   }`}>
@@ -2276,8 +2285,8 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
 
             {/* Salvar Mapa */}
             {props.onSave && (
-              <div className="group relative flex items-center justify-center">
-                <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+              <div className="qts-item group relative flex items-center justify-center">
+                <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                   <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                     isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                   }`}>

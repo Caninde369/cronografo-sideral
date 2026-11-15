@@ -1461,8 +1461,8 @@ export const ExportPDFButton: React.FC<ExportPDFButtonProps> = (props) => {
 
     if (props.variant === 'sidebar') {
         return (
-            <div ref={menuRef} className="group relative flex items-center justify-center">
-                <div className="absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
+            <div ref={menuRef} className="qts-item group relative flex items-center justify-center">
+                <div className="qts-label absolute right-full mr-2 pointer-events-none opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 ease-out z-50">
                     <div className={`px-2.5 h-7 flex items-center rounded-xl backdrop-blur-xl text-xs font-semibold whitespace-nowrap shadow-xl border ${
                         isLight ? 'bg-white/95 text-neutral-900 border-black/15' : 'bg-[#06060a]/95 text-white border-white/20'
                     }`}>
