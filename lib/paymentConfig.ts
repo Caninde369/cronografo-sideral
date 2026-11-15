@@ -30,8 +30,9 @@ export const PAYMENT_CONFIG = {
   activationDeadline: '24 horas',
 
   // Preços exibidos (o valor cobrado é o do link de checkout no Nubank — manter iguais)
-  monthlyPrice: 97,
-  lifetimePrice: 1097,
+  // Iguais à landing (src/landing/config.ts): Pro mensal e Fundador (Vitalício)
+  monthlyPrice: 127,
+  lifetimePrice: 1997,
 
   // Plano Gratuito: as liberações atuais valem até esta data (período de lançamento)
   freeLaunchUntil: '31/12/2026',

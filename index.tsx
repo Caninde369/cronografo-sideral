@@ -1,8 +1,14 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import ReactDOM from 'react-dom/client';
-import { App } from './App';
 import { ChartSettingsProvider } from './contexts/ChartSettingsContext';
 import { LanguageProvider } from './i18n';
+
+// cronografosideral.com/  → landing (página de vendas)
+// cronografosideral.com/app (e qualquer outro endereço) → o app
+const path = window.location.pathname.replace(/\/+$/, '');
+const isLanding = path === '' || path === '/index.html';
+const App = lazy(() => import('./App').then(m => ({ default: m.App })));
+const LandingSite = lazy(() => import('./src/landing/LandingSite'));
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -12,10 +18,16 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <LanguageProvider>
-      <ChartSettingsProvider>
-        <App />
-      </ChartSettingsProvider>
-    </LanguageProvider>
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#040004' }} />}>
+      {isLanding ? (
+        <LandingSite />
+      ) : (
+        <LanguageProvider>
+          <ChartSettingsProvider>
+            <App />
+          </ChartSettingsProvider>
+        </LanguageProvider>
+      )}
+    </Suspense>
   </React.StrictMode>
 );
