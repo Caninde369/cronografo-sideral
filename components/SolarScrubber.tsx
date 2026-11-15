@@ -180,6 +180,12 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
   }, [vpStart, viewSpan, zodiacDay]);
 
   
+  const pendingDragRef = useRef<{ offset: number; date: Date } | null>(null);
+  const dragRafRef = useRef<number | null>(null);
+
+  /** Zoom por toque (celular não tem rodinha): centra a linha no momento atual. */
+  const setZoomMode = (span: number) => { setViewSpan(span); setViewOffset(0); };
+
   const handleGradPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!gradRef.current) return;
     gradRef.current.setPointerCapture(e.pointerId);
@@ -214,7 +220,6 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
     const newZDay = vpStart + pct * viewSpan;
     
     const newOffset = vpStart - newZDay + viewSpan / 2;
-    setViewOffset(newOffset);
     let targetDate = getGregorianFromZDay(newZDay, zodiacBaseYear);
     if (isFreeTier) {
       const { startDate, endDate } = getFreeTierSolarYearBounds(currentDate);
@@ -223,7 +228,18 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
         return;
       }
     }
-    onChange(targetDate);
+    // O dedo manda dezenas de posições por segundo; o céu só precisa de uma por quadro.
+    pendingDragRef.current = { offset: newOffset, date: targetDate };
+    if (dragRafRef.current === null) {
+      dragRafRef.current = requestAnimationFrame(() => {
+        dragRafRef.current = null;
+        const p = pendingDragRef.current;
+        if (!p) return;
+        pendingDragRef.current = null;
+        setViewOffset(p.offset);
+        onChange(p.date);
+      });
+    }
   };
 
   const handleTrackPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -792,7 +808,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
               <span className={`${isLight ? 'text-neutral-700 font-medium' : 'text-white/80'} font-normal text-[13px]`}>dia {daysIntoSign}</span>{' '}
               <span className="font-semibold text-[13px]" style={{ color: getSignColor(zodiacDay, 1) }}>de {currentSign.name}</span>
             </span>
-            <span className={`text-[10px] uppercase tracking-wider font-mono px-1.5 py-0.2 rounded ml-0.5 ${isLight ? 'bg-black/10 text-neutral-700 font-bold' : 'bg-white/10 text-white/70'}`}>
+            <span className={`scrub-mode text-[10px] uppercase tracking-wider font-mono px-1.5 py-0.2 rounded ml-0.5 ${isLight ? 'bg-black/10 text-neutral-700 font-bold' : 'bg-white/10 text-white/70'}`}>
               {MODE_TITLES[vMode]}
             </span>
 
@@ -800,7 +816,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
               <button
                 type="button"
                 onClick={onOpenPaymentPlans}
-                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider cursor-pointer transition-all active:scale-95 ml-1 ${
+                className={`scrub-free flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider cursor-pointer transition-all active:scale-95 ml-1 ${
                   isLight
                     ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
                     : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 shadow-xs'
@@ -835,8 +851,13 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
             </div>
           )}
         </div>
+        <div className="m-only scrub-zoom" role="group" aria-label="Zoom da linha do tempo">
+          {([['ANO', 'Ano', 365], ['SIGNO', 'Signo', 30], ['SEMANA', 'Sem.', 7], ['DIA', 'Dia', 1]] as const).map(([id, label, span]) => (
+            <button key={id} type="button" className={vMode === id ? 'is-on' : ''} onClick={() => setZoomMode(span)}>{label}</button>
+          ))}
+        </div>
         {headerRight && (
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+          <div className="scrub-head-right absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
             {headerRight}
             <button
               onClick={onOpenDatePicker}
@@ -862,8 +883,8 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
         onPointerUp={handleGradPointerUp}
         onPointerLeave={handleGradPointerUp}
         onDoubleClick={handleDoubleClick}
-        className="relative w-full h-8 mb-1 overflow-visible cursor-grab active:cursor-grabbing" 
-        style={{ fontSize: 10 }}
+        className="scrub-grad relative w-full h-8 mb-1 overflow-visible cursor-grab active:cursor-grabbing" 
+        style={{ fontSize: 10, touchAction: 'none' }}
       >
         {signElements}
         {/* Linhas Finas de Entrada dos Signos com Símbolo SVG e Dia (Apenas na visualização de Mês) */}
@@ -1100,7 +1121,8 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
 
       <div 
         ref={trackRef}
-        className="w-full py-2 cursor-pointer relative"
+        style={{ touchAction: 'none' }}
+        className="scrub-track w-full py-2 cursor-pointer relative"
         onPointerDown={handleTrackPointerDown}
         onPointerMove={handleTrackPointerMove}
         onPointerUp={handleTrackPointerUp}

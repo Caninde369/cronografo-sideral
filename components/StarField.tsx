@@ -16,6 +16,9 @@ export interface StarFieldProps {
     showNebulaGlow?: boolean;
     nebulaOpacity?: number;
     starBrightness?: number;
+    /** Celular: poucas estrelas, sem estrelas cadentes, resolução simples e um quadro a cada 2,5 s
+        (em vez de 60 por segundo). O céu fica quase parado e o aparelho descansa. */
+    lowPower?: boolean;
 }
 
 interface Star {
@@ -82,13 +85,14 @@ export const StarField: React.FC<StarFieldProps> = React.memo(({
     showNebulaGlow = true,
     nebulaOpacity = 0.85,
     starBrightness = 1.0,
+    lowPower = false,
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number>(0);
 
     // Multi-Layer Astronomical Star Generation
     const stars = useMemo(() => {
-        const count = Math.max(200, Math.min(4000, starCount));
+        const count = lowPower ? Math.min(420, Math.max(200, starCount)) : Math.max(200, Math.min(4000, starCount));
         const s: Star[] = [];
 
         for (let i = 0; i < count; i++) {
@@ -146,7 +150,7 @@ export const StarField: React.FC<StarFieldProps> = React.memo(({
             });
         }
         return s;
-    }, [starCount]);
+    }, [starCount, lowPower]);
 
     // Shooting stars / Meteors state
     const meteorsRef = useRef<Meteor[]>([]);
@@ -159,10 +163,12 @@ export const StarField: React.FC<StarFieldProps> = React.memo(({
         const ctx = canvas.getContext('2d', { alpha: true });
         if (!ctx) return;
 
+        let lowTimer = 0;
+        let renderNow: null | ((t: number) => void) = null;
         const resize = () => {
             const parent = canvas.parentElement;
             if (parent) {
-                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                const dpr = lowPower ? 1 : Math.min(window.devicePixelRatio || 1, 2);
                 const rect = parent.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0) {
                     canvas.width = Math.round(rect.width * dpr);
@@ -170,6 +176,8 @@ export const StarField: React.FC<StarFieldProps> = React.memo(({
                     ctx.scale(dpr, dpr);
                     canvas.style.width = `${rect.width}px`;
                     canvas.style.height = `${rect.height}px`;
+                    // modo leve: redesenha na hora (mudar o tamanho apaga o desenho)
+                    if (lowPower && renderNow) requestAnimationFrame(renderNow);
                 }
             }
         };
@@ -201,7 +209,7 @@ export const StarField: React.FC<StarFieldProps> = React.memo(({
 
         const render = (time: number) => {
             if (!canvas) return;
-            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const dpr = lowPower ? 1 : Math.min(window.devicePixelRatio || 1, 2);
             const w = canvas.width / dpr;
             const h = canvas.height / dpr;
 
@@ -344,7 +352,7 @@ export const StarField: React.FC<StarFieldProps> = React.memo(({
             });
 
             // 3. Render Shooting Stars / Meteors
-            if (!isLight && showMeteors && meteorFrequency !== 'none') {
+            if (!isLight && showMeteors && !lowPower && meteorFrequency !== 'none') {
                 const intervalBase = meteorFrequency === 'frequent' ? 4500 : (meteorFrequency === 'rare' ? 14000 : 8000);
                 const intervalVariance = meteorFrequency === 'frequent' ? 2500 : 5000;
 
@@ -385,17 +393,24 @@ export const StarField: React.FC<StarFieldProps> = React.memo(({
                 meteorsRef.current = meteorsRef.current.filter(m => m.active);
             }
 
-            animationRef.current = requestAnimationFrame(render);
+            if (lowPower) {
+                window.clearTimeout(lowTimer);
+                lowTimer = window.setTimeout(() => { animationRef.current = requestAnimationFrame(render); }, 2500);
+            } else {
+                animationRef.current = requestAnimationFrame(render);
+            }
         };
+        renderNow = render;
 
         animationRef.current = requestAnimationFrame(render);
 
         return () => {
+            window.clearTimeout(lowTimer);
             resizeObserver.disconnect();
             window.removeEventListener('resize', resize);
             cancelAnimationFrame(animationRef.current);
         };
-    }, [stars, opacity, isLight, twinkleIntensity, twinkleSpeed, twinkleMode, showMeteors, meteorFrequency, showNebulaGlow, nebulaOpacity, starBrightness]);
+    }, [stars, opacity, isLight, twinkleIntensity, twinkleSpeed, twinkleMode, showMeteors, meteorFrequency, showNebulaGlow, nebulaOpacity, starBrightness, lowPower]);
 
     return (
         <div className={`absolute inset-0 pointer-events-none z-0 ${className}`}>

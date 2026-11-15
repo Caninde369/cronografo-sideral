@@ -2444,7 +2444,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                             onPlanetSizeChange={setPanelPlanetSize}
                                             zodiacSignSize={panelZodiacSignSize}
                                             onZodiacSignSizeChange={setPanelZodiacSignSize}
-                                            panelScale={leftPanelScale}
+                                            panelScale={isMobile ? 1.3 : leftPanelScale}
                                             onPanelScaleChange={setLeftPanelScale}
                                             panelPosition="left"
                                             onPanelPositionChange={() => {}}
@@ -2509,7 +2509,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                 <ChartStatisticsPanel 
                                     celestialData={celestialData}
                                     visiblePlanets={visiblePlanets}
-                                    scale={leftPanelScale}
+                                    scale={isMobile ? 1.3 : leftPanelScale}
                                     zodiacColorMode={zodiacColorMode}
                                     onZodiacColorModeChange={setZodiacColorMode}
                                     highlightFilter={highlightFilter}
@@ -2616,7 +2616,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                     isAnythingSelected={selectedAspects.length > 0 || selectedPlanets.length > 0}
                                     activeMenu={activeMenu}
                                     setActiveMenu={setActiveMenu}
-                                    scale={rightPanelScale}
+                                    scale={isMobile ? 1.3 : rightPanelScale}
                                     showAspectLines={showAspectLines}
                                     setShowAspectLines={handleToggleAspectLines}
                                     showNatalLines={showNatalLines}
@@ -2702,7 +2702,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                     setActiveMenu={setActiveMenu}
                                     houseFormat={houseFormat}
                                     onHouseFormatChange={setHouseFormat}
-                                    scale={rightPanelScale}
+                                    scale={isMobile ? 1.3 : rightPanelScale}
                                     showHouseLines={showHouseLines}
                                     setShowHouseLines={setShowHouseLines}
                                     zodiacColorMode={zodiacColorMode}
@@ -3236,6 +3236,7 @@ const handlePlanetClick = useCallback((id: string) => {
             <GlobalSvgDefs />
         {showStars && (
             <StarfieldBackground
+                lowPower={isMobile}
                 isLight={theme === 'light'}
                 opacity={starOpacityForBg}
                 starCount={starCount}
@@ -3749,7 +3750,7 @@ const handlePlanetClick = useCallback((id: string) => {
             <AnimatePresence>
                 {showCalendarPanel && (
                     <div 
-                        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-sm p-2 sm:p-4" 
+                        className="cal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-sm p-2 sm:p-4" 
                         onMouseDown={e => { if (e.target === e.currentTarget) setShowCalendarPanel(false); }}
                     >
                         <CalendarPanel 

@@ -18,6 +18,7 @@ export default function StarfieldBackground({
     showNebulaGlow = true,
     nebulaOpacity = 0.85,
     starBrightness = 1.0,
+    lowPower = false,
 }: StarfieldBackgroundProps) {
     return (
         <div 
@@ -36,6 +37,7 @@ export default function StarfieldBackground({
                 showNebulaGlow={showNebulaGlow}
                 nebulaOpacity={nebulaOpacity}
                 starBrightness={starBrightness}
+                lowPower={lowPower}
                 className="w-full h-full"
             />
         </div>

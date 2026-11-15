@@ -690,6 +690,9 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
         }
     };
 
+    // Celular: a janela mostra uma coluna por vez (formulário de data OU calendário)
+    const [mView, setMView] = useState<'form' | 'cal'>(defaultView ? 'cal' : 'form');
+
     if (!isOpen) return null;
 
     // ── Coluna direita ────────────────────────────────────────────────────────
@@ -1411,14 +1414,20 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
             transition={{ duration:0.15 }}
             onClick={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
+            className="cal-modal"
+            data-mview={mView}
             style={{ width:'min(98vw, 1400px)', height:'min(95vh, 860px)' }}
         >
-            <div className="bg-brand-surface border border-brand-border/10 rounded-2xl shadow-2xl flex overflow-hidden relative h-full w-full font-manrope">
+            <button type="button" className="m-only cal-switch" onClick={() => setMView(v => (v === 'form' ? 'cal' : 'form'))}>
+                <i className={`ti ${mView === 'form' ? 'ti-calendar' : 'ti-arrow-left'}`} aria-hidden="true" />
+                {mView === 'form' ? 'Abrir calendário' : 'Data, hora e local'}
+            </button>
+            <div className="cal-shell bg-brand-surface border border-brand-border/10 rounded-2xl shadow-2xl flex overflow-hidden relative h-full w-full font-manrope">
                 <div className="absolute top-0 left-0 right-0 h-px z-10 rounded-t-2xl"
                     style={{ backgroundColor: '#2A2A2A' }} />
 
                 {/* Coluna esquerda */}
-                <div className="flex flex-col p-5 gap-3.5 border-r border-brand-border/10 overflow-y-auto" style={{ width:'255px', flexShrink:0 }}>
+                <div className="cal-left flex flex-col p-5 gap-3.5 border-r border-brand-border/10 overflow-y-auto" style={{ width:'255px', flexShrink:0 }}>
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-bold uppercase text-brand-text-muted tracking-wider font-manrope">Data &amp; hora</span>
                         <div className="flex items-center gap-1">

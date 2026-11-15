@@ -94,6 +94,33 @@ body.is-mobile .qts-label{order:2;position:static!important;opacity:1!important;
 body.is-mobile .qts-label > div{background:none!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;height:auto!important;padding:0 2px!important;white-space:normal!important;justify-content:center;text-align:center;font-size:11px!important;font-weight:500!important;line-height:1.2;color:var(--m-fg)!important}
 body.is-mobile .qts-pop{visibility:visible!important;pointer-events:auto!important;position:fixed!important;left:0!important;right:0!important;top:auto!important;bottom:var(--m-tabs)!important;transform:none!important;width:100%!important;max-width:none!important;max-height:72dvh!important;margin:0!important;border-radius:20px 20px 0 0!important;overflow-y:auto!important;z-index:9995!important;cursor:default}
 
+/* ── só no celular ── */
+.m-only{display:none!important}
+body.is-mobile .m-only{display:flex!important}
+
+/* ── leveza: sem desfoque de fundo, sem filtros e sem piscar dentro do relógio ── */
+body.is-mobile *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+body.is-mobile [data-tour="clock"] svg *{filter:none!important}
+body.is-mobile .inner-twinkle-star,body.is-mobile [data-tour="clock"] .animate-pulse{animation:none!important}
+
+/* ── linha do tempo ── */
+body.is-mobile .scrub-mode,body.is-mobile .scrub-head-right,body.is-mobile .scrub-free{display:none!important}
+.scrub-zoom{position:absolute;right:0;top:50%;transform:translateY(-50%);align-items:center;gap:4px}
+.scrub-zoom button{height:32px;padding:0 9px;border-radius:16px;border:1px solid var(--m-line);background:transparent;color:var(--m-fg);font:500 11.5px/1 'DM Sans',sans-serif;cursor:pointer}
+.scrub-zoom button.is-on{background:var(--m-gold);border-color:transparent;color:#1A1408;font-weight:700}
+body.is-mobile .scrub-track{padding:15px 0!important}
+body.is-mobile .scrub-grad{height:36px!important}
+
+/* ── janela Data & hora: uma coluna por vez ── */
+body.is-mobile .cal-overlay{padding:0!important;align-items:stretch!important;justify-content:stretch!important}
+body.is-mobile .cal-modal{width:100vw!important;height:100dvh!important;display:flex;flex-direction:column;transform:none!important}
+body.is-mobile .cal-shell{flex:1 1 auto;min-height:0;height:auto!important;border-radius:0!important;border:0!important}
+body.is-mobile .cal-modal[data-mview="form"] [data-tour="calendar-panel"]{display:none!important}
+body.is-mobile .cal-modal[data-mview="cal"] .cal-left{display:none!important}
+body.is-mobile .cal-left{width:100%!important;flex:1 1 auto!important;border-right:0!important;padding:16px 16px 28px!important}
+.cal-switch{flex:none;height:48px;align-items:center;justify-content:center;gap:8px;border:0;background:#F5D98A;color:#1A1408;font:700 14px/1 'DM Sans',sans-serif;cursor:pointer}
+.cal-switch i{font-size:18px}
+
 /* ── tela cheia ── */
 body.is-mobile[data-mimmersive] .qts-root{visibility:hidden!important}
 
