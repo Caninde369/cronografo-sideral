@@ -14,6 +14,7 @@ import { Starfield } from './Starfield';
 import { auth } from '../../lib/firebase';
 
 const HeroClock = lazy(() => import('./HeroClock'));
+const DemoBench = lazy(() => import('./DemoBench'));
 
 const EASE = [0.32, 0.72, 0, 1] as const;
 
@@ -35,7 +36,16 @@ const Reveal: React.FC<{ children: React.ReactNode; className?: string; style?: 
   );
 };
 
-const Spectral: React.FC = () => <div className="lp-wrap"><div className="lp-spec" /></div>;
+/** Linha espectral: um cometa atravessa a tela de lado a lado sobre um rastro apagado. */
+let cometSeed = 0;
+const Spectral: React.FC = () => {
+  const delay = useRef(`${(cometSeed++ * 1.7) % 5}s`).current;
+  return (
+    <div className="lp-comet" aria-hidden="true">
+      <span className="lp-comet-run" style={{ animationDelay: delay }}><span className="lp-comet-tail" /></span>
+    </div>
+  );
+};
 
 const Logo: React.FC = () => (
   <span className="lp-logo">
@@ -119,6 +129,9 @@ const Hero: React.FC = () => {
           <a className="lp-btn lp-btn-gold" href={waLink(LANDING.msgFundador)} target="_blank" rel="noopener noreferrer">Quero minha vaga de Fundador</a>
           <a className="lp-tx" href={LANDING.appUrl}>Abrir o céu de agora</a>
         </motion.div>
+        <motion.a className="lp-hint" href="#ao-vivo" {...item(3)}>
+          <i className="ti ti-hand-finger" aria-hidden="true" />Teste o relógio aqui mesmo
+        </motion.a>
       </div>
       <motion.div className="lp-hero-clock" {...item(1)}>
         <div className="lp-halo" aria-hidden="true" />
@@ -168,6 +181,33 @@ const Showcase: React.FC = () => {
               : <div className="lp-shot-ph"><i className="ti ti-photo" aria-hidden="true" /><span>{cur.t}</span></div>}
           </motion.div>
         </div>
+      </Reveal>
+    </section>
+  );
+};
+
+// ── Teste agora: relógio e painéis de verdade ────────────────────────────────
+const LiveDemo: React.FC = () => {
+  const ref = useRef<HTMLElement>(null);
+  const [show, setShow] = useState(false);
+  // só carrega o motor quando a seção chega perto da tela
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setShow(true); io.disconnect(); } }, { rootMargin: '600px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <section ref={ref} id="ao-vivo" className="lp-wrap lp-sec">
+      <Reveal style={{ maxWidth: 760 }}>
+        <h2 className="lp-h2">Teste agora, no céu de agora.</h2>
+        <p className="lp-p">Toque num astro ou num aspecto. O relógio mostra só o que você escolheu.</p>
+      </Reveal>
+      <Reveal>
+        {show
+          ? <Suspense fallback={<div className="lp-bench-wait" />}><DemoBench /></Suspense>
+          : <div className="lp-bench-wait" />}
       </Reveal>
     </section>
   );
@@ -489,6 +529,9 @@ export const LandingSite: React.FC = () => {
   useEffect(() => {
     document.title = 'Cronógrafo Sideral · O céu de agora na tela do seu atendimento';
     document.documentElement.style.background = '#040004';
+    // a rodinha e o arrasto rolam a página, não dão zoom no relógio
+    document.body.dataset.tourView = 'locked';
+    return () => { delete document.body.dataset.tourView; };
   }, []);
 
   useEffect(() => {
@@ -507,6 +550,8 @@ export const LandingSite: React.FC = () => {
       <Nav />
       <main id="conteudo">
         <Hero />
+        <Spectral />
+        <LiveDemo />
         <Spectral />
         <Showcase />
         <Problem />
@@ -582,6 +627,14 @@ html,body{background:#040004;margin:0}
 .lp-tx:hover{text-decoration-color:var(--fg)}
 .lp-plain{text-decoration:none}
 
+/* cometa espectral (atravessa a tela inteira) */
+.lp-comet{position:relative;z-index:1;height:9px;margin-top:128px;overflow:hidden}
+.lp-comet::before{content:"";position:absolute;left:0;right:0;top:4px;height:1px;background:linear-gradient(90deg,transparent,rgba(72,112,255,.16) 15%,rgba(34,211,238,.16) 35%,rgba(250,204,21,.14) 55%,rgba(251,146,60,.14) 75%,rgba(239,68,68,.12) 90%,transparent)}
+.lp-comet-run{position:absolute;top:0;left:0;width:100%;height:9px;transform:translateX(-100%);animation:lp-comet 6.5s cubic-bezier(.45,.05,.25,1) infinite}
+.lp-comet-tail{position:absolute;right:0;top:4px;width:min(46%,620px);height:1px;background:linear-gradient(90deg,transparent,#4870FF 35%,#22D3EE 58%,#FACC15 76%,#FB923C 88%,#EF4444 96%,#fff)}
+.lp-comet-tail::after{content:"";position:absolute;right:-2px;top:-2px;width:5px;height:5px;border-radius:50%;background:#fff;box-shadow:0 0 6px 2px rgba(255,255,255,.95),0 0 14px 5px rgba(200,220,255,.5)}
+@keyframes lp-comet{0%{transform:translateX(-100%)}70%,100%{transform:translateX(150%)}}
+
 /* linha espectral */
 .lp-spec{height:1px;margin-top:128px;background:linear-gradient(90deg,#4870FF,#22D3EE,#FACC15,#FB923C,#EF4444,#4870FF);background-size:200% 100%;animation:lp-slide 6s linear infinite,lp-draw 1.2s var(--ease) both;transform-origin:left;animation-timeline:auto,view();animation-range:normal,entry 0% entry 80%}
 .lp-spec-top{margin:0 0 4px;position:absolute;top:0;left:0;right:0;border-radius:16px 16px 0 0}
@@ -606,6 +659,29 @@ html,body{background:#040004;margin:0}
 .lp-float{position:relative;animation:lp-float 8s ease-in-out infinite}
 @keyframes lp-breathe{from{opacity:.45;transform:scale(.97)}to{opacity:1;transform:scale(1.03)}}
 @keyframes lp-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+/* dica do hero */
+.lp-hint{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;min-height:44px;color:var(--mut)!important;text-decoration:none;font-size:16px}
+.lp-hint i{font-size:20px;color:#22D3EE}
+.lp-hint:hover{color:var(--fg)!important}
+
+/* teste agora */
+.lp .touch-none{touch-action:pan-y!important}
+.lp-bench{display:grid;grid-template-columns:minmax(260px,300px) minmax(0,1fr) minmax(260px,300px);gap:24px;align-items:start}
+.lp-bench.is-narrow{grid-template-columns:1fr;gap:16px}
+.lp-bench-panel{display:flex;flex-direction:column;border:1px solid var(--line2);border-radius:20px;background:#0A080E;overflow:hidden}
+.lp-bench-title{padding:16px 18px 6px;font-family:'Playfair Display',Georgia,serif;font-size:22px}
+.lp-bench-scroll{height:560px;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column}
+.lp-bench-scroll > *{flex:1 1 auto;min-height:0}
+.lp-bench-clock{position:relative;display:flex;flex-direction:column;align-items:center;gap:16px;min-width:0}
+.lp-bench-clear{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:999px;border:1px solid var(--line2);background:#0A080E;color:var(--fg);font:500 15px/1 'DM Sans',sans-serif;cursor:pointer}
+.lp-bench-mobile{display:flex;flex-direction:column;gap:12px}
+.lp-bench-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;border:1px solid var(--line2);border-radius:999px}
+.lp-bench-tabs button{min-height:44px;border-radius:999px;border:0;background:transparent;color:var(--mut);font:600 16px/1 'DM Sans',sans-serif;cursor:pointer}
+.lp-bench-tabs button.is-on{background:var(--fg);color:#040004}
+.lp-bench.is-narrow .lp-bench-clock{max-width:560px;width:100%;margin:0 auto}
+.lp-bench.is-narrow .lp-bench-scroll{height:440px}
+.lp-bench-wait{min-height:560px;border-radius:20px;border:1px dashed var(--line2)}
 
 /* vitrine */
 .lp-show{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.6fr);gap:40px;align-items:start}
@@ -762,6 +838,23 @@ html,body{background:#040004;margin:0}
   .lp-btn{width:100%}
   .lp-hero-cta{gap:16px}
   .lp-final{padding-bottom:96px}
+  .lp-comet{margin-top:80px}
+  .lp-hero-clock{max-width:420px;width:100%}
+  .lp-lead,.lp-p{font-size:17px}
+  .lp-h3{font-size:20px}
+  .lp-card{padding:22px}
+  .lp-cmp-card{padding:24px}
+  .lp-price span{font-size:38px}
+  .lp-faq summary{font-size:17px;min-height:64px}
+  .lp-manifesto{font-size:30px;line-height:1.25}
+  .lp-wa{right:16px;bottom:16px}
+  .lp-bench-scroll{height:420px}
+  .lp-hint{align-self:center}
+}
+@media (max-width:380px){
+  .lp-h1{font-size:34px}
+  .lp-h2{font-size:28px}
+  .lp-logo span{display:none}
 }
 @media (prefers-reduced-motion:reduce){
   .lp *{animation:none!important;transition:none!important}
