@@ -23,7 +23,7 @@ export const LANDING = {
   // Cartão do Vitalício: true abre o link do Nubank (VITE_CHECKOUT_URL_LIFETIME).
   // Fica false até o link no Nubank cobrar o valor novo (R$1.457); enquanto isso o cartão vai pelo WhatsApp.
   cartaoPeloLink: false,
-  precoAnual: 1100, // PROVISÓRIO (10 × R$110 = 2 meses grátis) até o Rafa confirmar
+  precoAnual: 990, // Rafa 17/11/2026: 3 meses grátis (R$82,50 por mês)
   precoFundador: 1457,
   parcelasFundador: 12,
   vagasFundador: 21,
