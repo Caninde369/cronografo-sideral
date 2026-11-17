@@ -332,7 +332,7 @@ export const PaymentPlansModal: React.FC<PaymentPlansModalProps> = ({
               </div>
               <div className="mt-2.5 h-[30px] px-2.5 rounded-lg flex items-center gap-1.5 text-[11px] whitespace-nowrap overflow-hidden border border-orange-400/30 text-orange-200">
                 <i className="ti ti-hourglass-high text-[13px] shrink-0" aria-hidden="true" />
-                <span className="truncate">Liberado até <span className="ff-num-sm">{PAYMENT_CONFIG.freeLaunchUntil}</span></span>
+                <span className="truncate">Limitado até <span className="ff-num-sm">{PAYMENT_CONFIG.freeLaunchUntil.slice(0, 5)}</span></span>
               </div>
               <div className="mt-2 text-white/70">
                 {feature('Relógio sideral ao vivo', 'rgba(245,242,235,.55)')}
@@ -366,7 +366,7 @@ export const PaymentPlansModal: React.FC<PaymentPlansModalProps> = ({
                   <span className="text-[12.5px] text-white/65 mb-2">/ mês</span>
                 </div>
                 <div className="mt-1 h-5 text-[11.5px] text-indigo-300 whitespace-nowrap truncate">
-                  cerca de R$ {Math.round(PAYMENT_CONFIG.monthlyPrice / 30)} por dia · cancele quando quiser
+                  promoção de pré-lançamento · no lançamento, R$ {formatBRL(PAYMENT_CONFIG.monthlyLaunchPrice)}
                 </div>
                 <div className="mt-3 text-[12.5px]">
                   {feature(<b className="font-medium">Qualquer ano e século, sem limites</b>, '#A5B4FC')}

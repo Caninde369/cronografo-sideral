@@ -31,11 +31,13 @@ export const PAYMENT_CONFIG = {
 
   // Preços exibidos (o valor cobrado é o do link de checkout no Nubank — manter iguais)
   // Iguais à landing (src/landing/config.ts): Pro mensal e Fundador (Vitalício)
-  monthlyPrice: 127,
-  lifetimePrice: 1997,
+  monthlyPrice: 110,
+  // Valor do Mensal depois do lançamento (o de hoje é promoção de pré-lançamento)
+  monthlyLaunchPrice: 350,
+  lifetimePrice: 1457,
 
-  // Plano Gratuito: as liberações atuais valem até esta data (período de lançamento)
-  freeLaunchUntil: '31/12/2026',
+  // Plano Gratuito: acesso limitado até esta data; depois segue gratuito com menos recursos
+  freeLaunchUntil: '03/12/2026',
 
   // Plano Vitalício: total de vagas
   lifetimeTotalSpots: 21,
