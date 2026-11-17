@@ -7,10 +7,11 @@
 export const LANDING = {
   // Só números, com 55 e DDD. Pode ser trocado no Vercel (VITE_WHATSAPP_NUMBER), como no app.
   whatsapp: ((import.meta.env.VITE_WHATSAPP_NUMBER as string | undefined) || '5511988791539').replace(/\D/g, ''),
-  msgFundador: 'Olá, Rafael! Quero saber sobre a vaga de Fundador do Cronógrafo.',
-  msgPro: 'Olá, Rafael! Quero ser avisado quando o Pro do Cronógrafo abrir.',
-  msgMensal: 'Olá, Rafael! Quero assinar o Mensal do Cronógrafo pagando por Pix.',
-  msgGeral: 'Olá, Rafael! Vim pela página do Cronógrafo e tenho uma dúvida.',
+  msgFundador: 'Olá! Quero saber sobre a vaga de Fundador do Cronógrafo Sideral.',
+  msgPro: 'Olá! Quero ser avisado quando o Pro do Cronógrafo Sideral abrir.',
+  msgMensal: 'Olá! Quero assinar o plano Mensal do Cronógrafo Sideral pagando por Pix.',
+  msgAnual: 'Olá! Quero assinar o plano Anual do Cronógrafo Sideral.',
+  msgGeral: 'Olá! Vim pelo site do Cronógrafo Sideral e tenho uma dúvida.',
   appUrl: '/app',
   instagram: 'https://www.instagram.com/cronografosideral/',
   youtube: 'https://www.youtube.com/@Cronografosideral',
@@ -22,7 +23,7 @@ export const LANDING = {
   // Cartão do Vitalício: true abre o link do Nubank (VITE_CHECKOUT_URL_LIFETIME).
   // Fica false até o link no Nubank cobrar o valor novo (R$1.457); enquanto isso o cartão vai pelo WhatsApp.
   cartaoPeloLink: false,
-  precoAnual: 1197,
+  precoAnual: 1100, // PROVISÓRIO (10 × R$110 = 2 meses grátis) até o Rafa confirmar
   precoFundador: 1457,
   parcelasFundador: 12,
   vagasFundador: 21,

@@ -127,19 +127,24 @@ const FOUNDER_FEATURES = [
   'PDF em 300 DPI para impressão',
   'Suporte prioritário',
 ];
-const FOUNDER_VISIBLE = 5;
+const FOUNDER_VISIBLE = 4;
+type Billing = 'mensal' | 'anual';
+const ANUAL_CHEIO = LANDING.precoMensal * 12;                        // 12 meses no Mensal
+const ANUAL_ECONOMIA = ANUAL_CHEIO - LANDING.precoAnual;
+const ANUAL_MES = Math.round((LANDING.precoAnual / 12) * 100) / 100;
+const MESES_GRATIS = Math.round(ANUAL_ECONOMIA / LANDING.precoMensal);
 
 type Pay = 'pix' | 'pixParc' | 'card' | 'entrada';
 const PRICE_F = `R$ ${brl(LANDING.precoFundador)}`;
 const PAY_OPTIONS: { id: Pay; icon: string; title: string; sub: string; msg: string }[] = [
   { id: 'pix', icon: 'ti-qrcode', title: 'Pix à vista', sub: `${PRICE_F} de uma vez`,
-    msg: `Olá, Rafael! Quero a vaga de Fundador do Cronógrafo pagando com Pix à vista (${PRICE_F}).` },
+    msg: `Olá! Quero a vaga de Fundador do Cronógrafo pagando com Pix à vista (${PRICE_F}).` },
   { id: 'pixParc', icon: 'ti-calendar-repeat', title: 'Pix Parcelado', sub: 'Se o seu banco oferece, você parcela no app dele',
-    msg: `Olá, Rafael! Quero a vaga de Fundador do Cronógrafo pagando com Pix Parcelado pelo meu banco (${PRICE_F}).` },
+    msg: `Olá! Quero a vaga de Fundador do Cronógrafo pagando com Pix Parcelado pelo meu banco (${PRICE_F}).` },
   { id: 'card', icon: 'ti-credit-card', title: 'Cartão de crédito', sub: 'Parcelado, pelo link seguro do Nubank',
-    msg: `Olá, Rafael! Quero a vaga de Fundador do Cronógrafo pagando no cartão de crédito (${PRICE_F}).` },
+    msg: `Olá! Quero a vaga de Fundador do Cronógrafo pagando no cartão de crédito (${PRICE_F}).` },
   { id: 'entrada', icon: 'ti-coins', title: 'Entrada + Pix mensal', sub: 'Combinamos a entrada e as parcelas no WhatsApp',
-    msg: `Olá, Rafael! Quero a vaga de Fundador do Cronógrafo com entrada e o restante em Pix mensal. Podemos combinar?` },
+    msg: `Olá! Quero a vaga de Fundador do Cronógrafo com entrada e o restante em Pix mensal. Podemos combinar?` },
 ];
 
 const LICENCA = 'A vaga de Fundador é a compra de uma licença de uso vitalícia. Não é investimento e não dá participação na empresa.';
@@ -149,6 +154,8 @@ const Check: React.FC<{ gold?: boolean }> = ({ gold }) => <i className={`ti ti-c
 const PlansDialog: React.FC<{ open: boolean; onClose: () => void; onFree: () => void }> = ({ open, onClose, onFree }) => {
   const [pay, setPay] = useState<Pay>('pix');
   const [allF, setAllF] = useState(false);
+  const [billing, setBilling] = useState<Billing>('mensal');
+  const anual = billing === 'anual';
   useEscape(open, onClose);
 
   const total = LANDING.vagasFundador;
@@ -169,6 +176,13 @@ const PlansDialog: React.FC<{ open: boolean; onClose: () => void; onFree: () => 
               <Logo />
               <h2 id="hs-plans-t" className="hs-serif hs-plans-t">Escolha seu acesso</h2>
               <p className="hs-plans-p">Valores de pré-lançamento. O Cronógrafo segue em desenvolvimento contínuo.</p>
+              <div className="hs-bill" role="radiogroup" aria-label="Forma de assinatura">
+                <span className="hs-bill-knob" style={{ transform: anual ? 'translateX(100%)' : 'none' }} aria-hidden="true" />
+                <button role="radio" aria-checked={!anual} className={!anual ? 'is-on' : ''} onClick={() => setBilling('mensal')}>Mensal</button>
+                <button role="radio" aria-checked={anual} className={anual ? 'is-on' : ''} onClick={() => setBilling('anual')}>
+                  Anual{MESES_GRATIS > 0 && <em>{MESES_GRATIS} meses grátis</em>}
+                </button>
+              </div>
             </motion.header>
 
             <div className="hs-cards">
@@ -178,33 +192,59 @@ const PlansDialog: React.FC<{ open: boolean; onClose: () => void; onFree: () => 
                 <p className="hs-price"><span className="hs-mono">R$ 0</span></p>
                 <p className="hs-card-lead">Acesso limitado até {LANDING.gratuitoAte}. Depois, segue gratuito com menos recursos.</p>
                 <ul className="hs-list">{FREE_FEATURES.map(f => <li key={f}><Check />{f}</li>)}</ul>
+                <div className="hs-howpay hs-push">
+                  <p className="hs-howpay-t">Como começar</p>
+                  <p className="hs-howpay-p"><i className="ti ti-brand-google" aria-hidden="true" /> Entre com sua conta Google. Não pede cartão.</p>
+                </div>
                 <button className="hs-pill hs-card-cta" onClick={onFree}>Testar gratuitamente</button>
               </motion.article>
 
-              {/* Mensal */}
+              {/* Mensal / Anual (chave no topo) */}
               <motion.article className="hs-card hs-card-month" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1, ease: EASE }}>
-                <h3 className="hs-serif hs-card-t">Mensal</h3>
-                <p className="hs-price">
-                  <s className="hs-mono hs-old">R$ {brl(LANDING.precoMensalLancamento)}</s>
-                  <span className="hs-mono">R$ {brl(LANDING.precoMensal)}</span><span className="hs-per">/mês</span>
-                </p>
-                <p className="hs-card-lead">Preço promocional de pré-lançamento. No lançamento, o Mensal passa a R$ {brl(LANDING.precoMensalLancamento)}.</p>
-                <ul className="hs-list">{MONTHLY_FEATURES.map(f => <li key={f}><Check />{f}</li>)}</ul>
-                <div className="hs-howpay">
-                  <p className="hs-howpay-t">Como pagar</p>
-                  <p className="hs-howpay-p"><i className="ti ti-qrcode" aria-hidden="true" /> Pix todo mês. Acesso liberado em até {PAYMENT_CONFIG.activationDeadline}.</p>
+                <div className="hs-card-top">
+                  <h3 className="hs-serif hs-card-t">{anual ? 'Anual' : 'Mensal'}</h3>
+                  {anual && ANUAL_ECONOMIA > 0 && <span className="hs-tag">Economize R$ {brl(ANUAL_ECONOMIA)}</span>}
                 </div>
-                <a className="hs-pill hs-card-cta" href={waLink(LANDING.msgMensal)} target="_blank" rel="noopener noreferrer">
-                  <i className="ti ti-brand-whatsapp" aria-hidden="true" /> Assinar o Mensal
+                {anual ? (
+                  <>
+                    <p className="hs-price">
+                      <s className="hs-mono hs-old">R$ {brl(ANUAL_CHEIO)}</s>
+                      <span className="hs-mono">R$ {brl(LANDING.precoAnual)}</span><span className="hs-per">/ano</span>
+                    </p>
+                    <p className="hs-card-lead">Um ano inteiro de acesso, o que dá R$ {brl(ANUAL_MES)} por mês. No lançamento, o Mensal passa a R$ {brl(LANDING.precoMensalLancamento)}.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="hs-price">
+                      <s className="hs-mono hs-old">R$ {brl(LANDING.precoMensalLancamento)}</s>
+                      <span className="hs-mono">R$ {brl(LANDING.precoMensal)}</span><span className="hs-per">/mês</span>
+                    </p>
+                    <p className="hs-card-lead">Preço promocional de pré-lançamento. No lançamento, o Mensal passa a R$ {brl(LANDING.precoMensalLancamento)}.</p>
+                  </>
+                )}
+                <ul className="hs-list">{MONTHLY_FEATURES.map(f => <li key={f}><Check />{f}</li>)}</ul>
+                <div className="hs-howpay hs-push">
+                  <p className="hs-howpay-t">Como pagar</p>
+                  {anual ? (
+                    <p className="hs-howpay-p"><i className="ti ti-qrcode" aria-hidden="true" /> Pix à vista ou Pix Parcelado pelo seu banco. Acesso liberado em até {PAYMENT_CONFIG.activationDeadline}.</p>
+                  ) : (
+                    <p className="hs-howpay-p"><i className="ti ti-qrcode" aria-hidden="true" /> Pix todo mês. Acesso liberado em até {PAYMENT_CONFIG.activationDeadline}.</p>
+                  )}
+                </div>
+                <a className="hs-pill hs-pill-solid hs-card-cta" href={waLink(anual ? LANDING.msgAnual : LANDING.msgMensal)} target="_blank" rel="noopener noreferrer">
+                  {anual ? 'Assinar o Anual' : 'Assinar o Mensal'} <i className="ti ti-arrow-right" aria-hidden="true" />
                 </a>
               </motion.article>
 
               {/* Vitalício · Fundador */}
               <motion.article className="hs-card hs-card-founder" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.15, ease: EASE }}>
-                <h3 className="hs-serif hs-card-t hs-gold">Vitalício · Fundador</h3>
+                <div className="hs-card-top">
+                  <h3 className="hs-serif hs-card-t hs-gold">Vitalício · Fundador</h3>
+                  <span className="hs-tag hs-tag-gold">{left > 0 ? `${left} de ${total} vagas` : 'Esgotado'}</span>
+                </div>
                 <p className="hs-price hs-gold"><span className="hs-mono">{PRICE_F}</span><span className="hs-per">uma vez</span></p>
                 <p className="hs-card-lead">
-                  Pague uma vez, use para sempre. {left > 0 ? (sold > 0 ? `Restam ${left} de ${total} vagas.` : `${total} vagas.`) : 'Vagas esgotadas.'}
+                  Pague uma vez e use para sempre, sem mensalidade.
                 </p>
                 <ul className="hs-list">
                   {(allF ? FOUNDER_FEATURES : FOUNDER_FEATURES.slice(0, FOUNDER_VISIBLE)).map(f => <li key={f}><Check gold />{f}</li>)}
@@ -214,13 +254,16 @@ const PlansDialog: React.FC<{ open: boolean; onClose: () => void; onFree: () => 
                 </button>
                 <fieldset className="hs-howpay hs-pay">
                   <legend className="hs-howpay-t">Como pagar</legend>
-                  {PAY_OPTIONS.map(o => (
-                    <label key={o.id} className={`hs-opt ${pay === o.id ? 'is-on' : ''}`}>
-                      <input type="radio" name="hs-pay" value={o.id} checked={pay === o.id} onChange={() => setPay(o.id)} />
-                      <i className={`ti ${o.icon}`} aria-hidden="true" />
-                      <span><b>{o.title}</b><small>{o.sub}</small></span>
-                    </label>
-                  ))}
+                  <div className="hs-opts">
+                    {PAY_OPTIONS.map(o => (
+                      <label key={o.id} className={`hs-opt ${pay === o.id ? 'is-on' : ''}`}>
+                        <input type="radio" name="hs-pay" value={o.id} checked={pay === o.id} onChange={() => setPay(o.id)} />
+                        <i className={`ti ${o.icon}`} aria-hidden="true" />
+                        <b>{o.title}</b>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="hs-opt-sub" aria-live="polite">{opt.sub}</p>
                 </fieldset>
                 <a className="hs-pill hs-pill-gold hs-card-cta" href={founderHref} target="_blank" rel="noopener noreferrer">
                   {founderCta} <i className="ti ti-arrow-right" aria-hidden="true" />
@@ -230,7 +273,7 @@ const PlansDialog: React.FC<{ open: boolean; onClose: () => void; onFree: () => 
             </div>
 
             <p className="hs-licenca">{LICENCA}</p>
-            <p className="hs-help">Dúvidas? <a href={waLink(LANDING.msgFundador)} target="_blank" rel="noopener noreferrer">Fale com o Rafael no WhatsApp</a></p>
+            <p className="hs-help">Ficou com alguma dúvida? <a href={waLink(LANDING.msgGeral)} target="_blank" rel="noopener noreferrer">Converse com o criador do Cronógrafo</a></p>
           </div>
         </motion.div>
       )}
@@ -326,16 +369,15 @@ html,body{background:#040004;margin:0}
 .hs-top-logo{display:none}
 .hs-panel-logo,.hs-top-logo .hs-logo{height:36px;display:flex;align-items:center}
 .hs-comet{position:absolute;left:0;right:0;top:var(--comet-top);height:9px;margin-top:-4px;z-index:3;overflow:hidden;pointer-events:none}
-.hs-comet::before{content:'';position:absolute;left:0;right:0;top:4px;height:1px;background:linear-gradient(90deg,#4870FF,#22D3EE,#FACC15,#FB923C,#EF4444);opacity:.22}
-.hs-comet-run{position:absolute;top:0;left:0;width:40vw;height:9px;transform:translateX(-100%);animation:hs-comet 9s cubic-bezier(.45,.05,.55,.95) 1.2s infinite;will-change:transform}
+.hs-comet-run{position:absolute;top:0;left:0;width:50vw;height:9px;transform:translateX(-100%);animation:hs-comet 12s cubic-bezier(.45,.05,.55,.95) 1.2s infinite;will-change:transform}
 .hs-comet-tail{position:absolute;inset:4px 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,#4870FF 35%,#22D3EE 58%,#FACC15 76%,#FB923C 88%,#EF4444 96%,#fff)}
 .hs-comet-tail::after{content:'';position:absolute;right:-2px;top:-2px;width:5px;height:5px;border-radius:50%;background:#fff;box-shadow:0 0 8px 2px rgba(255,255,255,.75),0 0 18px 4px rgba(250,204,21,.35)}
-@keyframes hs-comet{0%{transform:translateX(-100%)}33.4%,100%{transform:translateX(250%)}}
+@keyframes hs-comet{0%{transform:translateX(-100%)}33.4%,100%{transform:translateX(200%)}}
 .hs-enter{background:none;border:0;color:var(--fg);font-size:14px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;cursor:pointer;padding:12px 0;min-height:44px;transition:opacity .4s var(--ease)}
 .hs-enter:hover{opacity:.7}
 
-.hs-main{position:relative;z-index:1;height:100vh;height:100svh;min-height:640px;display:grid;grid-template-columns:minmax(460px,32%) 1fr}
-.hs-panel{position:relative;background:rgba(9,7,11,.5);display:flex;justify-content:flex-start;padding:44px 48px 32px clamp(72px,8vw,160px)}
+.hs-main{position:relative;z-index:1;height:100vh;height:100svh;min-height:640px;display:grid;grid-template-columns:minmax(540px,36%) 1fr}
+.hs-panel{position:relative;background:rgba(9,7,11,.5);display:flex;justify-content:flex-start;padding:44px 40px 32px clamp(136px,calc(8vw + 64px),224px)}
 .hs-col{width:100%;max-width:400px;height:100%;display:flex;flex-direction:column}
 .hs-copy{margin:auto 0}
 .hs-over{margin:0;font-size:13px;white-space:nowrap;letter-spacing:.2em;text-transform:uppercase;color:var(--fg)}
@@ -381,9 +423,24 @@ html,body{background:#040004;margin:0}
 .hs-plans-head{text-align:center;display:flex;flex-direction:column;align-items:center}
 .hs-plans-t{margin:28px 0 0;font-size:clamp(40px,5vw,60px);line-height:1.05}
 .hs-plans-p{margin:14px 0 0;color:var(--mut);font-size:16px;max-width:520px}
-.hs-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin-top:52px;align-items:start}
+.hs-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin-top:44px;align-items:stretch}
+.hs-bill{position:relative;display:inline-grid;grid-template-columns:1fr 1fr;margin-top:30px;padding:4px;border:1px solid var(--line2);border-radius:999px;background:rgba(10,7,12,.8)}
+.hs-bill-knob{position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 4px);border-radius:999px;background:var(--fg);transition:transform .45s var(--ease)}
+.hs-bill button{position:relative;z-index:1;min-height:44px;min-width:150px;padding:0 22px;border:0;background:none;border-radius:999px;color:var(--mut);font-size:13px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:color .45s var(--ease)}
+.hs-bill button.is-on{color:#040004}
+.hs-bill em{font-style:normal;font-size:11px;letter-spacing:.04em;text-transform:none;color:#4ADE80}
+.hs-bill button.is-on em{color:#0f5132}
+.hs-bill button:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.hs-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.hs-tag{font-size:12px;line-height:1;padding:7px 10px;border-radius:999px;border:1px solid rgba(74,222,128,.4);color:#86EFAC;white-space:nowrap}
+.hs-tag-gold{border-color:rgba(212,175,55,.5);color:var(--gold2)}
+.hs-push{margin-top:auto!important}
+.hs-card-free .hs-list{margin-bottom:22px}
+.hs-card-month .hs-list{margin-bottom:22px}
+.hs-pill-solid{background:var(--fg);color:#040004!important}
+.hs-pill-solid:hover{background:#fff}
 .hs-card{position:relative;display:flex;flex-direction:column;border:1px solid var(--line2);border-radius:22px;padding:30px 26px 26px;background:rgba(10,7,12,.85)}
-.hs-card-month{border-color:#5a5466}
+.hs-card-month{border-color:#6b6478;background:rgba(16,12,20,.9)}
 .hs-card-founder{border-color:var(--gold);background:linear-gradient(180deg,rgba(212,175,55,.07),rgba(10,7,12,.9) 40%)}
 .hs-card-t{margin:0;font-size:30px;line-height:1.1}
 .hs-price{margin:14px 0 0;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
@@ -403,11 +460,13 @@ html,body{background:#040004;margin:0}
 .hs-howpay-p .ti{font-size:18px;color:var(--fg)}
 .hs-pay{display:flex;flex-direction:column;gap:8px;border-top:0!important;padding-top:0}
 .hs-pay legend{float:left;width:100%;margin:0 0 4px;padding-top:18px;border-top:1px solid rgba(212,175,55,.3)}
-.hs-opt{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--line2);border-radius:14px;cursor:pointer;transition:border-color .3s,background .3s}
+.hs-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hs-opt-sub{margin:4px 2px 0;font-size:13px;line-height:1.45;color:var(--dim);min-height:2.9em}
+.hs-opt{display:flex;align-items:center;gap:10px;min-height:48px;padding:10px 12px;border:1px solid var(--line2);border-radius:14px;cursor:pointer;transition:border-color .3s,background .3s}
 .hs-opt input{position:absolute;opacity:0;pointer-events:none}
 .hs-opt .ti{font-size:20px;color:var(--mut);margin-top:1px}
 .hs-opt span{display:flex;flex-direction:column;gap:2px}
-.hs-opt b{font-weight:500;font-size:15px;color:var(--fg)}
+.hs-opt b{font-weight:500;font-size:14px;line-height:1.25;color:var(--fg)}
 .hs-opt small{font-size:13px;line-height:1.4;color:var(--dim)}
 .hs-opt:hover{border-color:#5a5466}
 .hs-opt.is-on{border-color:var(--gold);background:rgba(212,175,55,.08)}
@@ -422,8 +481,8 @@ html,body{background:#040004;margin:0}
 @media (max-width:1180px){
   .hs{--comet-top:80px}
   .hs-top{padding:36px 36px 0}
-  .hs-main{grid-template-columns:minmax(400px,38%) 1fr}
-  .hs-panel{padding:36px 32px 28px 64px}
+  .hs-main{grid-template-columns:minmax(440px,44%) 1fr}
+  .hs-panel{padding:36px 28px 28px 96px}
   .hs-cards{grid-template-columns:1fr 1fr}
   .hs-card-founder{grid-column:1 / -1;order:-1}
 }
@@ -449,6 +508,9 @@ html,body{background:#040004;margin:0}
   .hs-plans-t{margin-top:22px}
   .hs-plans-p{font-size:15px}
   .hs-cards{grid-template-columns:1fr;gap:16px;margin-top:36px}
+  .hs-bill{width:100%;max-width:360px}
+  .hs-bill button{min-width:0;padding:0 10px;letter-spacing:.08em}
+  .hs-bill em{white-space:nowrap}
   .hs-card{padding:26px 20px 22px}
   .hs-card-month{order:0}
   .hs-card-free{order:1}
