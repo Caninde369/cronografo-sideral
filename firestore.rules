@@ -29,7 +29,11 @@ service cloud.firestore {
 
     function isValidUserProfile(data) {
       return (data.uid == request.auth.uid || isAdmin())
-        && data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'role', 'plan', 'createdAt', 'updatedAt', 'lastLoginAt', 'loginCount', 'trialUsedToday', 'totalActiveTimeSeconds', 'lastLoginDate'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'role', 'plan', 'createdAt', 'updatedAt', 'lastLoginAt', 'loginCount', 'trialUsedToday', 'totalActiveTimeSeconds', 'lastLoginDate', 'blocked', 'planExpiresAt', 'billing', 'adminNote'])
+        && (!('blocked' in data) || data.blocked is bool)
+        && (!('planExpiresAt' in data) || (data.planExpiresAt is string && data.planExpiresAt.size() <= 10))
+        && (!('billing' in data) || data.billing in ['monthly', 'annual'])
+        && (!('adminNote' in data) || (data.adminNote is string && data.adminNote.size() <= 1000))
         && (!('email' in data) || (data.email is string && data.email.size() <= 256))
         && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 200))
         && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 2048))
@@ -45,6 +49,27 @@ service cloud.firestore {
 
     function planUnchangedOrAdmin() {
       return request.resource.data.get('plan', 'free') == resource.data.get('plan', 'free') || isAdmin();
+    }
+
+    // Bloqueio, vencimento, cobrança e anotação: só o admin cria ou muda.
+    function adminFieldsUnchangedOrAdmin() {
+      return isAdmin() || (
+        request.resource.data.get('blocked', false) == resource.data.get('blocked', false)
+        && request.resource.data.get('planExpiresAt', '') == resource.data.get('planExpiresAt', '')
+        && request.resource.data.get('billing', 'monthly') == resource.data.get('billing', 'monthly')
+        && request.resource.data.get('adminNote', '') == resource.data.get('adminNote', '')
+      );
+    }
+
+    function adminFieldsAbsentOnCreate(data) {
+      return isAdmin() || !data.keys().hasAny(['blocked', 'planExpiresAt', 'billing', 'adminNote']);
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasOnly(['start', 'lastSeen', 'seconds'])
+        && data.start is string && data.start.size() <= 40
+        && data.lastSeen is string && data.lastSeen.size() <= 40
+        && data.seconds is int && data.seconds >= 0 && data.seconds <= 172800;
     }
 
     function roleUnchangedOrAdmin() {
@@ -88,12 +113,25 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow create: if (isOwner(userId) || isAdmin()) && isValidId(userId)
         && isValidUserProfile(request.resource.data)
-        && planOnCreateAllowed(request.resource.data);
+        && planOnCreateAllowed(request.resource.data)
+        && adminFieldsAbsentOnCreate(request.resource.data);
       allow update: if (isOwner(userId) || isAdmin()) && isValidId(userId)
         && isValidUserProfile(request.resource.data)
         && (!('uid' in resource.data) || request.resource.data.uid == resource.data.uid)
         && roleUnchangedOrAdmin()
-        && planUnchangedOrAdmin();
+        && planUnchangedOrAdmin()
+        && adminFieldsUnchangedOrAdmin();
+
+      // Histórico de acessos: o usuário registra, só o admin lê
+      match /sessions/{sessionId} {
+        allow get, list: if isAdmin();
+        allow create: if isOwner(userId) && isValidId(sessionId) && isValidSession(request.resource.data)
+          && request.resource.data.seconds == 0;
+        allow update: if isOwner(userId) && isValidSession(request.resource.data)
+          && request.resource.data.start == resource.data.start
+          && request.resource.data.seconds >= resource.data.seconds;
+        allow delete: if isAdmin();
+      }
       allow delete: if isOwner(userId) || isAdmin();
 
       // User saved maps subcollection

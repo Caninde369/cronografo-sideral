@@ -23,7 +23,9 @@ import {
   deleteDoc,
   onSnapshot,
   increment,
-  where
+  where,
+  orderBy,
+  limit
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -137,7 +139,13 @@ export async function syncUserProfile(user: User) {
         totalActiveTimeSeconds: existingTotalTime
       };
       await setDoc(userRef, updatedUserDoc, { merge: true });
-      return updatedUserDoc;
+      // Campos que só o admin grava: lidos aqui, nunca escritos pelo usuário
+      return {
+        ...updatedUserDoc,
+        blocked: data.blocked === true,
+        planExpiresAt: typeof data.planExpiresAt === 'string' ? data.planExpiresAt : '',
+        billing: data.billing === 'annual' ? 'annual' : 'monthly',
+      };
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
@@ -218,6 +226,82 @@ export async function updateUserDailyTrial(userId: string, usedSecondsToday: num
     await setDoc(userRef, payload, { merge: true });
   } catch (error) {
     // Non-fatal, fallback to local storage
+  }
+}
+
+// ─── Histórico de acessos ────────────────────────────────────────────────────
+// users/{uid}/sessions/{sessionId} = { start, lastSeen, seconds }
+// Cada abertura do app (com login) é uma sessão. "seconds" soma só o tempo com a aba visível.
+// O próprio usuário cria e atualiza; só o admin lê (ver firestore.rules).
+
+export async function startUserSession(userId: string): Promise<string | null> {
+  if (!userId) return null;
+  const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const now = new Date().toISOString();
+  try {
+    await setDoc(doc(db, 'users', userId, 'sessions', sessionId), { start: now, lastSeen: now, seconds: 0 });
+    return sessionId;
+  } catch (error) {
+    console.warn('Não foi possível registrar a sessão', error);
+    return null;
+  }
+}
+
+export async function heartbeatUserSession(userId: string, sessionId: string, addSeconds: number): Promise<void> {
+  if (!userId || !sessionId) return;
+  const add = Math.max(0, Math.min(3600, Math.round(addSeconds)));
+  const now = new Date().toISOString();
+  try {
+    await setDoc(doc(db, 'users', userId, 'sessions', sessionId), { lastSeen: now, seconds: increment(add) }, { merge: true });
+    if (add > 0) {
+      await setDoc(doc(db, 'users', userId), { totalActiveTimeSeconds: increment(add), updatedAt: now }, { merge: true });
+    }
+  } catch {
+    // não fatal
+  }
+}
+
+export interface UserSession { id: string; start: string; lastSeen: string; seconds: number }
+
+export async function getUserSessionsForAdmin(userId: string, max = 60): Promise<UserSession[]> {
+  try {
+    const q = query(collection(db, 'users', userId, 'sessions'), orderBy('start', 'desc'), limit(max));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<UserSession, 'id'>) }));
+  } catch (error) {
+    console.warn('Não foi possível ler as sessões', error);
+    return [];
+  }
+}
+
+// ─── Controles do admin ──────────────────────────────────────────────────────
+// blocked: conta sem acesso ao app. planExpiresAt (AAAA-MM-DD), billing ('monthly' | 'annual'), adminNote.
+// Só o admin grava esses campos (ver firestore.rules).
+
+export async function setUserBlockedInFirestore(userId: string, blocked: boolean): Promise<boolean> {
+  try {
+    await setDoc(doc(db, 'users', userId), { blocked, updatedAt: new Date().toISOString() }, { merge: true });
+    return true;
+  } catch (error) {
+    console.warn('Não foi possível alterar o bloqueio', error);
+    return false;
+  }
+}
+
+export async function updateUserAdminMeta(
+  userId: string,
+  meta: { planExpiresAt?: string; billing?: 'monthly' | 'annual'; adminNote?: string }
+): Promise<boolean> {
+  const payload: Record<string, any> = { updatedAt: new Date().toISOString() };
+  if (meta.planExpiresAt !== undefined) payload.planExpiresAt = meta.planExpiresAt;
+  if (meta.billing !== undefined) payload.billing = meta.billing;
+  if (meta.adminNote !== undefined) payload.adminNote = meta.adminNote.slice(0, 1000);
+  try {
+    await setDoc(doc(db, 'users', userId), payload, { merge: true });
+    return true;
+  } catch (error) {
+    console.warn('Não foi possível salvar os dados do admin', error);
+    return false;
   }
 }
 

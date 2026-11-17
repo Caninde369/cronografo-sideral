@@ -44,6 +44,8 @@ import { ArcaneCalendarModal } from './components/ArcaneCalendarModal';
 import { LoginModal } from './components/LoginModal';
 import OnboardingTour, { ONBOARDING_TOUR_CSS, isTourDone, markTourDone, TourScene } from './components/OnboardingTour';
 import { AdminDashboard } from './components/AdminDashboard';
+import { useSessionTracker } from './hooks/useSessionTracker';
+import { whatsappLink } from './lib/paymentConfig';
 import { 
     auth, 
     signOut, 
@@ -906,6 +908,9 @@ useEffect(() => {
     const [showDashboard, setShowDashboard] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
     const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+    // Conta (uid) e bloqueio vindos do Firestore. Bloqueado = sem acesso ao app até o admin liberar.
+    const [userUid, setUserUid] = useState<string | null>(null);
+    const [isBlocked, setIsBlocked] = useState(false);
     const [showPaymentPlansModal, setShowPaymentPlansModal] = useState(false);
     const [allowedFreeTier, setAllowedFreeTier] = useState(true);
     const [showLoginModal, setShowLoginModal] = useState(false);
@@ -1327,6 +1332,7 @@ useEffect(() => {
                 setIsAuthenticated(true);
                 setUsername(user.displayName || user.email?.split('@')[0] || 'Astrólogo');
                 setUserEmail(user.email || '');
+                setUserUid(user.uid);
                 const isUserAdmin = user.email?.toLowerCase() === 'rafael.cm333@gmail.com';
                 setIsAdmin(isUserAdmin);
                 if (isUserAdmin) {
@@ -1334,6 +1340,7 @@ useEffect(() => {
                 }
                 syncUserProfile(user).then((profile) => {
                     if (isUserAdmin) return;
+                    setIsBlocked((profile as any)?.blocked === true);
                     // Fonte da verdade do plano = Firestore. Sem perfil válido, volta para 'free'.
                     const p = profile?.plan;
                     const plan: 'free' | 'monthly' | 'lifetime' = (p === 'monthly' || p === 'lifetime') ? p : 'free';
@@ -1383,6 +1390,8 @@ useEffect(() => {
             } else {
                 setIsAuthenticated(false);
                 setIsAdmin(false);
+                setUserUid(null);
+                setIsBlocked(false);
                 setUserPlan('free');
                 try { localStorage.setItem('cronografo_user_plan', 'free'); } catch {}
             }
@@ -1390,6 +1399,9 @@ useEffect(() => {
         });
         return () => unsubscribe();
     }, []);
+
+    // Histórico de acessos e tempo de uso (não conta o admin nem conta bloqueada)
+    useSessionTracker(isAuthenticated && !isAdmin && !isBlocked ? userUid : null);
 
     const handleLogout = async () => {
         try {
@@ -3777,8 +3789,28 @@ const handlePlanetClick = useCallback((id: string) => {
             <AdminDashboard
                 isOpen={showAdminDashboard}
                 onClose={() => setShowAdminDashboard(false)}
-                adminEmail={userEmail}
+                currentUserEmail={userEmail}
+                isAdmin={isAdmin}
             />
+
+            {/* Conta bloqueada pelo admin: cobre o app inteiro */}
+            {isBlocked && !isAdmin && (
+                <div className="fixed inset-0 z-[30000] flex items-center justify-center p-5" style={{ background: '#040004', fontFamily: "'DM Sans', system-ui, sans-serif" }} role="alertdialog" aria-modal="true" aria-labelledby="blocked-title">
+                    <div className="w-full max-w-[420px] text-center rounded-[24px] px-7 py-10" style={{ background: '#0a070c', border: '1px solid #3A3440', color: '#EDE9E3' }}>
+                        <i className="ti ti-lock text-[30px]" style={{ color: '#B9B4BE' }} aria-hidden="true" />
+                        <h2 id="blocked-title" className="mt-3 text-[34px] leading-tight" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic', fontWeight: 600 }}>Seu acesso está suspenso</h2>
+                        <p className="mt-3 text-[15px] leading-relaxed" style={{ color: '#B9B4BE' }}>Esta conta não pode entrar no Cronógrafo no momento. Fale com o criador da plataforma para entender e resolver.</p>
+                        <a href={whatsappLink(`Olá! Minha conta (${userEmail}) está com o acesso suspenso no Cronógrafo Sideral.`)} target="_blank" rel="noopener noreferrer"
+                           className="mt-7 w-full min-h-[50px] inline-flex items-center justify-center gap-2 rounded-full text-[12px] font-medium tracking-[0.14em] uppercase"
+                           style={{ background: '#EDE9E3', color: '#040004' }}>
+                            <i className="ti ti-brand-whatsapp text-[18px]" aria-hidden="true" /> Falar com o criador
+                        </a>
+                        <button onClick={handleLogout} className="mt-3 w-full min-h-[46px] rounded-full text-[12px] font-medium tracking-[0.14em] uppercase" style={{ border: '1px solid #3A3440', color: '#EDE9E3' }}>
+                            Sair da conta
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Modal de Login / Cadastro */}
             <LoginModal
