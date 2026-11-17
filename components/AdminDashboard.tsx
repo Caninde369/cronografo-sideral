@@ -26,6 +26,8 @@ interface AdminDashboardProps {
   isOpen: boolean;
   onClose: () => void;
   currentUserEmail?: string;
+  /** true = desenha no próprio lugar (dentro da janela de Conta), sem portal */
+  inline?: boolean;
   isAdmin?: boolean;
 }
 
@@ -147,7 +149,7 @@ const SortTh: React.FC<{ k: SortKey; label: string; sort: { key: SortKey | null;
 };
 
 // ── Painel ──────────────────────────────────────────────────────────────────
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, currentUserEmail, isAdmin = false }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, currentUserEmail, isAdmin = false, inline = false }) => {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -546,7 +548,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
     </div>
   );
   // Renderiza direto no <body>, por cima de qualquer camada do app
-  return typeof document !== 'undefined' ? createPortal(panel, document.body) : panel;
+  return inline || typeof document === 'undefined' ? panel : createPortal(panel, document.body);
 };
 
 /** Se o painel der erro, mostra a mensagem em vez de não abrir nada. */

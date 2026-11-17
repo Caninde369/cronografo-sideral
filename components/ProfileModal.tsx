@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AdminDashboard, AdminPanelBoundary } from './AdminDashboard';
 import { 
   auth, 
   signOut, 
@@ -166,6 +167,21 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     layout.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Aba Administração: o painel completo ocupa a tela inteira, desenhado aqui mesmo
+  if (activeTab === 'admin' && isUserAdmin) {
+    return (
+      <AdminPanelBoundary onClose={() => setActiveTab('profile')}>
+        <AdminDashboard
+          isOpen
+          inline
+          onClose={() => setActiveTab('profile')}
+          currentUserEmail={userEmail || auth.currentUser?.email || undefined}
+          isAdmin
+        />
+      </AdminPanelBoundary>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[11000] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/90 backdrop-blur-2xl animate-in fade-in duration-200">
       
@@ -275,11 +291,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             {/* Tab de Administração garantida para o e-mail do admin */}
             {isUserAdmin && (
               <button
-                onClick={() => {
-                  // Abre direto o painel completo; a lista simples fica só como reserva
-                  if (onOpenAdminDashboard) { onClose(); onOpenAdminDashboard(); }
-                  else setActiveTab('admin');
-                }}
+                onClick={() => setActiveTab('admin')}
                 className={`flex-1 md:flex-none w-full px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all duration-150 text-left font-manrope text-xs font-semibold tracking-wider ${
                   activeTab === 'admin'
                     ? 'bg-white/15 text-[#F5D98A] border border-amber-500/40 shadow-sm'
