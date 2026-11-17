@@ -41,40 +41,6 @@ const Logo: React.FC = () => (
   </span>
 );
 
-// ── Constelações (desenho fixo, bem discreto) ───────────────────────────────
-type Figure = { at: [number, number]; pts: [number, number][]; lines: number[][] };
-const FIGURES: Figure[] = [
-  // Ursa Maior
-  { at: [70, 520], pts: [[0, 0], [62, 18], [112, 14], [152, 42], [160, 98], [232, 112], [244, 58]], lines: [[0, 1, 2, 3, 4, 5, 6, 3]] },
-  // Cisne
-  { at: [330, 120], pts: [[60, 0], [60, 60], [60, 130], [60, 190], [0, 70], [120, 52]], lines: [[0, 1, 2, 3], [4, 1, 5]] },
-  // Cassiopeia
-  { at: [1150, 50], pts: [[0, 40], [44, 0], [86, 52], [128, 12], [176, 44]], lines: [[0, 1, 2, 3, 4]] },
-  // Leão
-  { at: [560, 30], pts: [[0, 60], [30, 20], [70, 0], [100, 30], [90, 70], [190, 90], [200, 40]], lines: [[0, 1, 2, 3, 4, 0], [4, 5, 6, 3]] },
-  // Órion
-  { at: [1420, 600], pts: [[0, 0], [110, 10], [42, 110], [55, 116], [68, 122], [10, 230], [120, 220]], lines: [[0, 2, 3, 4, 1], [2, 5], [4, 6]] },
-  // Escorpião
-  { at: [1130, 720], pts: [[0, 0], [30, 30], [70, 40], [110, 70], [130, 120], [110, 160], [70, 170], [50, 150]], lines: [[0, 1, 2, 3, 4, 5, 6, 7]] },
-  // Lira
-  { at: [180, 780], pts: [[0, 0], [30, 30], [20, 80], [60, 90], [70, 40]], lines: [[0, 1, 2, 3, 4, 1]] },
-];
-
-const Constellations: React.FC = () => (
-  <svg className="hs-const" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    {FIGURES.map((f, i) => (
-      <g key={i} transform={`translate(${f.at[0]} ${f.at[1]})`}>
-        {f.lines.map((ln, j) => (
-          <polyline key={j} points={ln.map(k => f.pts[k].join(',')).join(' ')} fill="none" stroke="#B9B4BE" strokeWidth="0.8" strokeOpacity="0.28" />
-        ))}
-        {f.pts.map(([x, y], k) => (
-          <circle key={k} cx={x} cy={y} r={k % 3 === 0 ? 2.4 : 1.7} fill="#EDE9E3" className="hs-twinkle" style={{ animationDelay: `${(i * 0.9 + k * 0.7) % 6}s` }} />
-        ))}
-      </g>
-    ))}
-  </svg>
-);
-
 // ── Janela genérica (login e planos) ────────────────────────────────────────
 const useEscape = (open: boolean, onClose: () => void) => {
   useEffect(() => {
@@ -298,15 +264,16 @@ export const HomeSite: React.FC = () => {
     <div className="hs">
       <style>{HOME_CSS}</style>
       <Starfield />
-      <Constellations />
 
       <header className="hs-top">
-        <Logo />
+        <span className="hs-top-logo"><Logo /></span>
         <button className="hs-enter" onClick={() => setLogin(true)}>Entrar</button>
       </header>
 
       <main className="hs-main">
         <section className="hs-panel" aria-labelledby="hs-h1">
+          <div className="hs-col">
+          <span className="hs-panel-logo"><Logo /></span>
           <motion.div className="hs-copy" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: EASE }}>
             <p className="hs-over">Novo leitor de mapas astrais</p>
             <h1 id="hs-h1" className="hs-serif hs-h1">A ferramenta essencial para Astrologia</h1>
@@ -317,12 +284,15 @@ export const HomeSite: React.FC = () => {
             </div>
           </motion.div>
           <Social />
+          </div>
         </section>
 
         <motion.div className="hs-clock" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.4, ease: EASE, delay: 0.2 }} aria-label="Cronógrafo mostrando o céu de agora em São Paulo" role="img">
-          <Suspense fallback={<div className="hs-clock-ph" />}>
-            <HeroClock />
-          </Suspense>
+          <div className="hs-clock-box">
+            <Suspense fallback={<div className="hs-clock-ph" />}>
+              <HeroClock />
+            </Suspense>
+          </div>
         </motion.div>
       </main>
 
@@ -345,23 +315,23 @@ html,body{background:#040004;margin:0}
 .hs-serif{font-family:'Cormorant Garamond','Cormorant Infant',Georgia,serif;font-style:italic;font-weight:600;letter-spacing:-.01em}
 .hs-mono{font-family:'DM Mono',ui-monospace,monospace}
 .hs-gold{color:var(--gold2)}
-.hs-const{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
-.hs-twinkle{animation:hs-tw 6s ease-in-out infinite}
-@keyframes hs-tw{0%,100%{opacity:.85}50%{opacity:.3}}
 
 .hs-logo{display:inline-flex;align-items:baseline;gap:2px;color:var(--fg);white-space:nowrap}
 .hs-logo-a{font-family:'Cormorant Garamond',Georgia,serif;font-weight:500;font-size:27px;letter-spacing:-.01em}
 .hs-logo-b{font-family:'Syne','DM Sans',sans-serif;font-weight:700;font-size:18px;letter-spacing:.02em}
 
-.hs-top{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:56px 64px 0 88px}
+.hs-top{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;justify-content:flex-end;align-items:center;padding:44px 56px 0;pointer-events:none}
+.hs-top>*{pointer-events:auto}
+.hs-top-logo{display:none}
 .hs-enter{background:none;border:0;color:var(--fg);font-size:14px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;cursor:pointer;padding:12px 0;min-height:44px;transition:opacity .4s var(--ease)}
 .hs-enter:hover{opacity:.7}
 
-.hs-main{position:relative;z-index:1;min-height:100vh;min-height:100svh;display:grid;grid-template-columns:minmax(440px,31%) 1fr}
-.hs-panel{position:relative;background:rgba(9,7,11,.82);display:flex;flex-direction:column;justify-content:center;padding:140px 44px 40px 88px}
-.hs-copy{max-width:400px}
+.hs-main{position:relative;z-index:1;height:100vh;height:100svh;min-height:640px;display:grid;grid-template-columns:minmax(460px,32%) 1fr}
+.hs-panel{position:relative;background:rgba(9,7,11,.82);display:flex;justify-content:center;padding:44px 48px 32px}
+.hs-col{width:100%;max-width:400px;height:100%;display:flex;flex-direction:column}
+.hs-copy{margin:auto 0}
 .hs-over{margin:0;font-size:13px;white-space:nowrap;letter-spacing:.2em;text-transform:uppercase;color:var(--fg)}
-.hs-h1{margin:36px 0 0;font-size:clamp(42px,3.9vw,58px);line-height:1.04;text-wrap:balance}
+.hs-h1{margin:28px 0 0;font-size:clamp(42px,3.9vw,58px);line-height:1.04;text-wrap:balance}
 .hs-lead{margin:30px 0 0;font-size:15px;line-height:1.75;color:var(--fg);max-width:330px;text-wrap:pretty}
 .hs-ctas{display:flex;flex-direction:column;align-items:flex-start;gap:14px;margin-top:34px}
 
@@ -372,12 +342,12 @@ html,body{background:#040004;margin:0}
 .hs-pill-gold:hover{background:var(--gold);color:#040004!important}
 .hs-pill:focus-visible,.hs-enter:focus-visible,.hs-social a:focus-visible,.hs-x:focus-visible,.hs-google:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
 
-.hs-social{display:flex;gap:6px;margin-top:44px;margin-left:-10px}
+.hs-social{display:flex;gap:6px;margin-left:-10px}
 .hs-social a{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;color:var(--mut)!important;font-size:22px;text-decoration:none;transition:color .4s var(--ease),background .4s var(--ease)}
 .hs-social a:hover{color:var(--fg)!important;background:rgba(237,233,227,.06)}
 
-.hs-clock{position:relative;display:flex;align-items:center;justify-content:center;padding:24px 40px}
-.hs-clock>div{width:min(92vh,100%)}
+.hs-clock{position:relative;display:flex;align-items:center;justify-content:center;padding:32px 48px;min-width:0}
+.hs-clock-box{width:min(82vh,100%,880px);width:min(82svh,100%,880px)}
 .hs-clock-ph{width:100%;aspect-ratio:1/1}
 
 /* janelas */
@@ -441,24 +411,28 @@ html,body{background:#040004;margin:0}
 .hs-help a{color:var(--fg)!important;text-underline-offset:5px}
 
 @media (max-width:1180px){
-  .hs-top{padding:40px 40px 0 56px}
-  .hs-panel{padding:140px 36px 44px 56px}
+  .hs-top{padding:36px 36px 0}
+  .hs-main{grid-template-columns:minmax(400px,38%) 1fr}
+  .hs-panel{padding:36px 32px 28px}
   .hs-cards{grid-template-columns:1fr 1fr}
   .hs-card-founder{grid-column:1 / -1;order:-1}
 }
 @media (max-width:900px){
-  .hs-top{position:relative;padding:20px 20px 0}
+  .hs-top{position:relative;justify-content:space-between;padding:20px 20px 0}
+  .hs-top-logo{display:inline}
+  .hs-panel-logo{display:none}
   .hs-logo-a{font-size:23px}.hs-logo-b{font-size:15px}
-  .hs-main{display:flex;flex-direction:column;min-height:0}
+  .hs-main{display:flex;flex-direction:column;height:auto;min-height:0}
   .hs-clock{order:-1;padding:12px 8px 0}
-  .hs-clock>div{width:min(100%,560px)}
+  .hs-clock-box{width:min(100%,560px)}
   .hs-panel{background:transparent;padding:8px 24px 40px;align-items:stretch}
-  .hs-copy{max-width:560px;margin:0 auto;width:100%}
+  .hs-copy{width:100%;margin:0}
   .hs-h1{margin-top:18px;font-size:clamp(40px,11vw,54px)}
   .hs-over{font-size:12px;white-space:normal}
   .hs-lead{margin-top:18px;font-size:16px;max-width:none}
   .hs-ctas{align-items:stretch;margin-top:28px}
   .hs-ctas .hs-pill{width:100%;min-height:52px}
+  .hs-col{height:auto;max-width:560px;margin:0 auto}
   .hs-social{justify-content:center;margin:40px auto 0}
   .hs-plans{padding:68px 16px 48px}
   .hs-plans-t{margin-top:22px}
@@ -472,6 +446,6 @@ html,body{background:#040004;margin:0}
   .hs-login-t{font-size:32px}
 }
 @media (prefers-reduced-motion:reduce){
-  .hs-twinkle,.hs-spin{animation:none}
+  .hs-spin{animation:none}
 }
 `;

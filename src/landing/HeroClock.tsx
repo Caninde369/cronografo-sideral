@@ -1,10 +1,14 @@
 /**
  * Relógio real do Cronógrafo, só para olhar, girando ao vivo (São Paulo, agora).
  * Usa o mesmo SiderealClock e o mesmo cálculo do app; não altera nenhum dos dois.
+ *
+ * Aparência = padrão do app (App.tsx): sem anel de 24h, anel de estações ligado,
+ * constelações e estrelas do próprio cronógrafo, ponteiro "minimal", planetas e signos em 46.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { SiderealClock } from '../../components/SiderealClock';
 import { useCelestialData } from '../../hooks/useCelestialData';
+import { getSeasonIngresses } from '../../lib/astrology/calendars';
 
 const SP = { latitude: -23.5505, longitude: -46.6333, displayName: 'São Paulo, BR' };
 const VISIBLE: Record<string, boolean> = {
@@ -33,12 +37,15 @@ export const HeroClock: React.FC = () => {
   }, []);
 
   const data = useCelestialData(time, SP, VISIBLE, 'porphyry', 'tropical');
+  const year = time.getFullYear();
+  const seasonIngresses = useMemo(() => getSeasonIngresses(year, SP.latitude < 0), [year]);
 
   return (
     <div ref={boxRef} style={{ width: '100%', aspectRatio: '1 / 1', pointerEvents: 'none' }}>
       <div style={{ width: size, height: size }}>
         <SiderealClock
           celestialData={data}
+          location={SP}
           natalData={undefined}
           filteredAspects={data.aspects}
           ghostPlanets={[]}
@@ -53,47 +60,67 @@ export const HeroClock: React.FC = () => {
           onAspectClick={NOOP}
           onHouseClick={NOOP}
           setHoveredHouse={NOOP}
+          planetSize={46}
+          zodiacSignSize={46}
+          termsGlyphSize={22}
+          decanGlyphSize={22}
+          graduationRingWidth={18}
+          zodiacRingScale={1}
+          seasonsRingScale={0.75}
+          decanRingScale={2}
+          termsRingScale={2}
+          ringLineColor="#746F5D"
+          showPlanetSpheres={true}
+          showDegreeLabels={false}
+          degreeLabelSize={18}
           showAspectLines={true}
           showNatalLines={false}
           isNatalMode={false}
           showNeedle={true}
           isZodiacFixed={false}
+          locationName={SP.displayName}
           showAtmosphere={false}
-          showStars={false}
-          showConstellations={false}
-          showMagneticField={false}
-          showOrbits={true}
-          showSeasonsRing={true}
-          showTimeRing={true}
+          houseFormat="roman"
+          houseLineFormat="solid"
           showHouseLines={true}
           showHouseMarkers={true}
           showMcIcArrows={false}
-          showSignLines={false}
-          showDegreeLabels={false}
-          showPlanetSpheres={true}
-          houseFormat="roman"
-          houseLineFormat="solid"
+          showTimeRing={false}
+          showOrbits={false}
+          planetColorMode="colored"
+          showStars={true}
+          showSeasonsRing={true}
+          showDecanRing={true}
+          showTermsRing={true}
           zodiacColorMode="element"
           highlightFilter={null}
-          pointerStyle="minimal"
-          pointerThickness={3}
-          pointerHead={false}
-          pointerTail={false}
-          theme="dark"
-          locationName={SP.displayName}
-          onClockClick={NOOP}
-          houseLineThickness={1}
-          houseLineOpacity={0.4}
-          planetSize={42}
-          zodiacSignSize={42}
-          seasonIngresses={[]}
-          timeRingScale={1.4}
-          customBackgroundImage={null}
-          magneticFieldSize={1}
-          magneticFieldOpacity={0}
+          showSignLines={false}
+          showSignColors={false}
           signLineThickness={1}
           signLineOpacity={0.3}
-          degreeLabelSize={18}
+          pointerStyle="minimal"
+          pointerShowGradLine={true}
+          pointerFull={false}
+          pointerThickness={2.5}
+          pointerOpacity={0.8}
+          pointerHead="arrow"
+          pointerTail="none"
+          showConstellations={true}
+          customBackgroundImage={null}
+          showMagneticField={false}
+          magneticFieldSize={1}
+          magneticFieldOpacity={0}
+          seasonIngresses={seasonIngresses}
+          theme="dark"
+          onClockClick={NOOP}
+          houseLineThickness={1}
+          houseLineOpacity={1}
+          houseLineColor="#878273"
+          mainHouseLineThickness={1.5}
+          mainHouseLineOpacity={1}
+          mainHouseLineColor="#a3a59d"
+          houseMarkerRingColor=""
+          houseMarkerRingOpacity={0.38}
         />
       </div>
     </div>
