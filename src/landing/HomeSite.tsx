@@ -189,7 +189,7 @@ const PlansDialog: React.FC<{ open: boolean; onClose: () => void; onFree: () => 
   const sold = Math.min(total, Math.max(LANDING.vagasVendidas, PAYMENT_CONFIG.lifetimeSoldManual));
   const left = total - sold;
   const opt = PAY_OPTIONS.find(o => o.id === pay)!;
-  const cardUrl = PAYMENT_CONFIG.checkoutUrlLifetime;
+  const cardUrl = LANDING.cartaoPeloLink ? PAYMENT_CONFIG.checkoutUrlLifetime : '';
   const founderHref = pay === 'card' && cardUrl ? cardUrl : waLink(opt.msg);
   const founderCta = left <= 0 ? 'Entrar na lista de espera' : pay === 'card' && cardUrl ? 'Pagar com cartão' : 'Quero minha vaga';
 

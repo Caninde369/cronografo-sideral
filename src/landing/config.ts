@@ -19,6 +19,9 @@ export const LANDING = {
   precoMensal: 110,
   precoMensalLancamento: 350, // valor do Mensal depois do lançamento
   gratuitoAte: '03/12',
+  // Cartão do Vitalício: true abre o link do Nubank (VITE_CHECKOUT_URL_LIFETIME).
+  // Fica false até o link no Nubank cobrar o valor novo (R$1.457); enquanto isso o cartão vai pelo WhatsApp.
+  cartaoPeloLink: false,
   precoAnual: 1197,
   precoFundador: 1457,
   parcelasFundador: 12,
