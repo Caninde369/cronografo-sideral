@@ -43,7 +43,7 @@ import { EclipsePanel } from './components/EclipsePanel';
 import { ArcaneCalendarModal } from './components/ArcaneCalendarModal';
 import { LoginModal } from './components/LoginModal';
 import OnboardingTour, { ONBOARDING_TOUR_CSS, isTourDone, markTourDone, TourScene } from './components/OnboardingTour';
-import { AdminDashboard } from './components/AdminDashboard';
+import { AdminDashboard, AdminPanelBoundary } from './components/AdminDashboard';
 import { useSessionTracker } from './hooks/useSessionTracker';
 import { whatsappLink } from './lib/paymentConfig';
 import { 
@@ -3786,12 +3786,14 @@ const handlePlanetClick = useCallback((id: string) => {
             </AnimatePresence>
 
             {/* Painel Administrativo Standalone Exclusivo para Super Admin */}
-            <AdminDashboard
-                isOpen={showAdminDashboard}
-                onClose={() => setShowAdminDashboard(false)}
-                currentUserEmail={userEmail}
-                isAdmin={isAdmin}
-            />
+            <AdminPanelBoundary onClose={() => setShowAdminDashboard(false)}>
+                <AdminDashboard
+                    isOpen={showAdminDashboard}
+                    onClose={() => setShowAdminDashboard(false)}
+                    currentUserEmail={userEmail}
+                    isAdmin={isAdmin}
+                />
+            </AdminPanelBoundary>
 
             {/* Conta bloqueada pelo admin: cobre o app inteiro */}
             {isBlocked && !isAdmin && (

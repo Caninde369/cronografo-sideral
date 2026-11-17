@@ -9,6 +9,7 @@
  *   e bloquear/liberar. Ações sensíveis pedem confirmação.
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   getAllUsersForAdmin,
@@ -352,7 +353,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
   const sessionList = sessions ? (showAllSessions ? sessions : sessions.slice(0, 8)) : [];
 
-  return (
+  const panel = (
     <div className="ad-root" role="dialog" aria-modal="true" aria-labelledby="ad-title">
       <style>{ADMIN_CSS}</style>
 
@@ -544,14 +545,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
       </AnimatePresence>
     </div>
   );
+  // Renderiza direto no <body>, por cima de qualquer camada do app
+  return typeof document !== 'undefined' ? createPortal(panel, document.body) : panel;
 };
+
+/** Se o painel der erro, mostra a mensagem em vez de não abrir nada. */
+export class AdminPanelBoundary extends React.Component<{ onClose: () => void; children: React.ReactNode }, { err: string | null }> {
+  state = { err: null as string | null };
+  static getDerivedStateFromError(e: any) { return { err: String(e?.message || e) }; }
+  componentDidCatch(e: any) { console.error('[AdminDashboard]', e); }
+  render() {
+    if (!this.state.err) return this.props.children;
+    return createPortal(
+      <div style={{ position: 'fixed', inset: 0, zIndex: 2147483000, background: '#040004', color: '#EDE9E3', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: 'DM Sans, system-ui, sans-serif' }}>
+        <div style={{ maxWidth: 520, textAlign: 'center' }}>
+          <p style={{ fontSize: 18, marginBottom: 8 }}>O painel encontrou um erro ao abrir.</p>
+          <p style={{ fontFamily: 'DM Mono, monospace', fontSize: 12, color: '#B9B4BE', wordBreak: 'break-word', marginBottom: 20 }}>{this.state.err}</p>
+          <button onClick={() => { this.setState({ err: null }); this.props.onClose(); }} style={{ padding: '10px 18px', borderRadius: 999, border: '1px solid #3A3440', background: 'transparent', color: '#EDE9E3', cursor: 'pointer' }}>Fechar</button>
+        </div>
+      </div>,
+      document.body,
+    );
+  }
+}
 
 export default AdminDashboard;
 
 // ── Estilos ─────────────────────────────────────────────────────────────────
 const ADMIN_CSS = `
 .ad-root{--bg:#040004;--panel:#0a070c;--fg:#EDE9E3;--mut:#B9B4BE;--dim:#8a8590;--line:#1c1820;--line2:#2a2430;--line3:#3A3440;--gold:#D4AF37;--gold2:#F5D98A;--ease:cubic-bezier(.32,.72,0,1);
-  position:fixed;inset:0;z-index:12000;background:var(--bg);color:var(--fg);font-family:'DM Sans',system-ui,sans-serif;font-size:14px;display:flex;flex-direction:column;overflow:hidden}
+  position:fixed;inset:0;z-index:2147482000;background:var(--bg);color:var(--fg);font-family:'DM Sans',system-ui,sans-serif;font-size:14px;display:flex;flex-direction:column;overflow:hidden}
 .ad-root *{box-sizing:border-box}
 .ad-root button{font-family:inherit;color:inherit}
 .ad-serif{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:600;letter-spacing:-.01em}

@@ -275,7 +275,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             {/* Tab de Administração garantida para o e-mail do admin */}
             {isUserAdmin && (
               <button
-                onClick={() => setActiveTab('admin')}
+                onClick={() => {
+                  // Abre direto o painel completo; a lista simples fica só como reserva
+                  if (onOpenAdminDashboard) { onClose(); onOpenAdminDashboard(); }
+                  else setActiveTab('admin');
+                }}
                 className={`flex-1 md:flex-none w-full px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all duration-150 text-left font-manrope text-xs font-semibold tracking-wider ${
                   activeTab === 'admin'
                     ? 'bg-white/15 text-[#F5D98A] border border-amber-500/40 shadow-sm'
