@@ -264,6 +264,7 @@ export const HomeSite: React.FC = () => {
     <div className="hs">
       <style>{HOME_CSS}</style>
       <Starfield />
+      <div className="hs-comet" aria-hidden="true"><span className="hs-comet-run"><span className="hs-comet-tail" /></span></div>
 
       <header className="hs-top">
         <span className="hs-top-logo"><Logo /></span>
@@ -276,7 +277,7 @@ export const HomeSite: React.FC = () => {
           <span className="hs-panel-logo"><Logo /></span>
           <motion.div className="hs-copy" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: EASE }}>
             <p className="hs-over">Novo leitor de mapas astrais</p>
-            <h1 id="hs-h1" className="hs-serif hs-h1">A ferramenta essencial para Astrologia</h1>
+            <h1 id="hs-h1" className="hs-serif hs-h1"><span>A ferramenta</span> <span>essencial para</span> <span>Astrologia</span></h1>
             <p className="hs-lead">Controle o tempo minuto a minuto, visualize aspectos e trânsitos se formando. Acompanhe a fase da Lua em tempo real.</p>
             <div className="hs-ctas">
               <button className="hs-pill" onClick={() => setLogin(true)}>Testar gratuitamente <i className="ti ti-arrow-right" aria-hidden="true" /></button>
@@ -307,7 +308,7 @@ export default HomeSite;
 // ── Estilos ─────────────────────────────────────────────────────────────────
 const HOME_CSS = `
 html,body{background:#040004;margin:0}
-.hs{--bg:#040004;--fg:#EDE9E3;--mut:#B9B4BE;--dim:#8a8590;--line:#221D27;--line2:#3A3440;--gold:#D4AF37;--gold2:#F5D98A;--ease:cubic-bezier(.32,.72,0,1);
+.hs{--comet-top:88px;--bg:#040004;--fg:#EDE9E3;--mut:#B9B4BE;--dim:#8a8590;--line:#221D27;--line2:#3A3440;--gold:#D4AF37;--gold2:#F5D98A;--ease:cubic-bezier(.32,.72,0,1);
   position:relative;min-height:100vh;min-height:100svh;background:var(--bg);color:var(--fg);font-family:'DM Sans',system-ui,sans-serif;overflow-x:clip}
 .hs *{box-sizing:border-box}
 .hs a{color:inherit}
@@ -323,15 +324,23 @@ html,body{background:#040004;margin:0}
 .hs-top{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;justify-content:flex-end;align-items:center;padding:44px 56px 0;pointer-events:none}
 .hs-top>*{pointer-events:auto}
 .hs-top-logo{display:none}
+.hs-panel-logo,.hs-top-logo .hs-logo{height:36px;display:flex;align-items:center}
+.hs-comet{position:absolute;left:0;right:0;top:var(--comet-top);height:9px;margin-top:-4px;z-index:3;overflow:hidden;pointer-events:none}
+.hs-comet::before{content:'';position:absolute;left:0;right:0;top:4px;height:1px;background:linear-gradient(90deg,#4870FF,#22D3EE,#FACC15,#FB923C,#EF4444);opacity:.22}
+.hs-comet-run{position:absolute;top:0;left:0;width:40vw;height:9px;transform:translateX(-100%);animation:hs-comet 9s cubic-bezier(.45,.05,.55,.95) 1.2s infinite;will-change:transform}
+.hs-comet-tail{position:absolute;inset:4px 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,#4870FF 35%,#22D3EE 58%,#FACC15 76%,#FB923C 88%,#EF4444 96%,#fff)}
+.hs-comet-tail::after{content:'';position:absolute;right:-2px;top:-2px;width:5px;height:5px;border-radius:50%;background:#fff;box-shadow:0 0 8px 2px rgba(255,255,255,.75),0 0 18px 4px rgba(250,204,21,.35)}
+@keyframes hs-comet{0%{transform:translateX(-100%)}33.4%,100%{transform:translateX(250%)}}
 .hs-enter{background:none;border:0;color:var(--fg);font-size:14px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;cursor:pointer;padding:12px 0;min-height:44px;transition:opacity .4s var(--ease)}
 .hs-enter:hover{opacity:.7}
 
 .hs-main{position:relative;z-index:1;height:100vh;height:100svh;min-height:640px;display:grid;grid-template-columns:minmax(460px,32%) 1fr}
-.hs-panel{position:relative;background:rgba(9,7,11,.82);display:flex;justify-content:center;padding:44px 48px 32px}
+.hs-panel{position:relative;background:rgba(9,7,11,.5);display:flex;justify-content:flex-start;padding:44px 48px 32px clamp(72px,8vw,160px)}
 .hs-col{width:100%;max-width:400px;height:100%;display:flex;flex-direction:column}
 .hs-copy{margin:auto 0}
 .hs-over{margin:0;font-size:13px;white-space:nowrap;letter-spacing:.2em;text-transform:uppercase;color:var(--fg)}
-.hs-h1{margin:28px 0 0;font-size:clamp(42px,3.9vw,58px);line-height:1.04;text-wrap:balance}
+.hs-h1{margin:28px 0 0;font-size:clamp(42px,3.9vw,58px);line-height:1.04}
+.hs-h1 span{display:block;white-space:nowrap}
 .hs-lead{margin:30px 0 0;font-size:15px;line-height:1.75;color:var(--fg);max-width:330px;text-wrap:pretty}
 .hs-ctas{display:flex;flex-direction:column;align-items:flex-start;gap:14px;margin-top:34px}
 
@@ -411,14 +420,16 @@ html,body{background:#040004;margin:0}
 .hs-help a{color:var(--fg)!important;text-underline-offset:5px}
 
 @media (max-width:1180px){
+  .hs{--comet-top:80px}
   .hs-top{padding:36px 36px 0}
   .hs-main{grid-template-columns:minmax(400px,38%) 1fr}
-  .hs-panel{padding:36px 32px 28px}
+  .hs-panel{padding:36px 32px 28px 64px}
   .hs-cards{grid-template-columns:1fr 1fr}
   .hs-card-founder{grid-column:1 / -1;order:-1}
 }
 @media (max-width:900px){
   .hs-top{position:relative;justify-content:space-between;padding:20px 20px 0}
+  .hs{--comet-top:68px}
   .hs-top-logo{display:inline}
   .hs-panel-logo{display:none}
   .hs-logo-a{font-size:23px}.hs-logo-b{font-size:15px}
@@ -446,6 +457,7 @@ html,body{background:#040004;margin:0}
   .hs-login-t{font-size:32px}
 }
 @media (prefers-reduced-motion:reduce){
+  .hs-comet-run{display:none}
   .hs-spin{animation:none}
 }
 `;
