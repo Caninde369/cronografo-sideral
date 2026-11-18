@@ -180,9 +180,8 @@ export const App: React.FC = () => {
         aspects: 245,
         cusps: 245,
     });
-    // 0,9: os painéis ficam ~10% menores (mesma leitura do zoom de 90% do navegador)
-    const [rightPanelScale, setRightPanelScale] = useState(0.9);
-    const [leftPanelScale, setLeftPanelScale] = useState(0.9);
+    const [rightPanelScale, setRightPanelScale] = useState(1.0);
+    const [leftPanelScale, setLeftPanelScale] = useState(1.0);
     const statusPanelRef = useRef<HTMLDivElement>(null);
     // Configurações iniciais nativas: Status completo sem scroll por padrão (height: auto), ajustável via resizer
     const [sidebarStatusHeight, setSidebarStatusHeight] = useState<number | null>(null);
@@ -198,8 +197,8 @@ export const App: React.FC = () => {
             aspects: 245,
             cusps: 245,
         });
-        setLeftPanelScale(0.9);
-        setRightPanelScale(0.9);
+        setLeftPanelScale(1.0);
+        setRightPanelScale(1.0);
         setUiScale(1.0);
         setStatsLayout('minimal');
         setHouseCuspsColumns('2col');

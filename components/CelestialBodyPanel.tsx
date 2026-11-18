@@ -465,7 +465,6 @@ const CelestialBodyCard: React.FC<{
                 alignItems: 'center',
                 columnGap: `${Math.max(3, Math.round(5 * scale))}px`,
                 minWidth: 0,
-                overflow: 'hidden',
                 paddingTop: `${cardPaddingY}px`,
                 paddingBottom: `${cardPaddingY}px`,
                 paddingLeft: `${cardPaddingX}px`,
@@ -682,7 +681,7 @@ export const CelestialBodyPanel: React.FC<CelestialBodyPanelProps> = ({
         
         setCalculatedWidth(width);
         if (onWidthChange) {
-            const minW = (settings.planets.names ? (settings.planets.namesAbbr ? 215 : 280) : 180) * (panelScale || 1);
+            const minW = settings.planets.names ? (settings.planets.namesAbbr ? 215 : 280) : 180;
             const w = Math.max(minW, Math.ceil(width * (panelScale || 1)));
             onWidthChange(w);
         }
