@@ -25,9 +25,11 @@ interface SolarScrubberProps {
   isLight?: boolean;
   isFreeTier?: boolean;
   onOpenPaymentPlans?: () => void;
+  /** Clique em "Dia solar": abre o calendário solar */
+  onOpenSolarCalendar?: () => void;
 }
 
-const SOLAR_SIGNS = [
+export const SOLAR_SIGNS = [
   { glyph: '♈', key: 'aries',       name: 'Áries',       element: 'fire',  color: '#EF4444', gradientStart: '#DC2626', gradientEnd: '#F97316', startDoy: 80,  endDoy: 109 },
   { glyph: '♉', key: 'taurus',      name: 'Touro',       element: 'earth', color: '#10B981', gradientStart: '#059669', gradientEnd: '#34D399', startDoy: 110, endDoy: 140 },
   { glyph: '♊', key: 'gemini',      name: 'Gêmeos',      element: 'air',   color: '#38BDF8', gradientStart: '#7DD3FC', gradientEnd: '#0284C7', startDoy: 141, endDoy: 171 },
@@ -49,7 +51,7 @@ const ELEMENT_GRADIENTS = {
   water: 'linear-gradient(to right, var(--color-zodiac-water-1) 0%, var(--color-zodiac-water-3) 100%)',
 };
 
-const ZODIAC_YEAR_START = 80;
+export const ZODIAC_YEAR_START = 80;
 
 const getZodiacalProgress = (doy: number) => {
     const adjusted = doy >= ZODIAC_YEAR_START ? doy - ZODIAC_YEAR_START : doy + (365 - ZODIAC_YEAR_START);
@@ -105,7 +107,8 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
   onClearLoop,
   isLight = false,
   isFreeTier = false,
-  onOpenPaymentPlans
+  onOpenPaymentPlans,
+  onOpenSolarCalendar
 }) => {
   const [viewSpan, setViewSpan] = useState(365);
   const [viewOffset, setViewOffset] = useState(0);
@@ -796,18 +799,26 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
 
   return (
     <div data-tour="timeline" style={{ padding: '4px 0 0 0', userSelect: 'none' }} ref={containerRef} className="flex-1 min-w-[150px]">
-      <div className="flex justify-between items-center mb-1 relative min-h-[38px]">
-        <div className="flex items-center gap-2 shrink-0">
+      <div className="flex justify-between items-end mb-0.5 relative min-h-[48px]">
+        <div className="flex items-end gap-2 shrink-0">
           <div
             data-tour="date-display"
-            title="Use a roda do mouse sobre a linha para Zoom | Duplo clique para marcar A e B"
-            className={`flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded-lg border border-transparent ${isLight ? 'bg-black/[0.04] text-neutral-800' : 'bg-white/[0.02] text-white'}`}
+            title="Abrir o calendário solar · roda do mouse sobre a linha: zoom · duplo clique na linha: marcar A e B"
+            className={`flex items-end gap-1.5 shrink-0 ${isLight ? 'text-neutral-800' : 'text-white'}`}
           >
-            {CurrentSignIcon && <CurrentSignIcon style={{ width: 16, height: 16, color: getSignColor(zodiacDay, 1) }} />}
-            <span className="flex items-center gap-1" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-              <span className={`${isLight ? 'text-neutral-700 font-medium' : 'text-white/80'} font-normal text-[13px]`}>dia {daysIntoSign}</span>{' '}
-              <span className="font-semibold text-[13px]" style={{ color: getSignColor(zodiacDay, 1) }}>de {currentSign.name}</span>
-            </span>
+            <button
+              type="button"
+              onClick={onOpenSolarCalendar}
+              className={`flex flex-col items-start gap-1 -ml-2 px-2 pt-1 pb-0.5 rounded-xl cursor-pointer transition-colors ${isLight ? 'hover:bg-black/[0.05]' : 'hover:bg-white/[0.05]'}`}
+            >
+              <span className={`text-[9.5px] font-medium uppercase tracking-[0.22em] ${isLight ? 'text-neutral-500' : 'text-white/60'}`} style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>Dia solar</span>
+              <span className="flex items-baseline gap-1.5 leading-none">
+                {CurrentSignIcon && <CurrentSignIcon style={{ width: 14, height: 14, color: getSignColor(zodiacDay, 1), alignSelf: 'center' }} />}
+                <span className="text-[16px]" style={{ fontFamily: "'DM Mono', ui-monospace, monospace" }}>{daysIntoSign}</span>
+                <span className="text-[22px]" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic', fontWeight: 500, color: getSignColor(zodiacDay, 1) }}>{currentSign.name}</span>
+                <i className={`ti ti-chevron-up text-[11px] self-center ${isLight ? 'text-neutral-500' : 'text-white/50'}`} aria-hidden="true" />
+              </span>
+            </button>
             <span className={`scrub-mode text-[10px] uppercase tracking-wider font-mono px-1.5 py-0.2 rounded ml-0.5 ${isLight ? 'bg-black/10 text-neutral-700 font-bold' : 'bg-white/10 text-white/70'}`}>
               {MODE_TITLES[vMode]}
             </span>
@@ -857,21 +868,8 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
           ))}
         </div>
         {headerRight && (
-          <div className="scrub-head-right absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+          <div className="scrub-head-right absolute right-0 bottom-0 flex items-end gap-1.5">
             {headerRight}
-            <button
-              onClick={onOpenDatePicker}
-              className={`p-1.5 rounded-lg transition-all active:scale-95 shrink-0 ${isLight ? 'bg-black/[0.04] hover:bg-black/[0.08] border border-black/[0.05] hover:border-black/20 text-neutral-600 hover:text-neutral-900' : 'bg-white/[0.04] hover:bg-white/[0.1] border border-white/[0.05] hover:border-white/20 text-white/70 hover:text-white'}`}
-              data-tour="date"
-              title="Escolher data"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
-            </button>
           </div>
         )}
       </div>

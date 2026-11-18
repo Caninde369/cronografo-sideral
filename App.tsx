@@ -2349,6 +2349,15 @@ const handlePlanetClick = useCallback((id: string) => {
                                     rightDockOffset={screenRight}
                                     isFreeTier={isFreeTier && !showTour}
                                     onOpenPaymentPlans={() => setShowPaymentPlansModal(true)}
+                                    natalTime={natalTime}
+                                    onSetNatalHere={() => {
+                                        setNatalTime(new Date(currentTime));
+                                        if (location) setNatalLocation(location);
+                                        setShowNatalLines(true);
+                                        setCelestialTab('natal');
+                                    }}
+                                    onClearNatal={() => setNatalTime(null)}
+                                    onLocationChange={(loc) => { setLocation({ latitude: loc.latitude, longitude: loc.longitude, displayName: loc.displayName }); }}
                                 />
                             )}
 

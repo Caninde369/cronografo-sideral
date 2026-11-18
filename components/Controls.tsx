@@ -2,6 +2,9 @@ import { SolarScrubber, getFreeTierSolarYearBounds } from "./SolarScrubber";
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react';
 import { UI_ICONS } from './icons';
 import { MoonInfoPanel } from './MoonInfoPanel';
+import { createPortal } from 'react-dom';
+import { DateTimePicker } from './time/DateTimePicker';
+import { SolarCalendarPopup } from './time/SolarCalendarPopup';
 
 export const ToggleSwitch: React.FC<{ checked: boolean; onChange: () => void; label: string; disabled?: boolean; }> = ({ checked, onChange, label, disabled }) => (
     <label className={`flex items-center justify-between w-full p-2 text-sm rounded-xl transition-all duration-200 ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10 hover:scale-[1.01] active:scale-[0.99] cursor-pointer'}`}>
@@ -212,6 +215,42 @@ export const findSpeedIndex = (step: string, mult: number): number => {
     return stepIdx !== -1 ? stepIdx : 0;
 };
 
+const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const shortPlace = (name?: string) => {
+    if (!name) return 'Local';
+    const parts = name.split(',').map(p => p.trim()).filter(Boolean);
+    return parts.slice(0, 2).join(', ');
+};
+
+/** Botões do controle de tempo no estilo da tela inicial: contorno fino, sem volume. */
+const TC_CSS = `
+.tcb{border-radius:999px;border:1px solid rgba(237,233,227,.28);background:transparent;color:#EDE9E3;transition:border-color .3s,background-color .3s,color .3s}
+.tcb:hover{border-color:#EDE9E3}
+.tcb>span{font-family:'DM Sans',system-ui,sans-serif}
+.tcb>span:not([class*="rounded-full"]):not([style]){font-size:10.5px!important;font-weight:500!important;letter-spacing:.14em;text-transform:uppercase}
+.tcb-l{border-color:rgba(35,23,20,.25);color:#231714}
+.tcb-l:hover{border-color:#231714}
+.tcb-red{border-color:rgba(248,113,113,.55);color:#F87171}
+.tcb-amber{border-color:rgba(252,211,77,.55);color:#FCD34D}
+.tcb-violet{border-color:rgba(196,181,253,.6);color:#C4B5FD}
+.tcb-active{border-color:currentColor}
+.tcb-solid{background:#EDE9E3;border-color:#EDE9E3;color:#040004}
+.tcb-solid:hover{background:#fff;border-color:#fff}
+.tcb-solid-l{background:#231714;border-color:#231714;color:#F4F1EA}
+.tcb-solid-l:hover{background:#000;border-color:#000}
+.tc-chip{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 4px 0 9px;border-radius:999px;border:1px solid rgba(212,175,55,.55);color:#F5D98A;font-family:'DM Mono',ui-monospace,monospace;font-size:10px;white-space:nowrap}
+.tc-chip-l{color:#8A6A12;border-color:rgba(138,106,18,.5)}
+.tc-chip-dot{width:6px;height:6px;border-radius:50%;background:#D4AF37}
+.tc-chip button{width:18px;height:18px;border-radius:50%;border:0;background:transparent;color:inherit;opacity:.7;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px}
+.tc-chip button:hover{opacity:1;background:rgba(255,255,255,.08)}
+.tc-loc{display:inline-flex;align-items:center;gap:4px;border:0;background:none;padding:2px 4px;margin-right:-4px;border-radius:6px;cursor:pointer;color:rgba(237,233,227,.6);font-family:'DM Sans',system-ui,sans-serif;font-size:10.5px;max-width:220px}
+.tc-loc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tc-loc:hover{color:#EDE9E3;background:rgba(255,255,255,.06)}
+.tc-loc-l{color:rgba(35,23,20,.6)}
+.tc-loc-l:hover{color:#231714;background:rgba(0,0,0,.05)}
+.tc-loc-ed{font-size:10px;opacity:.7}
+`;
+
 export const TimeControls: React.FC<{
     currentTime: Date;
     onTimeChange: (newTime: Date) => void;
@@ -237,6 +276,11 @@ export const TimeControls: React.FC<{
     rightDockOffset?: number;
     isFreeTier?: boolean;
     onOpenPaymentPlans?: () => void;
+    /** Mapa calculado a partir de uma data (botão +): hoje é o mapa natal sobreposto */
+    natalTime?: Date | null;
+    onSetNatalHere?: () => void;
+    onClearNatal?: () => void;
+    onLocationChange?: (loc: { latitude: number; longitude: number; displayName: string }) => void;
 }> = ({
     currentTime,
     onTimeChange,
@@ -261,9 +305,16 @@ export const TimeControls: React.FC<{
     leftDockOffset,
     rightDockOffset,
     isFreeTier = false,
-    onOpenPaymentPlans
+    onOpenPaymentPlans,
+    natalTime = null,
+    onSetNatalHere,
+    onClearNatal,
+    onLocationChange
 }) => {
     const isLight = theme === 'light';
+    const [showPicker, setShowPicker] = useState(false);
+    const [pickerFocusLoc, setPickerFocusLoc] = useState(false);
+    const [showSolarCal, setShowSolarCal] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
     const [playbackDirection, setPlaybackDirection] = useState<1 | -1>(1);
     const [isSpeedStepExpanded, setIsSpeedStepExpanded] = useState(false);
@@ -488,6 +539,16 @@ export const TimeControls: React.FC<{
     const dragStartIdxRef = useRef<number>(0);
     const hasDraggedRef = useRef<boolean>(false);
 
+    /** Marcha com sinal: +1..+27 avança, −1..−27 volta no tempo (o zero é pulado). */
+    const setSignedSpeed = (v: number) => {
+        const max = SPEED_LADDER.length;
+        const c = Math.max(-max, Math.min(max, v === 0 ? 1 : v));
+        const dir: 1 | -1 = c < 0 ? -1 : 1;
+        playbackDirectionRef.current = dir;
+        setPlaybackDirection(dir);
+        setSpeedByIndex(Math.abs(c) - 1);
+    };
+
     const setSpeedByIndex = (index: number) => {
         const clamped = Math.max(0, Math.min(SPEED_LADDER.length - 1, index));
         const target = SPEED_LADDER[clamped];
@@ -506,9 +567,11 @@ export const TimeControls: React.FC<{
         const handleWheel = (e: WheelEvent) => {
             e.preventDefault();
             e.stopPropagation();
-            const currentIdx = findSpeedIndex(timeStepRef.current, speedMultiplierRef.current);
-            const dir = e.deltaY < 0 ? 1 : -1;
-            setSpeedByIndex(currentIdx + dir);
+            const up = e.deltaY < 0;
+            const signed = playbackDirectionRef.current * (findSpeedIndex(timeStepRef.current, speedMultiplierRef.current) + 1);
+            let next = signed + (up ? 1 : -1);
+            if (next === 0) next = up ? 1 : -1;
+            setSignedSpeed(next);
         };
 
         el.addEventListener('wheel', handleWheel, { passive: false });
@@ -521,7 +584,7 @@ export const TimeControls: React.FC<{
         if (e.button !== 0 && e.pointerType === 'mouse') return;
 
         dragStartYRef.current = e.clientY;
-        dragStartIdxRef.current = findSpeedIndex(timeStepRef.current, speedMultiplierRef.current);
+        dragStartIdxRef.current = playbackDirectionRef.current * (findSpeedIndex(timeStepRef.current, speedMultiplierRef.current) + 1);
         hasDraggedRef.current = false;
 
         const handlePointerMove = (moveEv: PointerEvent) => {
@@ -533,7 +596,11 @@ export const TimeControls: React.FC<{
             if (hasDraggedRef.current) {
                 const STEP_SENSITIVITY = 16;
                 const steps = Math.trunc(deltaY / STEP_SENSITIVITY);
-                setSpeedByIndex(dragStartIdxRef.current + steps);
+                const start = dragStartIdxRef.current;
+                let target = start + steps;
+                if (start > 0 && target <= 0) target -= 1;
+                if (start < 0 && target >= 0) target += 1;
+                setSignedSpeed(target);
             }
         };
 
@@ -543,9 +610,7 @@ export const TimeControls: React.FC<{
             window.removeEventListener('pointercancel', handlePointerUp);
 
             if (!hasDraggedRef.current) {
-                const currentIdx = findSpeedIndex(timeStepRef.current, speedMultiplierRef.current);
-                const nextIdx = (currentIdx + 1) % SPEED_LADDER.length;
-                setSpeedByIndex(nextIdx);
+                setIsSpeedStepExpanded(prev => !prev);
             }
             setIsDraggingSpeed(false);
         };
@@ -625,6 +690,42 @@ export const TimeControls: React.FC<{
                     WebkitMaskImage: 'linear-gradient(to top, black 40%, transparent 100%)'
                 }}
             />
+            <style>{TC_CSS}</style>
+            {typeof document !== 'undefined' && createPortal(
+                <>
+                    <DateTimePicker
+                        open={showPicker}
+                        value={currentTime}
+                        location={location || { latitude: -23.5505, longitude: -46.6333, displayName: 'São Paulo, SP, Brasil' }}
+                        focusLocation={pickerFocusLoc}
+                        rightOffset={effectiveRightOffset}
+                        onClose={() => setShowPicker(false)}
+                        onConfirm={(date, loc) => {
+                            if (isFreeTier) {
+                                const { startDate, endDate } = getFreeTierSolarYearBounds(new Date());
+                                if (date.getTime() < startDate.getTime() || date.getTime() > endDate.getTime()) {
+                                    setShowPicker(false);
+                                    onOpenPaymentPlans?.();
+                                    return;
+                                }
+                            }
+                            setIsPlaying(false);
+                            onSetRealTime(false);
+                            onTimeChange(date);
+                            if (onLocationChange && loc && loc.displayName !== location?.displayName) onLocationChange(loc);
+                            setShowPicker(false);
+                        }}
+                    />
+                    <SolarCalendarPopup
+                        open={showSolarCal}
+                        currentDate={currentTime}
+                        leftOffset={effectiveLeftOffset}
+                        onClose={() => setShowSolarCal(false)}
+                        onPick={(d) => { setIsPlaying(false); onSetRealTime(false); onTimeChange(d); }}
+                    />
+                </>,
+                document.body
+            )}
             <div 
                 ref={toolbarContainerRef}
                 data-tour="time-controls"
@@ -648,34 +749,77 @@ export const TimeControls: React.FC<{
                         isLight={isLight}
                         isFreeTier={isFreeTier}
                         onOpenPaymentPlans={onOpenPaymentPlans}
+                        onOpenSolarCalendar={() => setShowSolarCal(true)}
                         headerRight={
-                            <div className="flex flex-col items-end justify-center font-sans leading-tight select-none py-0.5">
-                                <div className={`flex items-center gap-0.5 text-[14px] font-bold tracking-wider ${isLight ? 'text-neutral-900' : 'text-white'}`}>
-                                    <UnitCell value={hourVal} isSelected={selectedStampUnit === 'h'} onClick={() => setSelectedStampUnit(prev => prev === 'h' ? null : 'h')} onNudge={(dir) => nudge('h', dir)} isLight={isLight} textSizeClass="text-[14px]" />
-                                    <span className={`${isLight ? 'text-neutral-400' : 'text-white/40'} font-bold text-[14px]`}>:</span>
-                                    <UnitCell value={minVal} isSelected={selectedStampUnit === 'i'} onClick={() => setSelectedStampUnit(prev => prev === 'i' ? null : 'i')} onNudge={(dir) => nudge('i', dir)} isLight={isLight} textSizeClass="text-[14px]" />
+                            <div className="flex items-end gap-1.5 select-none">
+                                <div className="flex flex-col items-end gap-1">
+                                    {natalTime && (
+                                        <span className={`tc-chip ${isLight ? 'tc-chip-l' : ''}`} title="Mapa calculado nesta data (sobreposto ao cronógrafo)">
+                                            <span className="tc-chip-dot" />
+                                            Mapa · {pad(natalTime.getDate())}/{pad(natalTime.getMonth() + 1)}/{String(natalTime.getFullYear()).slice(2)} {pad(natalTime.getHours())}:{pad(natalTime.getMinutes())}
+                                            {onClearNatal && (
+                                                <button type="button" onClick={(e) => { e.stopPropagation(); onClearNatal(); }} aria-label="Remover mapa" title="Remover mapa"><i className="ti ti-x" /></button>
+                                            )}
+                                        </span>
+                                    )}
+                                    <div className={`flex items-baseline gap-2 leading-none ${isLight ? 'text-neutral-900' : 'text-white'}`}>
+                                        <div className="flex items-baseline">
+                                            <UnitCell value={dayVal} isSelected={selectedStampUnit === 'd'} onClick={() => setSelectedStampUnit(prev => prev === 'd' ? null : 'd')} onNudge={(dir) => nudge('d', dir)} isLight={isLight} textSizeClass="text-[16px]" fontFamily="'DM Mono', ui-monospace, monospace" />
+                                            <UnitCell value={MESES_CURTOS[currentTime.getMonth()]} isSelected={selectedStampUnit === 'm'} onClick={() => setSelectedStampUnit(prev => prev === 'm' ? null : 'm')} onNudge={(dir) => nudge('m', dir)} isLight={isLight} textSizeClass="text-[16px]" fontFamily="'DM Mono', ui-monospace, monospace" />
+                                            <UnitCell
+                                                value={yearVal}
+                                                isSelected={selectedStampUnit === 'y'}
+                                                onClick={() => {
+                                                    if (isFreeTier) {
+                                                        onOpenPaymentPlans?.();
+                                                        return;
+                                                    }
+                                                    setSelectedStampUnit(prev => prev === 'y' ? null : 'y');
+                                                }}
+                                                onNudge={(dir) => nudge('y', dir)}
+                                                isLight={isLight}
+                                                textSizeClass="text-[16px]"
+                                                fontFamily="'DM Mono', ui-monospace, monospace"
+                                            />
+                                        </div>
+                                        <div className="flex items-baseline">
+                                            <UnitCell value={hourVal} isSelected={selectedStampUnit === 'h'} onClick={() => setSelectedStampUnit(prev => prev === 'h' ? null : 'h')} onNudge={(dir) => nudge('h', dir)} isLight={isLight} textSizeClass="text-[22px]" fontFamily="'Cormorant Garamond', Georgia, serif" italic />
+                                            <span className={`${isLight ? 'text-neutral-400' : 'text-white/45'} text-[20px]`} style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic' }}>:</span>
+                                            <UnitCell value={minVal} isSelected={selectedStampUnit === 'i'} onClick={() => setSelectedStampUnit(prev => prev === 'i' ? null : 'i')} onNudge={(dir) => nudge('i', dir)} isLight={isLight} textSizeClass="text-[22px]" fontFamily="'Cormorant Garamond', Georgia, serif" italic />
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className={`tc-loc ${isLight ? 'tc-loc-l' : ''}`}
+                                        onClick={() => { setPickerFocusLoc(true); setShowPicker(true); }}
+                                        title="Trocar local"
+                                    >
+                                        <i className="ti ti-map-pin" aria-hidden="true" />
+                                        <span>{shortPlace(location?.displayName)}</span>
+                                        <i className="ti ti-pencil tc-loc-ed" aria-hidden="true" />
+                                    </button>
                                 </div>
-                                <div className={`flex items-center gap-0.5 text-[14px] font-normal tracking-wide ${isLight ? 'text-neutral-800' : 'text-white/80'}`}>
-                                    <UnitCell value={dayVal} isSelected={selectedStampUnit === 'd'} onClick={() => setSelectedStampUnit(prev => prev === 'd' ? null : 'd')} onNudge={(dir) => nudge('d', dir)} isLight={isLight} textSizeClass="text-[14px]" useRegularFont />
-                                    <span className={`${isLight ? 'text-neutral-400' : 'text-white/40'} text-[12px] font-normal`}>/</span>
-                                    <UnitCell value={monthVal} isSelected={selectedStampUnit === 'm'} onClick={() => setSelectedStampUnit(prev => prev === 'm' ? null : 'm')} onNudge={(dir) => nudge('m', dir)} isLight={isLight} textSizeClass="text-[14px]" useRegularFont />
-                                    <span className={`${isLight ? 'text-neutral-400' : 'text-white/40'} text-[12px] font-normal`}>/</span>
-                                    <UnitCell 
-                                        value={yearVal} 
-                                        isSelected={selectedStampUnit === 'y'} 
-                                        onClick={() => {
-                                            if (isFreeTier) {
-                                                onOpenPaymentPlans?.();
-                                                return;
-                                            }
-                                            setSelectedStampUnit(prev => prev === 'y' ? null : 'y');
-                                        }} 
-                                        onNudge={(dir) => nudge('y', dir)} 
-                                        isLight={isLight} 
-                                        textSizeClass="text-[14px]" 
-                                        useRegularFont 
-                                    />
-                                </div>
+                                <button
+                                    type="button"
+                                    data-tour="date"
+                                    onClick={() => { setPickerFocusLoc(false); setShowPicker(true); }}
+                                    className={`tcb w-[34px] h-[34px] flex items-center justify-center shrink-0 cursor-pointer ${isLight ? 'tcb-l' : ''}`}
+                                    title="Escolher data, hora e local"
+                                    aria-label="Escolher data, hora e local"
+                                >
+                                    <i className="ti ti-calendar text-[15px]" aria-hidden="true" />
+                                </button>
+                                {onSetNatalHere && (
+                                    <button
+                                        type="button"
+                                        onClick={onSetNatalHere}
+                                        className={`tcb tcb-solid w-[34px] h-[34px] flex items-center justify-center shrink-0 cursor-pointer ${isLight ? 'tcb-solid-l' : ''}`}
+                                        title="Calcular o mapa desta data"
+                                        aria-label="Calcular o mapa desta data"
+                                    >
+                                        <i className="ti ti-plus text-[16px]" aria-hidden="true" />
+                                    </button>
+                                )}
                             </div>
                         }
                     />
@@ -686,10 +830,10 @@ export const TimeControls: React.FC<{
                         <button
                             data-tour="now"
                             onClick={() => { onSetRealTime(true); setIsPlaying(false); }}
-                            className={`btn-3d-glow flex items-center justify-center gap-1.5 ${showHojeText ? 'px-3 sm:px-3.5' : 'w-9 px-0'} h-9 rounded-full text-xs font-bold active:scale-95 cursor-pointer shrink-0 ${
+                            className={`tcb flex items-center justify-center gap-1.5 ${showHojeText ? 'px-3 sm:px-3.5' : 'w-9 px-0'} h-9 rounded-full text-xs font-bold active:scale-95 cursor-pointer shrink-0 ${
                                 isRealTime 
-                                    ? 'btn-3d-red'
-                                    : (isLight ? 'btn-3d-white' : 'btn-3d-dark')
+                                    ? 'tcb-red'
+                                    : (isLight ? 'tcb-l' : '')
                             }`}
                             title="Tempo Real (Sincronizar Agora - Hoje)"
                         >
@@ -699,7 +843,7 @@ export const TimeControls: React.FC<{
                         <button
                             data-m-hide=""
                             onClick={() => setIsTimelineMinimized(!isTimelineMinimized)}
-                            className={`btn-3d-glow ${isLight ? 'btn-3d-white' : 'btn-3d-dark'} flex items-center justify-center gap-1.5 ${showTimelineText ? 'px-3 sm:px-3.5' : 'w-9 px-0'} h-9 rounded-full text-xs font-bold active:scale-95 cursor-pointer shrink-0`}
+                            className={`tcb ${isLight ? 'tcb-l' : ''} flex items-center justify-center gap-1.5 ${showTimelineText ? 'px-3 sm:px-3.5' : 'w-9 px-0'} h-9 rounded-full text-xs font-bold active:scale-95 cursor-pointer shrink-0`}
                             title={isTimelineMinimized ? "Ver linha do tempo" : "Ocultar linha do tempo"}
                         >
                             <i className={`ti ${isTimelineMinimized ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm shrink-0`} />
@@ -712,99 +856,53 @@ export const TimeControls: React.FC<{
                     </div>
 
                     {/* Center: Step Back (holdable), Play Reverse, Play Forward, Step Forward (holdable), and Marcha (speed) */}
-                    <div data-tour="time-step" className="flex items-center justify-center shrink-0 z-20 gap-1 sm:gap-1.5 mx-auto">                        {/* Step Back (Press and hold to rewind continuously) */}
+                    <div data-tour="time-step" className="flex items-center justify-center shrink-0 z-20 gap-1 sm:gap-1.5 mx-auto">                        {/* Voltar (manual): clique = 1 passo, segure para continuar */}
                         <button
                             onPointerDown={(e) => {
                                 if (e.button !== 0 && e.pointerType === 'mouse') return;
+                                setIsPlaying(false);
                                 startHold(-1);
                             }}
                             onPointerUp={stopHold}
                             onPointerLeave={stopHold}
                             onPointerCancel={stopHold}
-                            className={`btn-3d-glow ${isLight ? 'btn-3d-white' : 'btn-3d-dark'} w-9 h-9 rounded-full active:scale-95 flex items-center justify-center cursor-pointer select-none touch-none`}
-                            title="Voltar Passo (Pressione e segure para retroceder)"
+                            className={`tcb ${isLight ? 'tcb-l' : ''} w-9 h-9 flex items-center justify-center cursor-pointer select-none touch-none`}
+                            title="Voltar no tempo (segure para continuar)"
+                            aria-label="Voltar no tempo"
                         >
-                            <svg className={`w-4 h-4 ${isLight ? 'text-neutral-800' : 'text-white'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polygon points="19 20 9 12 19 4 19 20" fill="currentColor" />
-                                <line x1="5" y1="5" x2="5" y2="19" />
-                            </svg>
+                            <i className="ti ti-player-track-prev-filled text-[15px]" aria-hidden="true" />
                         </button>
 
-                        {/* Play Reverse (Voltar no Tempo Continuamente) */}
-                        <button
-                            onClick={() => {
-                                if (isPlaying && playbackDirection === -1) {
-                                    setIsPlaying(false);
-                                } else {
-                                    setPlaybackDirection(-1);
-                                    setIsPlaying(true);
-                                }
-                            }}
-                            className={`btn-3d-glow w-9 h-9 rounded-full flex items-center justify-center active:scale-95 cursor-pointer ${
-                                isPlaying && playbackDirection === -1 
-                                    ? 'btn-3d-purple'
-                                    : (isLight ? 'btn-3d-white' : 'btn-3d-dark')
-                            }`}
-                            title={isPlaying && playbackDirection === -1 ? "Pausar Reversão" : "Voltar no Tempo Continuamente (Play Reverso)"}
-                        >
-                            {isPlaying && playbackDirection === -1 ? (
-                                <svg className="w-4 h-4 text-purple-300 animate-pulse" viewBox="0 0 24 24" fill="currentColor">
-                                    <rect x="6" y="4" width="4" height="16" rx="1" />
-                                    <rect x="14" y="4" width="4" height="16" rx="1" />
-                                </svg>
-                            ) : (
-                                <svg className={`w-4 h-4 ${isLight ? 'text-neutral-800' : 'text-white'}`} viewBox="0 0 24 24" fill="currentColor">
-                                    <polygon points="18 4 6 12 18 20 18 4" />
-                                </svg>
-                            )}
-                        </button>
-
-                        {/* Play Forward (Avançar no Tempo Continuamente) */}
+                        {/* Play = modo automático, na velocidade e no sentido da marcha */}
                         <button
                             data-tour="play"
-                            onClick={() => {
-                                if (isPlaying && playbackDirection === 1) {
-                                    setIsPlaying(false);
-                                } else {
-                                    setPlaybackDirection(1);
-                                    setIsPlaying(true);
-                                }
-                            }}
-                            className={`btn-3d-glow w-9 h-9 rounded-full flex items-center justify-center active:scale-95 cursor-pointer ${
-                                isPlaying && playbackDirection === 1 
-                                    ? 'btn-3d-amber'
-                                    : (isLight ? 'btn-3d-white' : 'btn-3d-dark')
+                            onClick={() => setIsPlaying(p => !p)}
+                            className={`tcb w-10 h-10 flex items-center justify-center cursor-pointer ${
+                                isPlaying
+                                    ? (playbackDirection === -1 ? 'tcb-violet' : 'tcb-amber')
+                                    : `tcb-solid ${isLight ? 'tcb-solid-l' : ''}`
                             }`}
-                            title={isPlaying && playbackDirection === 1 ? "Pausar" : "Avançar no Tempo Continuamente (Play)"}
+                            title={isPlaying ? 'Pausar o modo automático' : 'Ligar o modo automático'}
+                            aria-label={isPlaying ? 'Pausar o modo automático' : 'Ligar o modo automático'}
                         >
-                            {isPlaying && playbackDirection === 1 ? (
-                                <svg className="w-4 h-4 text-amber-300 animate-pulse" viewBox="0 0 24 24" fill="currentColor">
-                                    <rect x="6" y="4" width="4" height="16" rx="1" />
-                                    <rect x="14" y="4" width="4" height="16" rx="1" />
-                                </svg>
-                            ) : (
-                                <svg className={`w-4 h-4 ${isLight ? 'text-neutral-800' : 'text-white'}`} viewBox="0 0 24 24" fill="currentColor">
-                                    <polygon points="6 3 20 12 6 21 6 3" />
-                                </svg>
-                            )}
+                            <i className={`ti ${isPlaying ? 'ti-player-pause-filled' : 'ti-player-play-filled'} text-[17px]`} aria-hidden="true" />
                         </button>
 
-                        {/* Step Forward (Press and hold to advance continuously) */}
+                        {/* Avançar (manual): clique = 1 passo, segure para continuar */}
                         <button
                             onPointerDown={(e) => {
                                 if (e.button !== 0 && e.pointerType === 'mouse') return;
+                                setIsPlaying(false);
                                 startHold(1);
                             }}
                             onPointerUp={stopHold}
                             onPointerLeave={stopHold}
                             onPointerCancel={stopHold}
-                            className={`btn-3d-glow ${isLight ? 'btn-3d-white' : 'btn-3d-dark'} w-9 h-9 rounded-full active:scale-95 flex items-center justify-center cursor-pointer select-none touch-none`}
-                            title="Avançar Passo (Pressione e segure para avançar)"
+                            className={`tcb ${isLight ? 'tcb-l' : ''} w-9 h-9 flex items-center justify-center cursor-pointer select-none touch-none`}
+                            title="Avançar no tempo (segure para continuar)"
+                            aria-label="Avançar no tempo"
                         >
-                            <svg className={`w-4 h-4 ${isLight ? 'text-neutral-800' : 'text-white'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polygon points="5 4 15 12 5 20 5 4" fill="currentColor" />
-                                <line x1="19" y1="5" x2="19" y2="19" />
-                            </svg>
+                            <i className="ti ti-player-track-next-filled text-[15px]" aria-hidden="true" />
                         </button>
 
                         {/* Marcha (Speed) next to play controls */}
@@ -813,15 +911,13 @@ export const TimeControls: React.FC<{
                                 ref={speedBtnRef}
                                 data-tour="speed"
                                 onPointerDown={handleSpeedPointerDown}
-                                className={`btn-3d-glow flex items-center gap-1.5 px-3 sm:px-3.5 h-9 rounded-full select-none touch-none cursor-ns-resize active:scale-95 ${
-                                    isDraggingSpeed
-                                        ? 'btn-3d-amber'
-                                        : (isLight ? 'btn-3d-white' : 'btn-3d-dark')
-                                }`}
-                                title="Velocidade / Marcha (Role ou Arraste ↑/↓ para alterar)"
+                                className={`tcb flex items-center gap-1.5 pl-3 pr-1.5 h-9 select-none touch-none cursor-ns-resize ${
+                                    playbackDirection === -1 ? 'tcb-violet' : 'tcb-amber'
+                                } ${isDraggingSpeed ? 'tcb-active' : ''}`}
+                                title="Marcha: role ou arraste para cima para acelerar; abaixo de zero o tempo volta"
                             >
-                                <span className={`font-mono font-extrabold uppercase text-xs tracking-wider ${isLight ? 'text-amber-600' : 'text-amber-300'}`}>
-                                    {STEP_LABELS[timeStep]} x{speedMultiplier}
+                                <span className="uppercase text-[11.5px] tracking-wider min-w-[64px]" style={{ fontFamily: "'DM Mono', ui-monospace, monospace" }}>
+                                    {playbackDirection === -1 ? '−' : ''}{STEP_LABELS[timeStep]} ×{speedMultiplier}
                                 </span>
 
                                 <button
@@ -902,10 +998,10 @@ export const TimeControls: React.FC<{
                         <button
                             data-tour="zodiac-lock"
                             onClick={onToggleZodiacFixed}
-                            className={`btn-3d-glow h-9 ${showZodiacText ? 'px-3 sm:px-3.5' : 'w-9 px-0'} rounded-full flex items-center justify-center gap-1.5 shrink-0 active:scale-95 cursor-pointer text-xs font-bold ${
+                            className={`tcb h-9 ${showZodiacText ? 'px-3 sm:px-3.5' : 'w-9 px-0'} rounded-full flex items-center justify-center gap-1.5 shrink-0 active:scale-95 cursor-pointer text-xs font-bold ${
                                 isZodiacFixed 
-                                    ? 'btn-3d-amber'
-                                    : (isLight ? 'btn-3d-white' : 'btn-3d-dark')
+                                    ? 'tcb-amber'
+                                    : (isLight ? 'tcb-l' : '')
                             }`}
                             title={isZodiacFixed ? "Desbloquear Zodíaco" : "Bloquear Zodíaco"}
                         >
@@ -919,10 +1015,10 @@ export const TimeControls: React.FC<{
                         {onToggleFullscreen && (
                             <button
                                 onClick={onToggleFullscreen}
-                                className={`btn-3d-glow h-9 ${showFullscreenText ? 'px-3 sm:px-3.5' : 'w-9 px-0'} rounded-full flex items-center justify-center gap-1.5 shrink-0 active:scale-95 cursor-pointer text-xs font-bold ${
+                                className={`tcb h-9 ${showFullscreenText ? 'px-3 sm:px-3.5' : 'w-9 px-0'} rounded-full flex items-center justify-center gap-1.5 shrink-0 active:scale-95 cursor-pointer text-xs font-bold ${
                                     isFullscreen
-                                        ? 'btn-3d-amber'
-                                        : (isLight ? 'btn-3d-white' : 'btn-3d-dark')
+                                        ? 'tcb-amber'
+                                        : (isLight ? 'tcb-l' : '')
                                 }`}
                                 data-tour="present"
                                 title="Alternar Modo Apresentação (Tela Cheia)"
@@ -949,7 +1045,9 @@ const UnitCell: React.FC<{
     isLight?: boolean;
     textSizeClass?: string;
     useRegularFont?: boolean;
-}> = ({ value, isSelected, onClick, onNudge, isLight, textSizeClass = "text-xs", useRegularFont = false }) => {
+    fontFamily?: string;
+    italic?: boolean;
+}> = ({ value, isSelected, onClick, onNudge, isLight, textSizeClass = "text-xs", useRegularFont = false, fontFamily, italic }) => {
     const ref = useRef<HTMLDivElement>(null);
     const onNudgeRef = useRef(onNudge);
     onNudgeRef.current = onNudge;
@@ -972,7 +1070,7 @@ const UnitCell: React.FC<{
         <div
             ref={ref}
             onClick={onClick}
-            className={`flex items-center justify-center h-6 px-1 rounded transition-all cursor-ns-resize ${
+            className={`flex items-center justify-center ${fontFamily ? 'h-7 px-[3px]' : 'h-6 px-1'} rounded transition-all cursor-ns-resize ${
                 isSelected 
                     ? (isLight ? 'bg-black/10 ring-1 ring-black/25 text-neutral-900' : 'bg-white/20 ring-1 ring-white/40 text-white')
                     : (isLight ? 'hover:bg-black/[0.06] text-neutral-800' : 'hover:bg-white/[0.06] text-white/80')
@@ -982,7 +1080,7 @@ const UnitCell: React.FC<{
                 isSelected 
                     ? (isLight ? 'text-neutral-900 font-bold' : 'text-white font-bold') 
                     : (isLight ? 'text-neutral-800 font-normal' : 'text-white/80 font-normal')
-            }`}>{value}</span>
+            }`} style={fontFamily ? { fontFamily, fontStyle: italic ? 'italic' : undefined, fontWeight: italic ? 500 : 400 } : undefined}>{value}</span>
         </div>
     );
 };
