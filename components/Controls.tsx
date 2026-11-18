@@ -5,6 +5,7 @@ import { MoonInfoPanel } from './MoonInfoPanel';
 import { createPortal } from 'react-dom';
 import { DateTimePicker } from './time/DateTimePicker';
 import { SolarCalendarPopup } from './time/SolarCalendarPopup';
+import { ExportPDFButton } from './ExportPDFButton';
 
 export const ToggleSwitch: React.FC<{ checked: boolean; onChange: () => void; label: string; disabled?: boolean; }> = ({ checked, onChange, label, disabled }) => (
     <label className={`flex items-center justify-between w-full p-2 text-sm rounded-xl transition-all duration-200 ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10 hover:scale-[1.01] active:scale-[0.99] cursor-pointer'}`}>
@@ -251,6 +252,11 @@ const TC_CSS = `
 .tc-loc-l{color:rgba(35,23,20,.6)}
 .tc-loc-l:hover{color:#231714;background:rgba(0,0,0,.05)}
 .tc-loc-ed{font-size:10px;opacity:.7}
+.tc-mi{width:100%;display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#EDE9E3;font-size:13px;cursor:pointer;text-align:left}
+.tc-mi:hover{background:rgba(255,255,255,.06)}
+.tc-mi i{font-size:16px;color:#B9B4BE}
+.tc-more{animation:tc-more-in .22s cubic-bezier(.16,1,.3,1)}
+@keyframes tc-more-in{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
 `;
 
 export const TimeControls: React.FC<{
@@ -283,6 +289,9 @@ export const TimeControls: React.FC<{
     onSetNatalHere?: () => void;
     onClearNatal?: () => void;
     onLocationChange?: (loc: { latitude: number; longitude: number; displayName: string }) => void;
+    /** Menu ⋯ ao lado do +: salvar e exportar o mapa */
+    onSaveMap?: () => void;
+    exportData?: any;
 }> = ({
     currentTime,
     onTimeChange,
@@ -311,8 +320,13 @@ export const TimeControls: React.FC<{
     natalTime = null,
     onSetNatalHere,
     onClearNatal,
-    onLocationChange
+    onLocationChange,
+    onSaveMap,
+    exportData
 }) => {
+    const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
+    const [moreMenu, setMoreMenu] = useState<DOMRect | null>(null);
+    const [exportReq, setExportReq] = useState(0);
     const isLight = theme === 'light';
     const [showPicker, setShowPicker] = useState(false);
     const [pickerFocusLoc, setPickerFocusLoc] = useState(false);
@@ -701,6 +715,7 @@ export const TimeControls: React.FC<{
                         location={location || { latitude: -23.5505, longitude: -46.6333, displayName: 'São Paulo, SP, Brasil' }}
                         focusLocation={pickerFocusLoc}
                         rightOffset={effectiveRightOffset}
+                        anchorRect={anchorRect}
                         onClose={() => setShowPicker(false)}
                         onLocationPick={(loc) => { if (onLocationChange && loc.displayName !== location?.displayName) onLocationChange(loc); }}
                         onConfirm={(date, loc) => {
@@ -719,6 +734,28 @@ export const TimeControls: React.FC<{
                             setShowPicker(false);
                         }}
                     />
+                    {moreMenu && (
+                        <>
+                            <div className="fixed inset-0 z-[11490]" onClick={() => setMoreMenu(null)} />
+                            <div
+                                role="menu"
+                                className="fixed z-[11500] w-[200px] rounded-2xl border border-[#2a2430] bg-[#0a070c] p-1.5 shadow-[0_24px_60px_-16px_rgba(0,0,0,.9)] tc-more"
+                                style={{ right: Math.max(8, window.innerWidth - moreMenu.right), bottom: Math.max(8, window.innerHeight - moreMenu.top + 8), fontFamily: "'DM Sans', system-ui, sans-serif", transformOrigin: 'bottom right' }}
+                            >
+                                {onSaveMap && (
+                                    <button role="menuitem" type="button" className="tc-mi" onClick={() => { setMoreMenu(null); onSaveMap(); }}>
+                                        <i className="ti ti-bookmark" aria-hidden="true" /><span>Salvar mapa</span>
+                                    </button>
+                                )}
+                                {exportData && (
+                                    <button role="menuitem" type="button" className="tc-mi" onClick={() => { setMoreMenu(null); setExportReq(n => n + 1); }}>
+                                        <i className="ti ti-download" aria-hidden="true" /><span>Exportar PDF</span>
+                                    </button>
+                                )}
+                            </div>
+                        </>
+                    )}
+                    {exportData && <ExportPDFButton {...exportData} variant="hidden" openRequest={exportReq} />}
                     <SolarCalendarPopup
                         open={showSolarCal}
                         currentDate={currentTime}
@@ -768,7 +805,7 @@ export const TimeControls: React.FC<{
                                     <button
                                         type="button"
                                         className={`tc-loc ${isLight ? 'tc-loc-l' : ''}`}
-                                        onClick={() => { setPickerFocusLoc(true); setShowPicker(true); }}
+                                        onClick={(e) => { setAnchorRect((e.currentTarget as HTMLElement).getBoundingClientRect()); setPickerFocusLoc(true); setShowPicker(true); }}
                                         title="Trocar local"
                                     >
                                         <i className="ti ti-map-pin" aria-hidden="true" />
@@ -805,7 +842,7 @@ export const TimeControls: React.FC<{
                                 <button
                                     type="button"
                                     data-tour="date"
-                                    onClick={() => { setPickerFocusLoc(false); setShowPicker(true); }}
+                                    onClick={(e) => { setAnchorRect((e.currentTarget as HTMLElement).getBoundingClientRect()); setPickerFocusLoc(false); setShowPicker(true); }}
                                     className={`tcb flex items-center justify-center shrink-0 cursor-pointer ${isLight ? 'tcb-l' : ''}`}
                                     style={{ width: 34, height: 34, padding: 0 }}
                                     title="Escolher data, hora e local"
@@ -824,6 +861,23 @@ export const TimeControls: React.FC<{
                                     >
                                         <i className="ti ti-plus text-[16px]" aria-hidden="true" />
                                     </button>
+                                )}
+                                {(onSaveMap || exportData) && (
+                                    <div data-tour="save" className="shrink-0">
+                                        <button
+                                            type="button"
+                                            data-tour="export"
+                                            onClick={(e) => setMoreMenu(moreMenu ? null : (e.currentTarget as HTMLElement).getBoundingClientRect())}
+                                            className={`tcb flex items-center justify-center cursor-pointer ${isLight ? 'tcb-l' : ''} ${moreMenu ? 'tcb-active' : ''}`}
+                                            style={{ width: 34, height: 34, padding: 0 }}
+                                            title="Salvar e exportar"
+                                            aria-label="Mais ações: salvar e exportar"
+                                            aria-haspopup="menu"
+                                            aria-expanded={!!moreMenu}
+                                        >
+                                            <i className="ti ti-dots text-[16px]" aria-hidden="true" />
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         }

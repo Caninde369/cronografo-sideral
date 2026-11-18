@@ -243,16 +243,16 @@ export const TOUR_STEPS: TourStep[] = [
       { label: 'Digite só os números do seu nascimento, confira e clique em OK (ex.: 210319900815 = 21/03/1990 às 08:15)', wait: { click: '[data-tour="date-ok"]' }, targets: ['date-input', 'calendar-panel'], also: ['clock'], hand: 'date-ok', mouse: 'left' },
     ] },
 
-  { chapter: 'cronografo', kind: 'mission', color: C_KEEP, title: 'Salvar o seu mapa', icon: 'ti-bookmark', targets: ['save'], pad: 6, needsSidebar: true, scene: 'close-overlays', tips: 'all',
+  { chapter: 'cronografo', kind: 'mission', color: C_KEEP, title: 'Salvar o seu mapa', icon: 'ti-bookmark', targets: ['save'], pad: 6, scene: 'close-overlays', tips: 'all',
     text: 'O céu do seu nascimento fica guardado na sua conta.',
     tasks: [
-      { label: 'Clique em Salvar', wait: { dom: '[data-tour="save-modal"]' } },
+      { label: 'Abra o menu ⋯ ao lado do + e clique em Salvar', wait: { dom: '[data-tour="save-modal"]' } },
       { label: 'Dê um nome (o seu, por exemplo) e confirme', wait: { domGone: '[data-tour="save-modal"]' }, targets: ['save-modal', 'save'] },
     ] },
-  { chapter: 'cronografo', kind: 'mission', color: C_KEEP, title: 'Exportar o seu mapa', icon: 'ti-download', targets: ['export'], pad: 6, needsSidebar: true, tips: 'all',
+  { chapter: 'cronografo', kind: 'mission', color: C_KEEP, title: 'Exportar o seu mapa', icon: 'ti-download', targets: ['export'], pad: 6, tips: 'all',
     text: 'Um PDF do seu mapa, pronto para enviar ou imprimir.',
     tasks: [
-      { label: 'Clique em Exportar', wait: { dom: '[data-tour="export-modal"]' } },
+      { label: 'Abra o menu ⋯ ao lado do + e clique em Exportar', wait: { dom: '[data-tour="export-modal"]' } },
       { label: 'Escolha o formato e baixe o PDF', wait: { domGone: '[data-tour="export-modal"]' }, targets: ['export-modal', 'export'] },
     ] },
 

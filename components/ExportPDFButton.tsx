@@ -46,7 +46,9 @@ interface ExportPDFButtonProps {
     setShowTimeRing: React.Dispatch<React.SetStateAction<boolean>>;
     showConstellations: boolean;
     setShowConstellations: React.Dispatch<React.SetStateAction<boolean>>;
-    variant?: 'sidebar' | 'topbar';
+    variant?: 'sidebar' | 'topbar' | 'hidden';
+    /** muda de valor = abre a janela de exportação (usado pelo menu ⋯ do controle de tempo) */
+    openRequest?: number;
     isFreeTier?: boolean;
     onOpenPaymentPlans?: () => void;
 }
@@ -769,6 +771,7 @@ export const ExportPDFButton: React.FC<ExportPDFButtonProps> = (props) => {
     const [isExporting, setIsExporting] = useState(false);
     const [exportProgress, setExportProgress] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    useEffect(() => { if (props.openRequest) setIsModalOpen(true); }, [props.openRequest]);
     const [showMenu, setShowMenu] = useState(false);
     const [copied, setCopied] = useState(false);
     const [clockScreenshot, setClockScreenshot] = useState<string>('');
@@ -1458,6 +1461,10 @@ export const ExportPDFButton: React.FC<ExportPDFButtonProps> = (props) => {
         </>,
         document.body
     ) : null;
+
+    if (props.variant === 'hidden') {
+        return <div ref={menuRef} style={{ display: 'contents' }}>{sharedOffscreenRenderers}</div>;
+    }
 
     if (props.variant === 'sidebar') {
         return (

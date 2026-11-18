@@ -2358,6 +2358,8 @@ const handlePlanetClick = useCallback((id: string) => {
                                     }}
                                     onClearNatal={() => setNatalTime(null)}
                                     onLocationChange={(loc) => { setLocation({ latitude: loc.latitude, longitude: loc.longitude, displayName: loc.displayName }); }}
+                                    onSaveMap={isMobile ? undefined : () => setShowSaveMapModal(true)}
+                                    exportData={isMobile ? undefined : exportData}
                                 />
                             )}
 
@@ -3594,8 +3596,8 @@ const handlePlanetClick = useCallback((id: string) => {
                     onOpenArcaneCalendar={() => setShowArcaneCalendar(true)}
                     isAdmin={isAdmin}
                     onOpenAdminDashboard={() => setShowAdminDashboard(true)}
-                    onSave={() => setShowSaveMapModal(true)}
-                    exportData={exportData}
+                    onSave={isMobile ? () => setShowSaveMapModal(true) : undefined}
+                    exportData={isMobile ? exportData : undefined}
                     onOpenPaymentPlans={() => setShowPaymentPlansModal(true)}
                     onOpenSettings={() => setIsOptionsRailOpen(prev => !prev)}
                     isOptionsRailOpen={isOptionsRailOpen}

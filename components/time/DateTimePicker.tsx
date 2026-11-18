@@ -4,7 +4,7 @@
  * relógio circular (anel de fora 1–12, de dentro 13–00; depois da hora passa sozinho para os minutos),
  * local (busca em qualquer lugar do mundo + caixa rolável com as 27 capitais). Agora e Confirmar fixos embaixo.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocationSearch } from '../../hooks/useLocationSearch';
 
 type Loc = { latitude: number; longitude: number; displayName: string };
@@ -34,7 +34,9 @@ export const DateTimePicker: React.FC<{
   onConfirm: (date: Date, loc: Loc) => void;
   /** Local escolhido vale na hora (o tutorial espera a troca de local antes do OK da data) */
   onLocationPick?: (loc: Loc) => void;
-}> = ({ open, value, location, focusLocation, rightOffset = 0, onClose, onConfirm, onLocationPick }) => {
+  /** Botão que abriu a janela: a entrada é um zoom saindo dele */
+  anchorRect?: DOMRect | null;
+}> = ({ open, value, location, focusLocation, rightOffset = 0, onClose, onConfirm, onLocationPick, anchorRect }) => {
   const [y, setY] = useState(value.getFullYear());
   const [m, setM] = useState(value.getMonth());
   const [d, setD] = useState(value.getDate());
@@ -42,13 +44,45 @@ export const DateTimePicker: React.FC<{
   const [mi, setMi] = useState(value.getMinutes());
   const [loc, setLoc] = useState<Loc>(location);
   const [view, setView] = useState<'dias' | 'meses' | 'anos'>('dias');
-  const [yBase, setYBase] = useState(value.getFullYear() - (value.getFullYear() % 12));
-  const [clockMode, setClockMode] = useState<'h' | 'm'>('h');
+    const [clockMode, setClockMode] = useState<'h' | 'm'>('h');
   const [query, setQuery] = useState('');
   const [quick, setQuick] = useState('');
   const [quickErr, setQuickErr] = useState(false);
   const { results, isLoading } = useLocationSearch(query);
   const searchRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const mBtnRef = useRef<HTMLButtonElement>(null);
+  const yBtnRef = useRef<HTMLButtonElement>(null);
+  const stateRef = useRef({ y, m });
+  stateRef.current = { y, m };
+
+  // entrada: zoom saindo do botão de calendário
+  useLayoutEffect(() => {
+    const el = panelRef.current;
+    if (!open || !el) return;
+    const r = el.getBoundingClientRect();
+    if (anchorRect) el.style.transformOrigin = `${anchorRect.left + anchorRect.width / 2 - r.left}px ${anchorRect.top + anchorRect.height / 2 - r.top}px`;
+    el.classList.remove('dtp-in'); void el.offsetWidth; el.classList.add('dtp-in');
+  }, [open]);
+
+  // roda do mouse sobre Mês / Ano troca o valor
+  useEffect(() => {
+    if (!open) return;
+    const onWheelM = (e: WheelEvent) => { e.preventDefault(); const { m: cm, y: cy } = stateRef.current; const d = e.deltaY < 0 ? -1 : 1; const nm = cm + d; if (nm < 0) { setM(11); setY(cy - 1); } else if (nm > 11) { setM(0); setY(cy + 1); } else setM(nm); };
+    const onWheelY = (e: WheelEvent) => { e.preventDefault(); setY(stateRef.current.y + (e.deltaY < 0 ? -1 : 1)); };
+    const mb = mBtnRef.current, yb = yBtnRef.current;
+    mb?.addEventListener('wheel', onWheelM, { passive: false });
+    yb?.addEventListener('wheel', onWheelY, { passive: false });
+    return () => { mb?.removeEventListener('wheel', onWheelM); yb?.removeEventListener('wheel', onWheelY); };
+  }, [open]);
+
+  // ao abrir a lista de meses ou anos, centraliza o item escolhido
+  useEffect(() => {
+    if (view === 'dias') return;
+    const sel = listRef.current?.querySelector('.sel') as HTMLElement | null;
+    if (sel && listRef.current) listRef.current.scrollTop = sel.offsetTop - listRef.current.clientHeight / 2 + sel.clientHeight / 2;
+  }, [view]);
   const locRef = useRef<HTMLDivElement>(null);
 
   // ao abrir: copia a data, a hora e o local atuais
@@ -57,7 +91,6 @@ export const DateTimePicker: React.FC<{
     setY(value.getFullYear()); setM(value.getMonth()); setD(value.getDate());
     setH(value.getHours()); setMi(value.getMinutes()); setLoc(location);
     setView('dias'); setClockMode('h'); setQuery(''); setQuick(''); setQuickErr(false);
-    setYBase(value.getFullYear() - (value.getFullYear() % 12));
     if (focusLocation) {
       window.setTimeout(() => { locRef.current?.scrollIntoView({ block: 'nearest' }); searchRef.current?.focus(); }, 60);
     }
@@ -76,8 +109,6 @@ export const DateTimePicker: React.FC<{
   const dd = Math.min(d, nDays);
   const now = new Date();
 
-  const prevMonth = () => { setView('dias'); if (m === 0) { setM(11); setY(y - 1); } else setM(m - 1); };
-  const nextMonth = () => { setView('dias'); if (m === 11) { setM(0); setY(y + 1); } else setM(m + 1); };
 
   const capitais = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -135,7 +166,7 @@ export const DateTimePicker: React.FC<{
   return (
     <>
       <div className="dtp-scrim" onClick={onClose} />
-      <div className="dtp" data-tour="calendar-panel" role="dialog" aria-label="Escolher data, hora e local" style={{ right: `${rightOffset + 16}px` }}>
+      <div ref={panelRef} className="dtp" data-tour="calendar-panel" role="dialog" aria-label="Escolher data, hora e local" style={{ right: `${rightOffset + 16}px` }}>
         <style>{CSS}</style>
         <div className="dtp-h">
           <span className="dtp-t">Data, hora e local</span>
@@ -161,14 +192,12 @@ export const DateTimePicker: React.FC<{
           </div>
           {quickErr && <div className="dtp-err">Use dia, mês, ano e hora, como 21/03/1990 08:15.</div>}
           <div className="dtp-my">
-            <button className="dtp-nav" onClick={prevMonth} aria-label="Mês anterior"><i className="ti ti-chevron-left" /></button>
-            <button className={`dtp-m ${view === 'meses' ? 'on' : ''}`} onClick={() => setView(view === 'meses' ? 'dias' : 'meses')}>
-              <span>{MESES[m]}</span><i className="ti ti-chevron-down" />
+            <button ref={mBtnRef} className={`dtp-m ${view === 'meses' ? 'on' : ''}`} onClick={() => setView(view === 'meses' ? 'dias' : 'meses')} title="Escolher o mês (ou role a rodinha aqui)">
+              <span>{MESES[m]}</span><i className={`ti ${view === 'meses' ? 'ti-chevron-up' : 'ti-chevron-down'}`} />
             </button>
-            <button className={`dtp-y ${view === 'anos' ? 'on' : ''}`} onClick={() => { setYBase(y - (y % 12)); setView(view === 'anos' ? 'dias' : 'anos'); }}>
-              <span>{y}</span><i className="ti ti-chevron-down" />
+            <button ref={yBtnRef} className={`dtp-y ${view === 'anos' ? 'on' : ''}`} onClick={() => setView(view === 'anos' ? 'dias' : 'anos')} title="Escolher o ano (ou role a rodinha aqui)">
+              <span>{y}</span><i className={`ti ${view === 'anos' ? 'ti-chevron-up' : 'ti-chevron-down'}`} />
             </button>
-            <button className="dtp-nav" onClick={nextMonth} aria-label="Próximo mês"><i className="ti ti-chevron-right" /></button>
           </div>
 
           {view === 'dias' && (
@@ -187,23 +216,17 @@ export const DateTimePicker: React.FC<{
             </div>
           )}
           {view === 'meses' && (
-            <div className="dtp-grid">
+            <div className="dtp-list" ref={listRef} role="listbox" aria-label="Meses">
               {MESES.map((nome, i) => (
-                <button key={nome} className={i === m ? 'sel' : ''} onClick={() => { setM(i); setView('dias'); }}>{nome}</button>
+                <button key={nome} role="option" aria-selected={i === m} className={i === m ? 'sel' : ''} onClick={() => { setM(i); setView('dias'); }}>{nome}</button>
               ))}
             </div>
           )}
           {view === 'anos' && (
-            <div>
-              <div className="dtp-grid dtp-mono">
-                {Array.from({ length: 12 }).map((_, k) => yBase + k).map(ano => (
-                  <button key={ano} className={ano === y ? 'sel' : ''} onClick={() => { setY(ano); setView('dias'); }}>{ano}</button>
-                ))}
-              </div>
-              <div className="dtp-my" style={{ marginTop: 6 }}>
-                <button className="dtp-nav dtp-wide" onClick={() => setYBase(yBase - 12)}><i className="ti ti-chevron-left" /> Anteriores</button>
-                <button className="dtp-nav dtp-wide" onClick={() => setYBase(yBase + 12)}>Seguintes <i className="ti ti-chevron-right" /></button>
-              </div>
+            <div className="dtp-list dtp-mono" ref={listRef} role="listbox" aria-label="Anos">
+              {Array.from({ length: 2200 - 1800 + 1 }).map((_, k) => 1800 + k).map(ano => (
+                <button key={ano} role="option" aria-selected={ano === y} className={ano === y ? 'sel' : ''} onClick={() => { setY(ano); setView('dias'); }}>{ano}</button>
+              ))}
             </div>
           )}
 
@@ -249,7 +272,7 @@ export const DateTimePicker: React.FC<{
           </div>
 
           <div className="dtp-loc" ref={locRef} data-tour="location">
-            <div className="dtp-eyebrow">Local · <span className="dtp-cur">{loc.displayName}</span></div>
+            <div className="dtp-eyebrow"><i className="ti ti-map-pin dtp-pin" aria-hidden="true" />Local · <span className="dtp-cur">{loc.displayName}</span></div>
             <label className="dtp-search">
               <i className="ti ti-search" />
               <input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar qualquer cidade do mundo" autoComplete="off" />
@@ -275,12 +298,11 @@ export const DateTimePicker: React.FC<{
                 );
               })}
             </div>
-            <div className="dtp-more"><i className="ti ti-arrows-vertical" /> role para ver as 27 capitais</div>
           </div>
         </div>
 
         <div className="dtp-foot">
-          <button className="dtp-btn" onClick={() => { const n = new Date(); setY(n.getFullYear()); setM(n.getMonth()); setD(n.getDate()); setH(n.getHours()); setMi(n.getMinutes()); setView('dias'); }}>Agora</button>
+          <button className="dtp-btn" onClick={() => { const n = new Date(); setY(n.getFullYear()); setM(n.getMonth()); setD(n.getDate()); setH(n.getHours()); setMi(n.getMinutes()); setView('dias'); }}><span className="dtp-live" aria-hidden="true" />Agora</button>
           <button className="dtp-btn dtp-ok" onClick={() => onConfirm(new Date(y, m, dd, h, mi, 0), loc)}><i className="ti ti-check" /> Confirmar</button>
         </div>
       </div>
@@ -299,11 +321,11 @@ const CSS = `
 .dtp-x:hover{background:rgba(255,255,255,.08);color:#fff}
 .dtp-body{flex:1;min-height:0;overflow-y:auto;padding:2px 16px 12px;display:flex;flex-direction:column;gap:12px;scrollbar-width:thin}
 .dtp-my{display:flex;gap:6px}
-.dtp-my button{height:32px;border-radius:999px;border:1px solid rgba(237,233,227,.22);background:transparent;display:inline-flex;align-items:center;justify-content:space-between;gap:6px;padding:0 12px}
+.dtp-my button{flex:1;height:34px;border-radius:999px;border:1px solid rgba(237,233,227,.22);background:transparent;display:inline-flex;align-items:center;justify-content:space-between;gap:6px;padding:0 12px}
 .dtp-my button:hover,.dtp-my button.on{border-color:#EDE9E3}
 .dtp-my button.on{background:rgba(237,233,227,.08)}
 .dtp-my i{color:#8a8590}
-.dtp-m{flex:1.4;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:17px;font-weight:500}
+.dtp-m{flex:1.4!important;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:17px;font-weight:500}
 .dtp-y{flex:1;font-family:'DM Mono',monospace;font-size:13px}
 .dtp-nav{flex:none!important;width:32px;padding:0!important;justify-content:center!important}
 .dtp-wide{flex:1!important;width:auto;font-size:11px;gap:6px!important}
@@ -341,13 +363,23 @@ const CSS = `
 .dtp-results button{display:flex;align-items:center;gap:8px;text-align:left;padding:7px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:transparent;font-size:11.5px}
 .dtp-results button:hover{border-color:rgba(255,255,255,.45)}
 .dtp-results span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dtp-caps{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;height:98px;overflow-y:auto;padding-right:4px;scrollbar-width:thin}
+.dtp-caps{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;height:113px;overflow-y:auto;padding-right:4px;scrollbar-width:thin}
 .dtp-caps button{height:29px;border-radius:999px;border:1px solid rgba(255,255,255,.1);background:transparent;font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:space-between;padding:0 10px;gap:4px;min-width:0}
 .dtp-caps button:hover{border-color:rgba(255,255,255,.45)}
 .dtp-caps button.sel{border-color:#EDE9E3;background:rgba(237,233,227,.1)}
 .dtp-caps span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dtp-caps b{font-family:'DM Mono',monospace;font-weight:400;font-size:10.5px;color:#B9B4BE}
 .dtp-more{font-size:10px;color:#6f6a76;text-align:center;display:flex;align-items:center;justify-content:center;gap:4px}
+.dtp-list{height:204px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;scroll-snap-type:y proximity;scrollbar-width:thin;padding:2px}
+.dtp-list button{flex:none;height:34px;border-radius:999px;border:1px solid transparent;background:transparent;font-size:13px;scroll-snap-align:center}
+.dtp-list button:hover{border-color:rgba(255,255,255,.3)}
+.dtp-list button.sel{background:#EDE9E3;color:#040004;border-color:#EDE9E3}
+.dtp-list.dtp-mono button{font-family:'DM Mono',monospace}
+.dtp-pin{font-size:12px!important;margin-right:4px;vertical-align:-1px;color:#B9B4BE}
+.dtp-live{width:7px;height:7px;border-radius:50%;background:#EF4444;box-shadow:0 0 0 3px rgba(239,68,68,.18)}
+.dtp.dtp-in{animation:dtp-zoom .42s cubic-bezier(.16,1,.3,1)}
+@keyframes dtp-zoom{from{opacity:0;transform:scale(.18)}60%{opacity:1}to{opacity:1;transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.dtp.dtp-in{animation:none}}
 .dtp-foot{padding:12px 16px 14px;border-top:1px solid rgba(255,255,255,.1);display:flex;gap:8px}
 .dtp-btn{flex:1;height:40px;border-radius:999px;border:1px solid rgba(237,233,227,.28);background:transparent;font-size:10.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .dtp-btn:hover{border-color:#EDE9E3}
