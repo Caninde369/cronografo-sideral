@@ -120,8 +120,8 @@ export interface QuickToolsSidebarProps {
   setDegreeLabelSize?: (v: number) => void;
   degreeLabelPosition?: 'responsive' | 'static' | 'staggered';
   setDegreeLabelPosition?: (v: 'responsive' | 'static' | 'staggered') => void;
-  degreeLabelFormat?: 'radial' | 'vertical' | 'horizontal';
-  setDegreeLabelFormat?: (v: 'radial' | 'vertical' | 'horizontal') => void;
+  degreeLabelFormat?: 'radial' | 'vertical' | 'horizontal' | 'callout';
+  setDegreeLabelFormat?: (v: 'radial' | 'vertical' | 'horizontal' | 'callout') => void;
 
   // Avançado
   showDecanRing?: boolean;
@@ -1609,11 +1609,12 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                       <CtrlRow label="Formato de Exibição" icon="ti-layout-align-left" iconColor="text-blue-300" isLight={isLight}>
                         <SegSel 
                           options={[
+                            { label: 'Legenda', value: 'callout' },
                             { label: 'Tradicional', value: 'radial' },
                             { label: 'Vertical', value: 'vertical' },
                             { label: 'Horizontal', value: 'horizontal' },
                           ]} 
-                          value={props.degreeLabelFormat || 'radial'} 
+                          value={props.degreeLabelFormat || 'callout'} 
                           onChange={v => props.setDegreeLabelFormat?.(v as any)} 
                           isLight={isLight} 
                         />

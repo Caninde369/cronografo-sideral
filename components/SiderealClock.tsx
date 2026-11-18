@@ -78,7 +78,7 @@ interface SiderealClockProps {
   showDegreeLabels?: boolean;
   degreeLabelSize?: number;
   degreeLabelPosition?: "responsive" | "static" | "callout" | "staggered";
-  degreeLabelFormat?: "radial" | "vertical" | "horizontal";
+  degreeLabelFormat?: "radial" | "vertical" | "horizontal" | "callout";
   zodiacColorMode?: "none" | "element" | "modality" | "polarity";
   highlightFilter?: HighlightFilter;
   showSignLines?: boolean;
@@ -552,7 +552,7 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
   showDegreeLabels = false,
   degreeLabelSize = 18,
   degreeLabelPosition = "responsive",
-  degreeLabelFormat = "radial",
+  degreeLabelFormat = "callout",
   zodiacColorMode = "element",
   highlightFilter,
   showSignLines = false,
@@ -1032,18 +1032,55 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
     return normalizeAngle(startA + diff * ratio);
   };
 
+  /**
+   * Posição de cada planeta. `angle` é sempre o grau VERDADEIRO (ponteiros e marcas usam ele);
+   * x/y podem ser deslocados para que nenhum planeta cubra outro:
+   *  - órbita única: planetas próximos viram uma lista, um degrau para dentro a cada vizinho;
+   *  - órbitas individuais: o planeta da órbita de fora desliza um pouco na própria órbita.
+   */
   const planetPositions = useMemo(() => {
-    const positions: Record<string, { x: number; y: number; angle: number }> =
-      {};
+    const positions: Record<string, { x: number; y: number; angle: number; r: number; shownAngle: number }> = {};
+    const list: Array<{ id: string; lon: number; angle: number; r: number; shown: number }> = [];
     ALL_PLANET_IDS.forEach((planetId) => {
       const key = `${planetId}EclipticLongitude` as keyof CelestialData;
       const longitude = celestialData[key] as number;
       if (longitude !== undefined) {
         const angle = getAngle(longitude);
-        const r = getPlanetRadius(planetId);
-        const pos = polarToCartesian(cx, cy, r, angle);
-        positions[planetId] = { x: pos.x, y: pos.y, angle };
+        list.push({ id: planetId, lon: longitude, angle, r: getPlanetRadius(planetId), shown: angle });
       }
+    });
+    const vis = list.filter((p) => visiblePlanets?.[p.id]);
+    const minDist = planetSize + 4;
+    const angDist = (a: number, b: number) => { const d = Math.abs(normalizeAngle(a) - normalizeAngle(b)); return Math.min(d, 360 - d); };
+    if (allPlanetsSameOrbit) {
+      const placed: Array<{ shown: number; lvl: number; r: number }> = [];
+      [...vis].sort((a, b) => a.lon - b.lon).forEach((p) => {
+        let lvl = 0;
+        const base = p.r;
+        // cada degrau entra a distância de um planeta, sem chegar ao relógio central
+        const maxLvl = Math.max(0, Math.floor((base - numbersProtectionRadius - planetSize) / minDist));
+        while (lvl < maxLvl && placed.some((q) => q.lvl === lvl && angDist(q.shown, p.angle) < (minDist / Math.max(1, base - lvl * minDist)) * (180 / Math.PI))) lvl++;
+        p.r = base - lvl * minDist;
+        placed.push({ shown: p.angle, lvl, r: p.r });
+      });
+    } else {
+      for (let it = 0; it < 80; it++) {
+        let moved = false;
+        for (const p of vis) for (const q of vis) {
+          if (p === q || q.r < p.r || (q.r === p.r && q.id < p.id)) continue;
+          const a = polarToCartesian(cx, cy, p.r, p.shown), b = polarToCartesian(cx, cy, q.r, q.shown);
+          if (Math.hypot(a.x - b.x, a.y - b.y) < minDist) {
+            const d = ((q.lon - p.lon + 540) % 360) - 180;
+            q.shown = normalizeAngle(q.shown - (d >= 0 ? 1 : -1) * 1.2);
+            moved = true;
+          }
+        }
+        if (!moved) break;
+      }
+    }
+    list.forEach((p) => {
+      const pos = polarToCartesian(cx, cy, p.r, p.shown);
+      positions[p.id] = { x: pos.x, y: pos.y, angle: p.angle, r: p.r, shownAngle: p.shown };
     });
     return positions;
   }, [
@@ -1054,6 +1091,10 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
     getPlanetRadius,
     cx,
     cy,
+    visiblePlanets,
+    allPlanetsSameOrbit,
+    planetSize,
+    numbersProtectionRadius,
   ]);
 
   const stars = useMemo(() => {
@@ -1775,6 +1816,85 @@ const horizonStrokePath = `
    * Se o rótulo bater em outro astro ou em outro rótulo, desliza para o lado
    * (paralelo à linha) e ganha um fio-guia até o astro.
    */
+  /**
+   * Graus em legenda (formato "callout", aprovado em 18/11/2026):
+   * do planeta sai uma linha a 45° (ou mais em pé) que termina num sublinhado reto, ambos na cor do planeta,
+   * com o grau escrito sobre o sublinhado. Regras que nunca quebram: dentro do anel interno do zodíaco,
+   * fora do relógio central, texto nunca sobre texto nem sobre planeta. Se faltar espaço, relaxa em ordem:
+   * linhas podem se cruzar → linha pode passar sobre planeta → grau sem minutos → fica só no toque.
+   */
+  const calloutPlacements = useMemo(() => {
+    const out: Record<string, { sx: number; sy: number; ex: number; ey: number; ux: number; short: boolean }> = {};
+    if (!showDegreeLabels || degreeLabelFormat !== "callout") return out;
+    const fs = degreeLabelSize;
+    const PR = planetSize / 2;
+    const TH = fs * 1.05;
+    const fullW = fs * 0.62 * 6 + fs * 0.95 + 18;
+    const shortW = fs * 0.62 * 3 + fs * 0.95 + 14;
+    const R_IN = planetOrbitOuterLimit - 8;
+    const R_CLOCK = numbersProtectionRadius + 12;
+    type Box = { x1: number; x2: number; y1: number; y2: number };
+    const P = sortedPlanetIds
+      .filter((id) => visiblePlanets[id] && planetPositions[id])
+      .map((id) => ({ id, x: planetPositions[id].x, y: planetPositions[id].y }));
+    const segRect = (x1: number, y1: number, x2: number, y2: number, b: Box) => {
+      if (Math.max(x1, x2) < b.x1 || Math.min(x1, x2) > b.x2 || Math.max(y1, y2) < b.y1 || Math.min(y1, y2) > b.y2) return false;
+      for (let k = 0; k <= 16; k++) { const x = x1 + (x2 - x1) * k / 16, y = y1 + (y2 - y1) * k / 16; if (x >= b.x1 && x <= b.x2 && y >= b.y1 && y <= b.y2) return true; }
+      return false;
+    };
+    const segCirc = (x1: number, y1: number, x2: number, y2: number, qx: number, qy: number, r: number) => {
+      const dx = x2 - x1, dy = y2 - y1, t = Math.max(0, Math.min(1, ((qx - x1) * dx + (qy - y1) * dy) / (dx * dx + dy * dy || 1)));
+      return Math.hypot(x1 + t * dx - qx, y1 + t * dy - qy) < r;
+    };
+    type Seg = [[number, number], [number, number]];
+    const segSeg = (a: Seg, b: Seg) => {
+      const d = (p: number[], q: number[], r: number[]) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+      const [p1, p2] = a, [p3, p4] = b;
+      return d(p3, p4, p1) * d(p3, p4, p2) < 0 && d(p1, p2, p3) * d(p1, p2, p4) < 0;
+    };
+    const rectRect = (a: Box, b: Box, pad: number) => !(a.x2 + pad < b.x1 || a.x1 - pad > b.x2 || a.y2 + pad < b.y1 || a.y1 - pad > b.y2);
+    const rectCirc = (b: Box, qx: number, qy: number, r: number) => { const x = Math.max(b.x1, Math.min(qx, b.x2)), y = Math.max(b.y1, Math.min(qy, b.y2)); return Math.hypot(x - qx, y - qy) < r; };
+    const inArea = (b: Box) =>
+      [[b.x1, b.y1], [b.x2, b.y1], [b.x1, b.y2], [b.x2, b.y2]].every(([x, y]) => Math.hypot(x - cx, y - cy) < R_IN) && !rectCirc(b, cx, cy, R_CLOCK);
+    const boxes: Box[] = [];
+    const segs: Seg[] = [];
+    const crowd = (p: { x: number; y: number }) => P.filter((q) => q !== p && Math.hypot(q.x - p.x, q.y - p.y) < planetSize * 3.5).length;
+    const order = [...P].sort((a, b) => crowd(b) - crowd(a) || Math.hypot(b.x - cx, b.y - cy) - Math.hypot(a.x - cx, a.y - cy));
+    const maxK = Math.max(60, R_IN - R_CLOCK);
+    const stepK = Math.max(4, fs * 0.35);
+    order.forEach((p) => {
+      const hx = p.x < cx ? 1 : -1, vy0 = p.y < cy ? 1 : -1;
+      let best: { sx: number; sy: number; ex: number; ey: number; ux: number; b: Box; short: boolean } | null = null;
+      for (const pass of [1, 2, 3, 4]) {
+        if (best) break;
+        const W = pass < 4 ? fullW : shortW;
+        let bestCost = Infinity;
+        for (const slope of [1, 2.2, 0.45]) for (const dirH of [hx, -hx]) for (const vy of [vy0, -vy0]) for (const under of [1, -1]) {
+          for (let k = fs * 0.5; k <= maxK; k += stepK) {
+            const n = Math.sqrt(1 + slope * slope), dx = dirH * k / n, dy = vy * k * slope / n;
+            const sx = p.x + Math.sign(dx) * PR * 0.6, sy = p.y + Math.sign(dy) * PR * 0.75;
+            const ex = sx + dx, ey = sy + dy, ud = dirH * under, ux = ex + ud * W;
+            const b: Box = ud > 0 ? { x1: ex, x2: ux, y1: ey - TH - 2, y2: ey + 2 } : { x1: ux, x2: ex, y1: ey - TH - 2, y2: ey + 2 };
+            if (!inArea(b) || Math.hypot(ex - cx, ey - cy) > R_IN || segCirc(sx, sy, ex, ey, cx, cy, R_CLOCK)) continue;
+            if (boxes.some((o) => rectRect(b, o, 3)) || P.some((q) => rectCirc(b, q.x, q.y, PR + 3))) continue;
+            if (boxes.some((o) => segRect(sx, sy, ex, ey, o)) || segs.some((g) => segRect(g[0][0], g[0][1], g[1][0], g[1][1], b))) continue;
+            if (pass < 3 && P.some((q) => q !== p && segCirc(sx, sy, ex, ey, q.x, q.y, PR + 2))) continue;
+            if (pass < 2 && segs.some((g) => segSeg(g, [[sx, sy], [ex, ey]]) || segSeg(g, [[ex, ey + 1], [ux, ey + 1]]))) continue;
+            const cost = k + (slope !== 1 ? 18 : 0) + (dirH !== hx ? 40 : 0) + (vy !== vy0 ? 20 : 0) + (under < 0 ? 30 : 0);
+            if (cost < bestCost) { bestCost = cost; best = { sx, sy, ex, ey, ux, b, short: pass === 4 }; }
+            break; // para esta direção, a primeira distância livre já é a mais curta
+          }
+        }
+      }
+      if (best) {
+        boxes.push(best.b);
+        segs.push([[best.sx, best.sy], [best.ex, best.ey]], [[best.ex, best.ey + 1], [best.ux, best.ey + 1]]);
+        out[p.id] = { sx: best.sx, sy: best.sy, ex: best.ex, ey: best.ey, ux: best.ux, short: best.short };
+      }
+    });
+    return out;
+  }, [showDegreeLabels, degreeLabelFormat, degreeLabelSize, planetSize, planetOrbitOuterLimit, numbersProtectionRadius, sortedPlanetIds, visiblePlanets, planetPositions, cx, cy]);
+
   const radialDegreeLayout = useMemo(() => {
     const fs = degreeLabelSize;
     const degFont = fs * 0.82;
@@ -5157,6 +5277,56 @@ const horizonStrokePath = `
                       const { deg, signId, min } = formatPlanetDegree(lon);
                       const SignIcon =
                         ZODIAC_ICONS[signId as keyof typeof ZODIAC_ICONS];
+
+                      // ── Formato LEGENDA: linha a 45° + sublinhado na cor do planeta ──
+                      if (degreeLabelFormat === "callout") {
+                        const L = calloutPlacements[planetId];
+                        const ppos = planetPositions[planetId];
+                        if (!L || !ppos) return null;
+                        const ox = ppos.x, oy = ppos.y;
+                        const pc = basePlanetColors[planetId] || (theme === "light" ? "#0f172a" : "#F5F2EB");
+                        const ink = theme === "light" ? "#0f172a" : "#F5F2EB";
+                        const halo = theme === "light" ? "rgba(255,255,255,0.92)" : "rgba(6,4,12,0.9)";
+                        const fs = degreeLabelSize;
+                        const left = Math.min(L.ex, L.ux) - ox;
+                        const baseY = L.ey - oy - 3;
+                        const degW = fs * 0.62 * 3;
+                        const icon = fs * 0.95;
+                        return (
+                          <g style={{ pointerEvents: "none" }}>
+                            <path
+                              d={`M${L.sx - ox},${L.sy - oy} L${L.ex - ox},${L.ey - oy + 1} L${L.ux - ox},${L.ey - oy + 1}`}
+                              fill="none"
+                              stroke={pc}
+                              strokeWidth={Math.max(1.4, fs * 0.09)}
+                              strokeLinejoin="round"
+                              strokeLinecap="round"
+                            />
+                            <circle cx={L.sx - ox} cy={L.sy - oy} r={Math.max(1.6, fs * 0.1)} fill={pc} />
+                            <text
+                              x={left + 5}
+                              y={baseY}
+                              style={{ fill: ink, stroke: halo, strokeWidth: 3, paintOrder: "stroke", strokeLinejoin: "round", fontFamily: "'DM Mono', ui-monospace, monospace", fontSize: `${fs}px`, fontVariantNumeric: "tabular-nums" }}
+                            >
+                              {deg}
+                            </text>
+                            {SignIcon && (
+                              <g transform={`translate(${left + 5 + degW + 2}, ${baseY - icon * 0.82})`}>
+                                <SignIcon width={icon} height={icon} fill={getSignElementColor(signId)} />
+                              </g>
+                            )}
+                            {!L.short && (
+                              <text
+                                x={left + 5 + degW + 4 + icon}
+                                y={baseY}
+                                style={{ fill: ink, stroke: halo, strokeWidth: 3, paintOrder: "stroke", strokeLinejoin: "round", fontFamily: "'DM Mono', ui-monospace, monospace", fontSize: `${fs}px`, fontVariantNumeric: "tabular-nums", opacity: 0.85 }}
+                              >
+                                {min}
+                              </text>
+                            )}
+                          </g>
+                        );
+                      }
 
                       // ── Formato TRADICIONAL: texto na linha do astro ao centro ──
                       if (degreeLabelFormat === "radial") {

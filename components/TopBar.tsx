@@ -69,8 +69,8 @@ export interface TopBarProps {
   setDegreeLabelSize?: (v: number) => void;
   degreeLabelPosition?: 'responsive' | 'static' | 'callout' | 'staggered';
   setDegreeLabelPosition?: (v: 'responsive' | 'static' | 'callout' | 'staggered') => void;
-  degreeLabelFormat?: 'radial' | 'vertical' | 'horizontal';
-  setDegreeLabelFormat?: (v: 'radial' | 'vertical' | 'horizontal') => void;
+  degreeLabelFormat?: 'radial' | 'vertical' | 'horizontal' | 'callout';
+  setDegreeLabelFormat?: (v: 'radial' | 'vertical' | 'horizontal' | 'callout') => void;
 
   showHouseLines?: boolean;
   setShowHouseLines?: (v: boolean) => void;
