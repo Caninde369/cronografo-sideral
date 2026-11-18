@@ -307,27 +307,26 @@ export const HomeSite: React.FC = () => {
     <div className="hs">
       <style>{HOME_CSS}</style>
       <Starfield />
-      <div className="hs-comet" aria-hidden="true"><span className="hs-comet-run"><span className="hs-comet-tail" /></span></div>
 
       <header className="hs-top">
-        <span className="hs-top-logo"><Logo /></span>
+        <span className="hs-top-logo"><CometLogo /></span>
         <button className="hs-enter" onClick={() => setLogin(true)}>Entrar</button>
       </header>
 
       <main className="hs-main">
         <section className="hs-panel" aria-labelledby="hs-h1">
           <div className="hs-col">
-          <span className="hs-panel-logo"><Logo /></span>
+          <span className="hs-panel-logo"><CometLogo /></span>
           <motion.div className="hs-copy" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: EASE }}>
             <p className="hs-over">Novo leitor de mapas astrais</p>
             <h1 id="hs-h1" className="hs-serif hs-h1"><span>A ferramenta</span> <span>essencial para</span> <span>Astrologia</span></h1>
             <p className="hs-lead">Controle o tempo minuto a minuto, visualize aspectos e trânsitos se formando. Acompanhe a fase da Lua em tempo real.</p>
             <div className="hs-ctas">
-              <button className="hs-pill" onClick={() => setLogin(true)}>Testar gratuitamente <i className="ti ti-arrow-right" aria-hidden="true" /></button>
+              <button className="hs-pill hs-pill-solid" onClick={() => setLogin(true)}>Testar gratuitamente <i className="ti ti-arrow-right" aria-hidden="true" /></button>
               <button className="hs-pill hs-pill-gold" onClick={() => setPlans(true)}>Quero ser membro fundador</button>
             </div>
+            <Social />
           </motion.div>
-          <Social />
           </div>
         </section>
 
@@ -348,10 +347,18 @@ export const HomeSite: React.FC = () => {
 
 export default HomeSite;
 
+/** Logo com a linha espectral passando só por baixo dele (8px abaixo). */
+const CometLogo: React.FC = () => (
+  <span className="hs-logo-wrap">
+    <Logo />
+    <span className="hs-comet" aria-hidden="true"><span className="hs-comet-run"><span className="hs-comet-tail" /></span></span>
+  </span>
+);
+
 // ── Estilos ─────────────────────────────────────────────────────────────────
 const HOME_CSS = `
 html,body{background:#040004;margin:0}
-.hs{--comet-top:88px;--bg:#040004;--fg:#EDE9E3;--mut:#B9B4BE;--dim:#8a8590;--line:#221D27;--line2:#3A3440;--gold:#D4AF37;--gold2:#F5D98A;--ease:cubic-bezier(.32,.72,0,1);
+.hs{--bg:#040004;--fg:#EDE9E3;--mut:#B9B4BE;--dim:#8a8590;--line:#221D27;--line2:#3A3440;--gold:#D4AF37;--gold2:#F5D98A;--ease:cubic-bezier(.32,.72,0,1);
   position:relative;min-height:100vh;min-height:100svh;background:var(--bg);color:var(--fg);font-family:'DM Sans',system-ui,sans-serif;overflow-x:clip}
 .hs *{box-sizing:border-box}
 .hs a{color:inherit}
@@ -364,27 +371,31 @@ html,body{background:#040004;margin:0}
 .hs-logo-a{font-family:'Cormorant Garamond',Georgia,serif;font-weight:500;font-size:27px;letter-spacing:-.01em}
 .hs-logo-b{font-family:'Syne','DM Sans',sans-serif;font-weight:700;font-size:18px;letter-spacing:.02em}
 
-.hs-top{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;justify-content:flex-end;align-items:center;padding:44px 56px 0;pointer-events:none}
+.hs-top{position:absolute;top:0;left:0;right:0;z-index:5;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));align-items:center;padding-top:40px;pointer-events:none}
+.hs-enter{grid-column:6;justify-self:start}
 .hs-top>*{pointer-events:auto}
 .hs-top-logo{display:none}
 .hs-panel-logo,.hs-top-logo .hs-logo{height:36px;display:flex;align-items:center}
-.hs-comet{position:absolute;left:0;right:0;top:var(--comet-top);height:9px;margin-top:-4px;z-index:3;overflow:hidden;pointer-events:none}
-.hs-comet-run{position:absolute;top:0;left:0;width:50vw;height:9px;transform:translateX(-100%);animation:hs-comet 12s cubic-bezier(.45,.05,.55,.95) 1.2s infinite;will-change:transform}
+.hs-logo-wrap{position:relative;display:inline-flex}
+.hs-comet{position:absolute;left:0;right:0;top:calc(100% + 4px);height:9px;overflow:hidden;pointer-events:none}
+.hs-comet-run{position:absolute;top:0;left:0;width:60%;height:9px;transform:translateX(-100%);animation:hs-comet 9s cubic-bezier(.45,.05,.55,.95) 1.2s infinite;will-change:transform}
 .hs-comet-tail{position:absolute;inset:4px 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,#4870FF 35%,#22D3EE 58%,#FACC15 76%,#FB923C 88%,#EF4444 96%,#fff)}
 .hs-comet-tail::after{content:'';position:absolute;right:-2px;top:-2px;width:5px;height:5px;border-radius:50%;background:#fff;box-shadow:0 0 8px 2px rgba(255,255,255,.75),0 0 18px 4px rgba(250,204,21,.35)}
-@keyframes hs-comet{0%{transform:translateX(-100%)}33.4%,100%{transform:translateX(200%)}}
-.hs-enter{background:none;border:0;color:var(--fg);font-size:14px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;cursor:pointer;padding:12px 0;min-height:44px;transition:opacity .4s var(--ease)}
-.hs-enter:hover{opacity:.7}
+@keyframes hs-comet{0%{transform:translateX(-100%)}30%,100%{transform:translateX(170%)}}
+.hs-enter{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 26px;border:1px solid var(--fg);border-radius:999px;background:transparent;color:var(--fg);font-size:12px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:background .45s var(--ease),color .45s var(--ease)}
+.hs-enter:hover{background:var(--fg);color:#040004}
 
-.hs-main{position:relative;z-index:1;height:100vh;height:100svh;min-height:640px;display:grid;grid-template-columns:minmax(540px,36%) 1fr}
-.hs-panel{position:relative;background:rgba(9,7,11,.5);display:flex;justify-content:flex-start;padding:44px 40px 32px clamp(136px,calc(8vw + 64px),224px)}
-.hs-col{width:100%;max-width:400px;height:100%;display:flex;flex-direction:column}
+.hs-main{position:relative;z-index:1;height:100vh;height:100svh;min-height:600px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}
+.hs-panel{position:relative;grid-column:2;display:flex;padding:40px 0 32px;min-width:0}
+.hs-col{width:100%;display:flex;flex-direction:column}
 .hs-copy{margin:auto 0}
-.hs-over{margin:0;font-size:13px;white-space:nowrap;letter-spacing:.2em;text-transform:uppercase;color:var(--fg)}
-.hs-h1{margin:28px 0 0;font-size:clamp(42px,3.9vw,58px);line-height:1.04}
+.hs-over{margin:0;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--fg)}
+.hs-h1{margin:14px 0 0;font-size:clamp(34px,3.2vw,50px);line-height:1.04}
 .hs-h1 span{display:block;white-space:nowrap}
-.hs-lead{margin:30px 0 0;font-size:15px;line-height:1.75;color:var(--fg);max-width:330px;text-wrap:pretty}
-.hs-ctas{display:flex;flex-direction:column;align-items:flex-start;gap:14px;margin-top:34px}
+.hs-lead{margin:16px 0 0;font-size:14px;line-height:1.6;color:var(--fg);text-wrap:pretty}
+.hs-ctas{display:flex;flex-direction:column;align-items:stretch;gap:10px;margin-top:24px}
+.hs-ctas .hs-pill{min-height:44px;padding:10px 18px;letter-spacing:.12em}
+.hs-copy .hs-social{margin-top:22px}
 
 .hs-pill{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:46px;padding:12px 26px;border:1px solid var(--fg);border-radius:999px;background:transparent;color:var(--fg)!important;font-size:12px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;text-decoration:none;cursor:pointer;white-space:nowrap;transition:background .45s var(--ease),color .45s var(--ease),border-color .45s var(--ease)}
 .hs-pill .ti{font-size:18px}
@@ -397,8 +408,8 @@ html,body{background:#040004;margin:0}
 .hs-social a{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;color:var(--mut)!important;font-size:22px;text-decoration:none;transition:color .4s var(--ease),background .4s var(--ease)}
 .hs-social a:hover{color:var(--fg)!important;background:rgba(237,233,227,.06)}
 
-.hs-clock{position:relative;display:flex;align-items:center;justify-content:center;padding:32px 48px;min-width:0}
-.hs-clock-box{width:min(82vh,100%,880px);width:min(82svh,100%,880px)}
+.hs-clock{position:relative;grid-column:3 / 6;display:flex;align-items:center;justify-content:center;padding:32px 0;min-width:0}
+.hs-clock-box{width:min(88vh,100%,900px);width:min(88svh,100%,900px)}
 .hs-clock-ph{width:100%;aspect-ratio:1/1}
 
 /* janelas */
@@ -479,31 +490,29 @@ html,body{background:#040004;margin:0}
 .hs-help a{color:var(--fg)!important;text-underline-offset:5px}
 
 @media (max-width:1180px){
-  .hs{--comet-top:80px}
-  .hs-top{padding:36px 36px 0}
-  .hs-main{grid-template-columns:minmax(440px,44%) 1fr}
-  .hs-panel{padding:36px 28px 28px 96px}
+  .hs-main,.hs-top{grid-template-columns:minmax(24px,.6fr) minmax(250px,2.2fr) 5fr minmax(24px,.6fr)}
+  .hs-enter{grid-column:3;justify-self:end}
+  .hs-clock{grid-column:3}
   .hs-cards{grid-template-columns:1fr 1fr}
   .hs-card-founder{grid-column:1 / -1;order:-1}
 }
 @media (max-width:900px){
-  .hs-top{position:relative;justify-content:space-between;padding:20px 20px 0}
-  .hs{--comet-top:68px}
+  .hs-top{position:relative;display:flex;justify-content:space-between;padding:20px 20px 0}
   .hs-top-logo{display:inline}
   .hs-panel-logo{display:none}
   .hs-logo-a{font-size:23px}.hs-logo-b{font-size:15px}
   .hs-main{display:flex;flex-direction:column;height:auto;min-height:0}
   .hs-clock{order:-1;padding:12px 8px 0}
   .hs-clock-box{width:min(100%,560px)}
-  .hs-panel{background:transparent;padding:8px 24px 40px;align-items:stretch}
+  .hs-panel{padding:8px 24px 40px;align-items:stretch}
   .hs-copy{width:100%;margin:0}
-  .hs-h1{margin-top:18px;font-size:clamp(40px,11vw,54px)}
+  .hs-h1{margin-top:16px;font-size:clamp(38px,10.5vw,52px)}
   .hs-over{font-size:12px;white-space:normal}
   .hs-lead{margin-top:18px;font-size:16px;max-width:none}
   .hs-ctas{align-items:stretch;margin-top:28px}
   .hs-ctas .hs-pill{width:100%;min-height:52px}
   .hs-col{height:auto;max-width:560px;margin:0 auto}
-  .hs-social{justify-content:center;margin:40px auto 0}
+  .hs-copy .hs-social{justify-content:center;margin:32px auto 0}
   .hs-plans{padding:68px 16px 48px}
   .hs-plans-t{margin-top:22px}
   .hs-plans-p{font-size:15px}
