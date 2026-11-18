@@ -92,6 +92,51 @@ export const getFreeTierSolarYearBounds = (now: Date = new Date()) => {
     return { startDate, endDate };
 };
 
+/**
+ * Direção de arte da linha espectral (aprovada em 18/11/2026):
+ * transição de 7 dias entre signos, misturada pela roda de cores (OKLCH, caminho curto),
+ * com força mínima de cor 0,15 no meio da passagem, brilho total.
+ */
+const SPECTRAL_BLEND_DAYS = 7;
+const SPECTRAL_MIN_CHROMA = 0.15;
+const toLinear = (c: number) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+const toSrgb = (c: number) => { c = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; return Math.round(Math.max(0, Math.min(1, c)) * 255); };
+const rgbToOklch = (rgb: number[]) => {
+  const [r, g, b] = rgb.map(toLinear);
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  const L = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s;
+  const A = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s;
+  const B = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
+  return [L, Math.hypot(A, B), Math.atan2(B, A)];
+};
+const oklchToRgb = ([L, C0, H]: number[]) => {
+  let C = C0;
+  for (let k = 0; k < 24; k++) {
+    const A = C * Math.cos(H), B = C * Math.sin(H);
+    const l = Math.pow(L + 0.3963377774 * A + 0.2158037573 * B, 3);
+    const m = Math.pow(L - 0.1055613458 * A - 0.0638541728 * B, 3);
+    const s = Math.pow(L - 0.0894841775 * A - 1.291485548 * B, 3);
+    const r = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+    const g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+    const b = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+    if (r >= -0.001 && r <= 1.001 && g >= -0.001 && g <= 1.001 && b >= -0.001 && b <= 1.001) return [toSrgb(r), toSrgb(g), toSrgb(b)];
+    C *= 0.92; // fora da faixa de cor da tela: reduz a saturação até caber
+  }
+  return [toSrgb(L), toSrgb(L), toSrgb(L)];
+};
+const mixSpectral = (a: number[], b: number[], t0: number) => {
+  const t = Math.max(0, Math.min(1, t0));
+  const e = t * t * (3 - 2 * t);
+  const A = rgbToOklch(a), B = rgbToOklch(b);
+  let dh = B[2] - A[2];
+  while (dh > Math.PI) dh -= 2 * Math.PI;
+  while (dh < -Math.PI) dh += 2 * Math.PI;
+  const C = Math.max(A[1] + (B[1] - A[1]) * e, SPECTRAL_MIN_CHROMA * Math.sin(Math.PI * e) + Math.min(A[1], B[1]) * 0.9);
+  return oklchToRgb([A[0] + (B[0] - A[0]) * e, C, A[2] + dh * e]);
+};
+
 /** Curvatura da linha do tempo: o centro desce CURVE_SAG px; as pontas ficam no alto e afinam. */
 const CURVE_SAG = 10;
 const curveY = (p: number) => { const q = Math.max(0, Math.min(1, p)); return CURVE_SAG * 4 * q * (1 - q); };
@@ -105,7 +150,7 @@ const buildCurveMask = (thick: (q: number) => number) => {
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 ${CURVE_LAYER_H}' preserveAspectRatio='none'><polygon fill='white' points='${top.concat(bot).join(' ')}'/></svg>`;
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 };
-const CURVE_MASK_LINE = buildCurveMask(q => 0.5 + 2.3 * Math.pow(Math.sin(Math.PI * q), 0.55));
+const CURVE_MASK_LINE = buildCurveMask(q => 0.4 + 1.6 * Math.pow(Math.sin(Math.PI * q), 0.55)); // 2 px no centro
 const CURVE_MASK_BAND = buildCurveMask(() => 8);
 const curveLayer = (mask: string): React.CSSProperties => ({
   position: 'absolute', left: 0, right: 0, top: -3, height: CURVE_LAYER_H, pointerEvents: 'none',
@@ -436,7 +481,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
 
   const getSignColor = (zDay: number, opacity: number = 1): string => {
     let wrapped = ((zDay % 365) + 365) % 365;
-    const BLEND_DAYS = 1.5; // 1.5 days before & after boundary = 3 days total transition
+    const BLEND_DAYS = SPECTRAL_BLEND_DAYS / 2; // metade antes e metade depois da entrada do signo
     
     // Normalize sign ranges
     const normalizedSigns = SOLAR_SIGNS.map((sign, idx) => {
@@ -466,11 +511,8 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
         const t = (w - blendStart) / (2 * BLEND_DAYS);
         const rgb1 = hexToRgbArr(current.gradientEnd || current.color);
         const rgb2 = hexToRgbArr(next.gradientStart || next.color);
-
-        const r = Math.round(rgb1[0] + (rgb2[0] - rgb1[0]) * t);
-        const g = Math.round(rgb1[1] + (rgb2[1] - rgb1[1]) * t);
-        const b = Math.round(rgb1[2] + (rgb2[2] - rgb1[2]) * t);
-
+        // mistura pela roda de cores (OKLCH): nunca passa pelo cinza
+        const [r, g, b] = mixSpectral(rgb1, rgb2, t);
         return `rgba(${r}, ${g}, ${b}, ${opacity})`;
       }
     }
@@ -759,7 +801,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
   }).join(', ');
   
   const bgDim = `linear-gradient(to right, ${gradientStops(0.15)})`;
-  const bgBright = `linear-gradient(to right, ${gradientStops(0.75)})`;
+  const bgBright = `linear-gradient(to right, ${gradientStops(1)})`;
 
   const getVirtualMode = () => {
     if (viewSpan > 180) return 'ANO';
