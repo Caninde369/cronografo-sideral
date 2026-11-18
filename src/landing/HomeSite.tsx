@@ -323,7 +323,7 @@ export const HomeSite: React.FC = () => {
             <p className="hs-lead">Controle o tempo minuto a minuto, visualize aspectos e trânsitos se formando. Acompanhe a fase da Lua em tempo real.</p>
             <div className="hs-ctas">
               <button className="hs-pill hs-pill-solid" onClick={() => setLogin(true)}>Testar gratuitamente <i className="ti ti-arrow-right" aria-hidden="true" /></button>
-              <button className="hs-pill hs-pill-gold" onClick={() => setPlans(true)}>Quero ser membro fundador</button>
+              <button className="hs-pill hs-pill-goldfill" onClick={() => setPlans(true)}>Quero ser membro fundador</button>
             </div>
             <Social />
           </motion.div>
@@ -449,6 +449,8 @@ html,body{background:#040004;margin:0}
 .hs-card-free .hs-list{margin-bottom:22px}
 .hs-card-month .hs-list{margin-bottom:22px}
 .hs-pill-solid{background:var(--fg);color:#040004!important}
+.hs-pill-goldfill{background:var(--gold);border-color:var(--gold);color:#040004!important;font-weight:600;transition:none}
+.hs-pill-goldfill:hover{background:var(--gold2);border-color:var(--gold2)}
 .hs-pill-solid:hover{background:#fff}
 .hs-card{position:relative;display:flex;flex-direction:column;border:1px solid var(--line2);border-radius:22px;padding:30px 26px 26px;background:rgba(10,7,12,.85)}
 .hs-card-month{border-color:#6b6478;background:rgba(16,12,20,.9)}
