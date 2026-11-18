@@ -6,6 +6,7 @@
  */
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocationSearch } from '../../hooks/useLocationSearch';
+const LocationGlobe = React.lazy(() => import('./LocationGlobe'));
 
 type Loc = { latitude: number; longitude: number; displayName: string };
 
@@ -174,6 +175,8 @@ export const DateTimePicker: React.FC<{
         </div>
 
         <div className="dtp-body">
+         <div className="dtp-col dtp-col-date">
+          <div className="dtp-eyebrow"><i className="ti ti-calendar dtp-pin" aria-hidden="true" />Data</div>
           <div className="dtp-quick">
             <label className={`dtp-search ${quickErr ? 'err' : ''}`}>
               <i className="ti ti-keyboard" />
@@ -230,6 +233,10 @@ export const DateTimePicker: React.FC<{
             </div>
           )}
 
+         </div>
+
+         <div className="dtp-col dtp-col-clock">
+          <div className="dtp-eyebrow"><i className="ti ti-clock dtp-pin" aria-hidden="true" />Hora</div>
           <div>
             <div className="dtp-hm">
               <button className={clockMode === 'h' ? 'on' : ''} onClick={() => setClockMode('h')}>{pad(h)}</button>
@@ -271,8 +278,14 @@ export const DateTimePicker: React.FC<{
             </svg>
           </div>
 
+         </div>
+
+         <div className="dtp-col dtp-col-loc">
           <div className="dtp-loc" ref={locRef} data-tour="location">
             <div className="dtp-eyebrow"><i className="ti ti-map-pin dtp-pin" aria-hidden="true" />Local · <span className="dtp-cur">{loc.displayName}</span></div>
+            <React.Suspense fallback={<div className="dtp-globe-ph" />}>
+              <LocationGlobe lat={loc.latitude} lon={loc.longitude} timeMs={new Date(y, m, dd, h, mi).getTime()} size={168} />
+            </React.Suspense>
             <label className="dtp-search">
               <i className="ti ti-search" />
               <input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar qualquer cidade do mundo" autoComplete="off" />
@@ -299,6 +312,7 @@ export const DateTimePicker: React.FC<{
               })}
             </div>
           </div>
+         </div>
         </div>
 
         <div className="dtp-foot">
@@ -312,14 +326,23 @@ export const DateTimePicker: React.FC<{
 
 const CSS = `
 .dtp-scrim{position:fixed;inset:0;z-index:11490;background:rgba(0,0,0,.35)}
-.dtp{position:fixed;z-index:11500;top:16px;bottom:150px;width:340px;max-width:calc(100vw - 32px);background:#0a070c;border:1px solid #2a2430;border-radius:20px;box-shadow:0 30px 80px -20px rgba(0,0,0,.9);display:flex;flex-direction:column;overflow:hidden;color:#EDE9E3;font-family:'DM Sans',system-ui,sans-serif}
+.dtp{position:fixed;z-index:11500;bottom:150px;width:min(940px,calc(100vw - 32px));max-height:calc(100vh - 166px);background:#0a070c;border:1px solid #2a2430;border-radius:20px;box-shadow:0 30px 80px -20px rgba(0,0,0,.9);display:flex;flex-direction:column;overflow:hidden;color:#EDE9E3;font-family:'DM Sans',system-ui,sans-serif}
 .dtp button{font-family:inherit;color:inherit;cursor:pointer}
 .dtp i.ti{font-size:14px}
 .dtp-h{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 6px}
 .dtp-t{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:20px}
 .dtp-x{width:32px;height:32px;border-radius:50%;border:0;background:transparent;color:#B9B4BE;display:inline-flex;align-items:center;justify-content:center}
 .dtp-x:hover{background:rgba(255,255,255,.08);color:#fff}
-.dtp-body{flex:1;min-height:0;overflow-y:auto;padding:2px 16px 12px;display:flex;flex-direction:column;gap:12px;scrollbar-width:thin}
+.dtp-body{flex:1;min-height:0;overflow-y:auto;padding:4px 16px 14px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr) minmax(0,1fr);gap:0;scrollbar-width:thin}
+.dtp-col{display:flex;flex-direction:column;gap:12px;min-width:0;padding:0 16px}
+.dtp-col:first-child{padding-left:0}
+.dtp-col:last-child{padding-right:0}
+.dtp-col+.dtp-col{border-left:1px solid rgba(255,255,255,.07)}
+.dtp-col-clock{align-items:center}
+.dtp-col-clock .dtp-eyebrow{align-self:flex-start}
+.dtp-col-clock .dtp-clock{width:200px}
+.dtp-globe-ph{width:168px;height:168px;border-radius:50%;margin:0 auto;background:#0f1d30;border:1px solid rgba(255,255,255,.18)}
+.dtp-col-loc .dtp-loc{border:0;padding:0}
 .dtp-my{display:flex;gap:6px}
 .dtp-my button{flex:1;height:34px;border-radius:999px;border:1px solid rgba(237,233,227,.22);background:transparent;display:inline-flex;align-items:center;justify-content:space-between;gap:6px;padding:0 12px}
 .dtp-my button:hover,.dtp-my button.on{border-color:#EDE9E3}
@@ -370,7 +393,7 @@ const CSS = `
 .dtp-caps span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dtp-caps b{font-family:'DM Mono',monospace;font-weight:400;font-size:10.5px;color:#B9B4BE}
 .dtp-more{font-size:10px;color:#6f6a76;text-align:center;display:flex;align-items:center;justify-content:center;gap:4px}
-.dtp-list{height:204px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;scroll-snap-type:y proximity;scrollbar-width:thin;padding:2px}
+.dtp-list{height:236px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;scroll-snap-type:y proximity;scrollbar-width:thin;padding:2px}
 .dtp-list button{flex:none;height:34px;border-radius:999px;border:1px solid transparent;background:transparent;font-size:13px;scroll-snap-align:center}
 .dtp-list button:hover{border-color:rgba(255,255,255,.3)}
 .dtp-list button.sel{background:#EDE9E3;color:#040004;border-color:#EDE9E3}
@@ -380,12 +403,14 @@ const CSS = `
 .dtp.dtp-in{animation:dtp-zoom .42s cubic-bezier(.16,1,.3,1)}
 @keyframes dtp-zoom{from{opacity:0;transform:scale(.18)}60%{opacity:1}to{opacity:1;transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){.dtp.dtp-in{animation:none}}
-.dtp-foot{padding:12px 16px 14px;border-top:1px solid rgba(255,255,255,.1);display:flex;gap:8px}
+.dtp-foot{padding:12px 16px 14px;border-top:1px solid rgba(255,255,255,.1);display:flex;gap:8px;justify-content:flex-end}
+@media (min-width:901px){.dtp-foot .dtp-btn{flex:0 0 150px}.dtp-foot .dtp-ok{flex:0 0 220px}}
 .dtp-btn{flex:1;height:40px;border-radius:999px;border:1px solid rgba(237,233,227,.28);background:transparent;font-size:10.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .dtp-btn:hover{border-color:#EDE9E3}
 .dtp-ok{flex:2;background:#EDE9E3;border-color:#EDE9E3;color:#040004!important}
 .dtp-ok:hover{background:#fff}
-@media (max-width:640px){.dtp{left:8px;right:8px!important;width:auto;top:max(8px,env(safe-area-inset-top,0px));bottom:max(8px,env(safe-area-inset-bottom,0px));max-width:none}}
+@media (max-width:900px){.dtp-body{display:flex;flex-direction:column;gap:14px}.dtp-col{padding:0!important}.dtp-col+.dtp-col{border-left:0;border-top:1px solid rgba(255,255,255,.07);padding-top:14px!important}.dtp{width:min(420px,calc(100vw - 32px));top:16px}}
+@media (max-width:640px){.dtp{left:8px;right:8px!important;width:auto;top:max(8px,env(safe-area-inset-top,0px));bottom:max(8px,env(safe-area-inset-bottom,0px));max-width:none;max-height:none}}
 `;
 
 export default DateTimePicker;
