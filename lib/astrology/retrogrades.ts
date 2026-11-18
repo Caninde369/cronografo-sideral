@@ -67,3 +67,66 @@ export const calculateAllRetrogrades = (date: Date): Record<string, boolean> => 
         chiron: isRetrograde(calculateChironTropicalLongitude, date, 24),
     };
 };
+
+/* ── Períodos de retrogradação e estações (para o R e o S do painel Astros) ── */
+const LONGITUDE_FNS: Record<string, (date: Date) => number> = {
+    mercury: calculateMercuryTropicalLongitude,
+    venus: calculateVenusTropicalLongitude,
+    mars: calculateMarsTropicalLongitude,
+    jupiter: calculateJupiterTropicalLongitude,
+    saturn: calculateSaturnTropicalLongitude,
+    uranus: calculateUranusTropicalLongitude,
+    neptune: calculateNeptuneTropicalLongitude,
+    pluto: calculatePlutoTropicalLongitude,
+    chiron: calculateChironTropicalLongitude,
+};
+const DAY_MS = 24 * 60 * 60 * 1000;
+const dailyMotion = (fn: (d: Date) => number, d: Date) => {
+    let diff = fn(new Date(d.getTime() + DAY_MS / 2)) - fn(new Date(d.getTime() - DAY_MS / 2));
+    if (diff > 180) diff -= 360; else if (diff < -180) diff += 360;
+    return diff;
+};
+/** Refina, com precisão de ~1 hora, o instante em que o movimento troca de sinal entre a e b. */
+const refineStation = (fn: (d: Date) => number, a: Date, b: Date) => {
+    let lo = a.getTime(), hi = b.getTime();
+    const sLo = Math.sign(dailyMotion(fn, a));
+    for (let k = 0; k < 10; k++) {
+        const mid = (lo + hi) / 2;
+        if (Math.sign(dailyMotion(fn, new Date(mid))) === sLo) lo = mid; else hi = mid;
+    }
+    return new Date((lo + hi) / 2);
+};
+
+export type RetroPeriod = { start: Date; end: Date };
+
+/** Período retrógrado que contém a data (da estação retrógrada à estação direta). */
+export const findRetrogradePeriod = (bodyId: string, date: Date): RetroPeriod | null => {
+    const fn = LONGITUDE_FNS[bodyId];
+    if (!fn || dailyMotion(fn, date) >= 0) return null;
+    let back = new Date(date), k = 0;
+    while (dailyMotion(fn, back) < 0 && k++ < 400) back = new Date(back.getTime() - DAY_MS);
+    let fwd = new Date(date); k = 0;
+    while (dailyMotion(fn, fwd) < 0 && k++ < 400) fwd = new Date(fwd.getTime() + DAY_MS);
+    return {
+        start: refineStation(fn, back, new Date(back.getTime() + DAY_MS)),
+        end: refineStation(fn, new Date(fwd.getTime() - DAY_MS), fwd),
+    };
+};
+
+/** Estação mais próxima da data (até 30 dias): quando o planeta para e para que lado vai. */
+export const findNearestStation = (bodyId: string, date: Date): { at: Date; turnsTo: 'retro' | 'direct' } | null => {
+    const fn = LONGITUDE_FNS[bodyId];
+    if (!fn) return null;
+    let best: { at: Date; turnsTo: 'retro' | 'direct' } | null = null;
+    let bestGap = Infinity;
+    for (let i = -30; i < 30; i++) {
+        const a = new Date(date.getTime() + i * DAY_MS), b = new Date(a.getTime() + DAY_MS);
+        const ma = dailyMotion(fn, a), mb = dailyMotion(fn, b);
+        if (Math.sign(ma) !== Math.sign(mb)) {
+            const at = refineStation(fn, a, b);
+            const gap = Math.abs(at.getTime() - date.getTime());
+            if (gap < bestGap) { bestGap = gap; best = { at, turnsTo: mb < 0 ? 'retro' : 'direct' }; }
+        }
+    }
+    return best;
+};

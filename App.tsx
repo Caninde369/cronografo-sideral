@@ -2479,6 +2479,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                             isFreeTier={isFreeTier}
                                             isFreeTrial={isFreeTrial}
                                             onOpenPaymentPlans={() => setShowPaymentPlansModal(true)}
+                                            referenceDate={celestialTab === 'natal' && natalTime ? natalTime : currentTime}
                                         />
                                     </PanelFrame>
                                 </div>

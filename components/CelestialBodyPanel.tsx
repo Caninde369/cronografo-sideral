@@ -7,7 +7,9 @@ import { ZODIAC_ICONS, CELESTIAL_GLYPHS, UI_ICONS } from './icons';
 import { WidgetId } from '../App';
 import { SizeControl, PopupToggle, CompactToggle, MicroToggle } from './Controls';
 import { toRoman, formatDegrees } from '../lib/astrology/utils';
+import { findRetrogradePeriod, findNearestStation } from '../lib/astrology/retrogrades';
 import { Tooltip } from './Tooltip';
+import { OPT_CSS, OptHeader, OptGroup, OptToggle, OptSegment, OptSlider } from './panel/PanelOptions';
 import { PLANET_DESCRIPTIONS } from './astro-descriptions';
 
 export type CelestialSettings = {
@@ -100,6 +102,8 @@ interface CelestialBodyPanelProps {
     isFreeTier?: boolean;
     isFreeTrial?: boolean;
     onOpenPaymentPlans?: () => void;
+    /** Data do céu mostrado (para calcular início e fim da retrogradação) */
+    referenceDate?: Date;
 }
 
 const PopupMenu: React.FC<{ children: React.ReactNode, onClose: () => void, triggerRef: React.RefObject<HTMLElement | null> }> = ({ children, onClose, triggerRef }) => {
@@ -123,7 +127,7 @@ const PopupMenu: React.FC<{ children: React.ReactNode, onClose: () => void, trig
         <>
             <div className="fixed inset-0 z-[9998]" onClick={onClose} />
             <div 
-                className="fixed z-[9999] bg-[#06060a]/98 border border-white/20 shadow-2xl backdrop-blur-2xl rounded-2xl p-3.5 w-80 sm:w-84 animate-in fade-in zoom-in-95 duration-100 font-sans text-brand-text"
+                className="fixed z-[9999] bg-[#0a070c] border border-[#221d27] shadow-[0_30px_80px_-20px_rgba(0,0,0,.9)] rounded-2xl p-1.5 w-[300px] animate-in fade-in zoom-in-95 duration-100"
                 style={{ top: coords.top, left: coords.left }}
                 onClick={e => e.stopPropagation()}
             >
@@ -334,7 +338,8 @@ const CelestialBodyCard: React.FC<{
     onTooltipLeave: () => void;
     theme?: 'dark' | 'light';
     isLocked?: boolean;
-}> = ({ body, housePlacements, retrogradeStatus, stationaryStatus, onHover, isSelected, isSecondarySelected, isVisible, onClick, onRightClick, itemSize, zodiacSignSize, scale = 1, settings, houseFormat, zodiacColorMode, anyHovered, isHovered, anySelected, moonPhase, className, onTooltip, onTooltipLeave, theme = 'dark', isLocked = false }) => {
+    onRetroClick?: (id: string, kind: 'retro' | 'station', anchor: DOMRect) => void;
+}> = ({ body, housePlacements, retrogradeStatus, stationaryStatus, onHover, isSelected, isSecondarySelected, isVisible, onClick, onRightClick, itemSize, zodiacSignSize, scale = 1, settings, houseFormat, zodiacColorMode, anyHovered, isHovered, anySelected, moonPhase, className, onTooltip, onTooltipLeave, theme = 'dark', isLocked = false, onRetroClick }) => {
     
     const safeLongitude = body.longitude || 0;
     const signIndex = Math.floor(safeLongitude / 30);
@@ -425,10 +430,12 @@ const CelestialBodyCard: React.FC<{
             )}
             {settings.planets.names && (
                 <span
-                    className={`font-bold leading-none flex items-center gap-1 ${settings.planets.namesAbbr ? 'whitespace-nowrap shrink-0' : 'truncate flex-1 min-w-0'}`}
+                    className={`leading-none flex items-center gap-1 ${settings.planets.namesAbbr ? 'whitespace-nowrap shrink-0' : 'truncate flex-1 min-w-0'}`}
                     style={{
-                        fontSize: `${textSize}px`,
+                        fontSize: `${textSize + 0.5}px`,
                         color: nameColor,
+                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                        fontWeight: 400,
                     }}
                 >
                     <span className="truncate">{settings.planets.namesAbbr ? (PLANET_NAMES_ABBR[body.id] || body.name.substring(0, 3).toUpperCase()) : body.name}</span>
@@ -440,10 +447,22 @@ const CelestialBodyCard: React.FC<{
         </div>
     );
     
+    // Colunas: o espaço que sobra é dividido entre todas (não só depois do nome)
+    const cols: string[] = ['minmax(0, 2.2fr)'];
+    if (settings.signs.enabled) cols.push(`minmax(${settings.signs.abbr ? (settings.signs.symbols ? signSize + 32 : 30) : signSize + 4}px, 1fr)`);
+    if (settings.houses.enabled) cols.push(`minmax(${Math.round(26 * scale)}px, 0.7fr)`);
+    if (settings.degrees) cols.push(`minmax(${Math.round(48 * scale)}px, 1fr)`);
+    if (settings.retrograde) cols.push(`${Math.max(16, Math.round(17 * scale))}px`);
+    const badge = Math.max(15, Math.round(16 * scale));
+
     return (
         <div 
             className={`${baseClasses} ${stateClasses}`}
             style={{
+                display: 'grid',
+                gridTemplateColumns: cols.join(' '),
+                alignItems: 'center',
+                columnGap: `${Math.max(4, Math.round(6 * scale))}px`,
                 paddingTop: `${cardPaddingY}px`,
                 paddingBottom: `${cardPaddingY}px`,
                 paddingLeft: `${cardPaddingX}px`,
@@ -455,53 +474,116 @@ const CelestialBodyCard: React.FC<{
             onClick={() => onClick(body.id)}
             onContextMenu={(e) => { e.preventDefault(); onRightClick(body.id); }}
         >
-            <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden pr-1">
+            <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
                 {renderPlanet()}
             </div>
 
-            <div className={`flex items-center justify-end flex-shrink-0 gap-1 pl-1 border-l ${isLight ? "border-black/[0.07]" : "border-white/[0.07]"}`}>
-                {settings.signs.enabled && (
-                    <div className={`flex items-center justify-center shrink-0 ${settings.signs.abbr ? 'gap-1' : ''}`} style={{ width: `${signBoxWidth}px` }}>
-                        {settings.signs.symbols && SignSymbol && <SignSymbol className={signColorClass} style={{ width: `${signSize}px`, height: `${signSize}px` }} />}
-                        {settings.signs.abbr && <span className={`${signColorClass} font-manrope font-normal text-xs`}>{sign ? (sign as any).abbr : '-'}</span>}
-                    </div>
-                )}
-                {settings.houses.enabled && (
-                    <div className="flex items-center justify-center shrink-0" style={{ width: `${houseBoxWidth}px` }}>
-                         {houseNumber && (
-                            <span 
-                                className={`font-bold text-center text-brand-text ${houseFormat === 'roman' ? 'font-cormorant' : ''}`} 
-                                style={{ fontSize: `${houseSize}px` }}
-                            >
-                                {houseFormat === 'roman' ? toRoman(houseNumber) : houseNumber}
-                            </span>
-                         )}
-                    </div>
-                )}
-                {settings.degrees && (
-                    <div className={`py-0.5 flex items-center justify-center rounded-[5px] border shrink-0 ${isLight ? 'bg-black/[0.05] border-black/15' : 'bg-black/40 border-white/15'}`} style={{ width: `${degreesBoxWidth}px` }}>
-                        <span className="tracking-tight tabular-nums leading-none whitespace-nowrap text-center font-normal" style={{
-                            fontSize: `${degreeSize}px`,
-                            fontFamily: "'Azeret Mono', monospace",
-                            fontVariantNumeric: "tabular-nums",
-                            color: degreeColor,
-                            fontWeight: 400
-                        }}>
-                            {formatDegrees(safeLongitude % 30)}
+            {settings.signs.enabled && (
+                <div className="flex items-center justify-center gap-1 min-w-0">
+                    {settings.signs.symbols && SignSymbol && (
+                        <span className="inline-flex items-center justify-center shrink-0" style={{ width: `${signSize + 2}px`, height: `${signSize + 2}px` }}>
+                            <SignSymbol className={signColorClass} style={{ width: `${signSize}px`, height: `${signSize}px`, display: 'block' }} />
                         </span>
-                    </div>
-                )}
-                {settings.retrograde && (
-                    <div className="flex items-center justify-center shrink-0" style={{ width: `${retroBoxWidth}px` }}>
-                        {isStationary ? (
-                            <span className="font-medium leading-none" style={{ fontSize: `${degreeSize * 0.82}px`, fontFamily: "'Azeret Mono', monospace", color: '#FFD700', fontWeight: 500 }}>St</span>
-                        ) : isRetro ? (
-                            <span className="font-medium leading-none" style={{ fontSize: `${degreeSize * 0.82}px`, fontFamily: "'Azeret Mono', monospace", color: '#F87171', fontWeight: 500 }}>Rx</span>
-                        ) : null}
-                    </div>
-                )}
-            </div>
+                    )}
+                    {settings.signs.abbr && (
+                        <span className={`${signColorClass} leading-none`} style={{ fontFamily: "'DM Mono', ui-monospace, monospace", fontSize: `${Math.max(10, degreeSize - 0.5)}px`, letterSpacing: '0.02em', width: '3ch' }}>
+                            {sign ? (sign as any).abbr : '-'}
+                        </span>
+                    )}
+                </div>
+            )}
+            {settings.houses.enabled && (
+                <div className="flex items-center justify-center">
+                    {houseNumber && (
+                        <span
+                            className={`text-center leading-none ${isLight ? 'text-neutral-700' : 'text-[#D9D4DE]'}`}
+                            style={houseFormat === 'roman'
+                                ? { fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 600, fontSize: `${houseSize + 1.5}px`, letterSpacing: '0.07em' }
+                                : { fontFamily: "'DM Mono', ui-monospace, monospace", fontSize: `${degreeSize}px` }}
+                        >
+                            {houseFormat === 'roman' ? toRoman(houseNumber) : houseNumber}
+                        </span>
+                    )}
+                </div>
+            )}
+            {settings.degrees && (
+                <div className="flex items-center justify-end">
+                    <span className="tabular-nums leading-none whitespace-nowrap" style={{
+                        fontSize: `${degreeSize + 0.5}px`,
+                        fontFamily: "'DM Mono', ui-monospace, monospace",
+                        color: degreeColor,
+                        fontWeight: 400
+                    }}>
+                        {formatDegrees(safeLongitude % 30)}
+                    </span>
+                </div>
+            )}
+            {settings.retrograde && (
+                <div className="flex items-center justify-center">
+                    {(isStationary || isRetro) && (
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onRetroClick?.(body.id, isStationary ? 'station' : 'retro', (e.currentTarget as HTMLElement).getBoundingClientRect()); }}
+                            className="inline-flex items-center justify-center rounded-[5px] border leading-none cursor-pointer transition-colors"
+                            style={{
+                                width: badge, height: badge,
+                                fontFamily: "'DM Mono', ui-monospace, monospace",
+                                fontSize: `${Math.max(9.5, badge * 0.62)}px`,
+                                color: isStationary ? '#FACC15' : '#F87171',
+                                borderColor: isStationary ? 'rgba(250,204,21,.55)' : 'rgba(248,113,113,.55)',
+                                background: isStationary ? 'rgba(250,204,21,.06)' : 'rgba(248,113,113,.06)',
+                            }}
+                            title={isStationary ? 'Estacionário: ver a estação' : 'Retrógrado: ver início e fim'}
+                            aria-label={isStationary ? `${body.name} estacionário` : `${body.name} retrógrado`}
+                        >
+                            {isStationary ? 'S' : 'R'}
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
+    );
+};
+
+/** Janela do R / S: quando começou e quando termina a retrogradação, ou quando é a estação. */
+const RetroPopover: React.FC<{ info: { id: string; name: string; kind: 'retro' | 'station'; rect: DOMRect }; date: Date; onClose: () => void }> = ({ info, date, onClose }) => {
+    const data = useMemo(() => {
+        const period = findRetrogradePeriod(info.id, date);
+        const station = findNearestStation(info.id, date);
+        return { period, station };
+    }, [info.id, info.kind, date.getTime()]);
+    const fmt = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    const W = 236;
+    const left = Math.max(8, Math.min(window.innerWidth - W - 8, info.rect.right - W));
+    const top = Math.min(window.innerHeight - 170, info.rect.bottom + 6);
+    const { period, station } = data;
+    const prog = period ? Math.max(0, Math.min(1, (date.getTime() - period.start.getTime()) / (period.end.getTime() - period.start.getTime()))) : 0;
+    const accent = info.kind === 'station' ? '#FACC15' : '#F87171';
+    return createPortal(
+        <>
+            <div className="fixed inset-0 z-[9998]" onClick={onClose} />
+            <div className="fixed z-[9999] rounded-xl border border-[#2f2a36] bg-[#141018] px-3 py-2.5 shadow-[0_20px_50px_-12px_rgba(0,0,0,.9)]" style={{ top, left, width: W, fontFamily: "'DM Sans', system-ui, sans-serif", color: '#EDE9E3' }} onClick={e => e.stopPropagation()}>
+                <div className="text-[9.5px] uppercase tracking-[0.2em] mb-1.5" style={{ color: accent }}>
+                    {info.name} {info.kind === 'station' ? 'estacionário' : 'retrógrado'}
+                </div>
+                {info.kind === 'station' && station && (
+                    <div className="flex justify-between text-[12px] py-0.5">
+                        <span className="text-[#B9B4BE]">{station.turnsTo === 'retro' ? 'Fica retrógrado em' : 'Volta a andar direto em'}</span>
+                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11.5 }}>{fmt(station.at)}</span>
+                    </div>
+                )}
+                {period && (
+                    <>
+                        <div className="flex justify-between text-[12px] py-0.5"><span className="text-[#B9B4BE]">Começou</span><span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11.5 }}>{fmt(period.start)}</span></div>
+                        <div className="flex justify-between text-[12px] py-0.5"><span className="text-[#B9B4BE]">Termina</span><span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11.5 }}>{fmt(period.end)}</span></div>
+                        <div className="h-[3px] rounded bg-[#2a2430] mt-2 mb-1 relative overflow-hidden"><div className="absolute inset-y-0 left-0 rounded" style={{ width: `${prog * 100}%`, background: accent }} /></div>
+                        <div className="text-[11px] text-[#8a8590]">{Math.round(prog * 100)}% do período</div>
+                    </>
+                )}
+                {!period && !station && <div className="text-[12px] text-[#B9B4BE]">Sem estação nos próximos 30 dias.</div>}
+            </div>
+        </>,
+        document.body
     );
 };
 
@@ -533,8 +615,10 @@ export const CelestialBodyPanel: React.FC<CelestialBodyPanelProps> = ({
     menuButtonRef,
     isFreeTier = false,
     isFreeTrial = false,
-    onOpenPaymentPlans
+    onOpenPaymentPlans,
+    referenceDate
 }) => {
+    const [retroInfo, setRetroInfo] = useState<{ id: string; name: string; kind: 'retro' | 'station'; rect: DOMRect } | null>(null);
     const { t } = useLanguage();
     const isFree = Boolean(isFreeTier || isFreeTrial);
     const isLight = theme === 'light';
@@ -714,6 +798,7 @@ export const CelestialBodyPanel: React.FC<CelestialBodyPanelProps> = ({
                 isSecondarySelected={secondarySelectedPlanets.includes(body.id)}
                 isVisible={!!visiblePlanets[body.id]}
                 isLocked={isPointLocked}
+                onRetroClick={(id, kind, rect) => setRetroInfo({ id, name: body.name, kind, rect })}
                 onClick={(id) => {
                     if (isPointLocked) {
                         onOpenPaymentPlans?.();
@@ -877,280 +962,59 @@ return (
 
             {isMenuOpen && (
                 <PopupMenu onClose={() => setActiveMenu(null)} triggerRef={finalMenuButtonRef}>
-                    <div className="flex flex-col gap-2.5 max-h-[75vh] overflow-y-auto pr-1 custom-scrollbar text-brand-text font-sans">
-                        {/* Header */}
-                        <div className="flex items-center justify-between border-b border-white/10 pb-2 px-1">
-                            <div className="flex items-center gap-2">
-                                <i className="ti ti-adjustments text-brand-purple text-base" />
-                                <span className="text-xs font-bold uppercase tracking-wider text-white font-sans">Opções do Painel</span>
-                            </div>
-                            <span className="text-[10px] text-white/40 font-mono">Astros</span>
-                        </div>
-
-                        {/* Banner de Bloqueio Plano Free */}
+                    <div className="po max-h-[75vh] overflow-y-auto custom-scrollbar">
+                        <style>{OPT_CSS}</style>
+                        <OptHeader title="Opções do painel" context="Astros" />
                         {isFree && (
-                            <div className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/10 border border-amber-500/40 flex items-center justify-between gap-2 shadow-sm">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <span className="text-amber-400 text-sm shrink-0">🔒</span>
-                                    <span className="text-[11px] font-semibold text-amber-200 leading-tight">
-                                        Edições dos Astros bloqueadas no Plano Gratuito.
-                                    </span>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => { onOpenPaymentPlans?.(); setActiveMenu(null); }}
-                                    className="px-2.5 py-1 rounded-lg bg-amber-500 text-black font-bold text-[10px] hover:bg-amber-400 active:scale-95 transition-all shrink-0 cursor-pointer shadow-sm"
-                                >
-                                    Upgrade
-                                </button>
+                            <div className="po-lock">
+                                <i className="ti ti-lock" aria-hidden="true" />
+                                <span>Ajustes liberados nos planos Mensal e Vitalício.</span>
+                                <button type="button" onClick={() => { onOpenPaymentPlans?.(); setActiveMenu(null); }}>Ver planos</button>
                             </div>
                         )}
+                        <div className={isFree ? 'po-off' : ''}>
+                            <OptGroup title="Planetas" />
+                            <OptToggle icon={<i className="ti ti-planet" />} label="Símbolos dos planetas" checked={settings.planets.symbols} onChange={() => onSettingsChange({ ...settings, planets: { ...settings.planets, symbols: !settings.planets.symbols } })} />
+                            {settings.planets.symbols && <>
+                                <OptToggle sub label="Glifos no lugar das esferas" checked={settings.planets.glyphs} onChange={() => onSettingsChange({ ...settings, planets: { ...settings.planets, glyphs: !settings.planets.glyphs } })} />
+                                <OptToggle sub label="Cores dos planetas" checked={settings.planets.colors} onChange={() => onSettingsChange({ ...settings, planets: { ...settings.planets, colors: !settings.planets.colors } })} />
+                            </>}
+                            <OptToggle icon={<i className="ti ti-letter-case" />} label="Nomes" checked={settings.planets.names} onChange={() => onSettingsChange({ ...settings, planets: { ...settings.planets, names: !settings.planets.names } })} />
+                            {settings.planets.names && <>
+                                <OptToggle sub label="Abreviar nomes" checked={settings.planets.namesAbbr} onChange={() => onSettingsChange({ ...settings, planets: { ...settings.planets, namesAbbr: !settings.planets.namesAbbr } })} />
+                                <OptToggle sub label="Nomes coloridos" checked={settings.planets.namesColors} onChange={() => onSettingsChange({ ...settings, planets: { ...settings.planets, namesColors: !settings.planets.namesColors } })} />
+                            </>}
 
-                        <div className={isFree ? 'opacity-40 pointer-events-none select-none flex flex-col gap-2.5' : 'flex flex-col gap-2.5'}>
-                        {/* Card 1: Planetas (Símbolos e Nomes) */}
-                        <div className="p-2.5 bg-white/[0.03] rounded-xl border border-white/10 space-y-2">
-                            {/* Símbolos dos Planetas */}
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                    <i className="ti ti-planet text-amber-300 text-sm" />
-                                    <span className="text-xs font-bold text-white font-sans">Símbolos dos Planetas</span>
-                                </div>
-                                <CompactToggle isChecked={settings.planets.symbols} onToggle={() => onSettingsChange({ ...settings, planets: { ...settings.planets, symbols: !settings.planets.symbols } })} />
-                            </div>
-                            {settings.planets.symbols && (
-                                <div className="pl-6 space-y-1.5 pt-1.5 border-t border-white/5 font-sans">
-                                    <div className="flex items-center justify-between text-xs text-white/70">
-                                        <span>Glifos (vs Esferas)</span>
-                                        <CompactToggle isChecked={settings.planets.glyphs} onToggle={() => onSettingsChange({ ...settings, planets: { ...settings.planets, glyphs: !settings.planets.glyphs } })} />
-                                    </div>
-                                    <div className="flex items-center justify-between text-xs text-white/70">
-                                        <span>Cores dos Planetas</span>
-                                        <CompactToggle isChecked={settings.planets.colors} onToggle={() => onSettingsChange({ ...settings, planets: { ...settings.planets, colors: !settings.planets.colors } })} />
-                                    </div>
-                                </div>
+                            <OptGroup title="Signos e casas" />
+                            <OptToggle icon={<i className="ti ti-zodiac-aries" />} label="Signos" checked={settings.signs.enabled} onChange={() => onSettingsChange({ ...settings, signs: { ...settings.signs, enabled: !settings.signs.enabled } })} />
+                            {settings.signs.enabled && <>
+                                <OptToggle sub label="Símbolo" checked={settings.signs.symbols} onChange={() => onSettingsChange({ ...settings, signs: { ...settings.signs, symbols: !settings.signs.symbols } })} />
+                                <OptToggle sub label="Abreviação" checked={settings.signs.abbr} onChange={() => onSettingsChange({ ...settings, signs: { ...settings.signs, abbr: !settings.signs.abbr } })} />
+                                <OptToggle sub label="Cores dos signos" checked={settings.signs.colors} onChange={() => onSettingsChange({ ...settings, signs: { ...settings.signs, colors: !settings.signs.colors } })} />
+                            </>}
+                            <OptToggle icon={<i className="ti ti-home" />} label="Casas" checked={settings.houses.enabled} onChange={() => onSettingsChange({ ...settings, houses: { ...settings.houses, enabled: !settings.houses.enabled } })} />
+                            {settings.houses.enabled && (
+                                <OptSegment sub label="Formato" value={houseFormat} options={[{ v: 'roman', label: 'XII' }, { v: 'arabic', label: '12' }]} onChange={(v) => onHouseFormatChange(v as any)} />
                             )}
 
-                            {/* Nomes dos Planetas */}
-                            <div className="flex items-center justify-between pt-1.5 border-t border-white/5">
-                                <div className="flex items-center gap-1.5">
-                                    <i className="ti ti-typography text-blue-300 text-sm" />
-                                    <span className="text-xs font-bold text-white font-sans">Nomes dos Planetas</span>
-                                </div>
-                                <CompactToggle isChecked={settings.planets.names} onToggle={() => onSettingsChange({ ...settings, planets: { ...settings.planets, names: !settings.planets.names } })} />
-                            </div>
-                            {settings.planets.names && (
-                                <div className="pl-6 space-y-1.5 pt-1.5 border-t border-white/5 font-sans">
-                                    <div className="flex items-center justify-between text-xs text-white/70">
-                                        <span>Abreviar Nomes</span>
-                                        <CompactToggle isChecked={settings.planets.namesAbbr} onToggle={() => onSettingsChange({ ...settings, planets: { ...settings.planets, namesAbbr: !settings.planets.namesAbbr } })} />
-                                    </div>
-                                    <div className="flex items-center justify-between text-xs text-white/70">
-                                        <span>Cores dos Nomes</span>
-                                        <CompactToggle isChecked={settings.planets.namesColors} onToggle={() => onSettingsChange({ ...settings, planets: { ...settings.planets, namesColors: !settings.planets.namesColors } })} />
-                                    </div>
-                                </div>
+                            <OptGroup title="Detalhes" />
+                            <OptToggle icon={<span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13 }}>°</span>} label="Graus" checked={settings.degrees} onChange={() => onSettingsChange({ ...settings, degrees: !settings.degrees })} />
+                            {settings.degrees && (
+                                <OptToggle sub label="Graus coloridos" checked={settings.degrees_colors ?? false} onChange={() => onSettingsChange({ ...settings, degrees_colors: !(settings.degrees_colors ?? false) })} />
                             )}
-                        </div>
+                            <OptToggle icon={<span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#F87171' }}>R</span>} label="Retrógrado e estacionário" checked={settings.retrograde} onChange={() => onSettingsChange({ ...settings, retrograde: !settings.retrograde })} />
 
-                        {/* Card 2: Signos e Casas */}
-                        <div className="grid grid-cols-2 gap-2 font-sans">
-                            {/* Signos */}
-                            <div className="p-2.5 bg-white/[0.03] rounded-xl border border-white/10 space-y-1.5 flex flex-col justify-between">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-1">
-                                        <i className="ti ti-zodiac-leo text-emerald-300 text-sm" />
-                                        <span className="text-xs font-bold text-white">Signos</span>
-                                    </div>
-                                    <CompactToggle isChecked={settings.signs.enabled} onToggle={() => onSettingsChange({ ...settings, signs: { ...settings.signs, enabled: !settings.signs.enabled } })} />
-                                </div>
-                                {settings.signs.enabled && (
-                                    <div className="pl-1 space-y-1 pt-1 border-t border-white/5 text-[11px] text-white/70">
-                                        <div className="flex items-center justify-between">
-                                            <span>Símbolos</span>
-                                            <CompactToggle isChecked={settings.signs.symbols} onToggle={() => onSettingsChange({ ...settings, signs: { ...settings.signs, symbols: !settings.signs.symbols } })} />
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <span>Cores</span>
-                                            <CompactToggle isChecked={settings.signs.colors} onToggle={() => onSettingsChange({ ...settings, signs: { ...settings.signs, colors: !settings.signs.colors } })} />
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <span>Abreviação</span>
-                                            <CompactToggle isChecked={settings.signs.abbr} onToggle={() => onSettingsChange({ ...settings, signs: { ...settings.signs, abbr: !settings.signs.abbr } })} />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Casas */}
-                            <div className="p-2.5 bg-white/[0.03] rounded-xl border border-white/10 space-y-1.5 flex flex-col justify-between">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-1">
-                                        <i className="ti ti-home text-rose-300 text-sm" />
-                                        <span className="text-xs font-bold text-white">Casas</span>
-                                    </div>
-                                    <CompactToggle isChecked={settings.houses.enabled} onToggle={() => onSettingsChange({ ...settings, houses: { ...settings.houses, enabled: !settings.houses.enabled } })} />
-                                </div>
-                                {settings.houses.enabled && (
-                                    <div className="pt-1 border-t border-white/5 space-y-1">
-                                        <span className="text-[10px] text-white/50 uppercase font-semibold">Formato</span>
-                                        <div className="grid grid-cols-2 gap-1 bg-white/[0.04] p-0.5 rounded-lg border border-white/10">
-                                            <button
-                                                onClick={() => onHouseFormatChange('roman')}
-                                                className={`py-1 px-1 rounded-lg text-[10px] font-bold transition-all duration-200 cursor-pointer text-center active:scale-95 ${houseFormat === 'roman' ? 'bg-gradient-to-b from-[#D4AF37]/[0.18] to-[#D4AF37]/[0.06] border border-[#D4AF37]/50 text-[#F5D98A]' : 'btn-3d-glow btn-3d-dark text-white/60 hover:text-white'}`}
-                                            >
-                                                Romanos
-                                            </button>
-                                            <button
-                                                onClick={() => onHouseFormatChange('arabic')}
-                                                className={`py-1 px-1 rounded-lg text-[10px] font-bold transition-all duration-200 cursor-pointer text-center active:scale-95 ${houseFormat === 'arabic' ? 'bg-gradient-to-b from-[#D4AF37]/[0.18] to-[#D4AF37]/[0.06] border border-[#D4AF37]/50 text-[#F5D98A]' : 'btn-3d-glow btn-3d-dark text-white/60 hover:text-white'}`}
-                                            >
-                                                Números
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Card 3: Graus & Retrogradação */}
-                        <div className="grid grid-cols-2 gap-2 font-sans">
-                            {/* Graus */}
-                            <div className="p-2.5 bg-white/[0.03] rounded-xl border border-white/10 space-y-1.5">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-1">
-                                        <i className="ti ti-angle text-cyan-300 text-sm" />
-                                        <span className="text-xs font-bold text-white">Graus</span>
-                                    </div>
-                                    <CompactToggle isChecked={settings.degrees} onToggle={() => onSettingsChange({ ...settings, degrees: !settings.degrees })} />
-                                </div>
-                                {settings.degrees && (
-                                    <div className="flex items-center justify-between text-[11px] text-white/70 pt-1 border-t border-white/5">
-                                        <span>Cores</span>
-                                        <CompactToggle isChecked={settings.degrees_colors ?? false} onToggle={() => onSettingsChange({ ...settings, degrees_colors: !(settings.degrees_colors ?? false) })} />
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Retrogradação */}
-                            <div className="p-2.5 bg-white/[0.03] rounded-xl border border-white/10 flex items-center justify-between">
-                                <div className="flex items-center gap-1">
-                                    <i className="ti ti-rotate-2 text-amber-400 text-sm" />
-                                    <span className="text-xs font-bold text-white">Retrogradação</span>
-                                </div>
-                                <CompactToggle isChecked={settings.retrograde} onToggle={() => onSettingsChange({ ...settings, retrograde: !settings.retrograde })} />
-                            </div>
-                        </div>
-
-                        {/* Card 4: Controles de Tamanho e Escala */}
-                        <div className="p-2.5 bg-white/[0.03] rounded-xl border border-white/10 space-y-2.5 font-sans">
-                            {/* Planetas */}
-                            <div className="space-y-1">
-                                <div className="flex justify-between items-center text-xs text-white">
-                                    <span className="flex items-center gap-1.5 font-bold">
-                                        <i className="ti ti-planet text-amber-300 text-xs" /> Tamanho Planetas
-                                    </span>
-                                    <span className="text-xs font-mono font-bold text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30">
-                                        {planetSize}px
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button 
-                                        onClick={() => onPlanetSizeChange?.(Math.max(12, (planetSize || 24) - 2))} 
-                                        className="w-7 h-7 flex items-center justify-center btn-3d-glow btn-3d-dark text-white font-bold transition-all duration-150 active:scale-90 hover:scale-110 cursor-pointer shadow-sm"
-                                    >
-                                        -
-                                    </button>
-                                    <input 
-                                        type="range"
-                                        min="12"
-                                        max="84"
-                                        step="2"
-                                        value={planetSize || 24}
-                                        onChange={(e) => onPlanetSizeChange?.(parseInt(e.target.value))}
-                                        className="flex-1 accent-amber-400 cursor-pointer h-1.5 bg-white/10 rounded-lg"
-                                    />
-                                    <button 
-                                        onClick={() => onPlanetSizeChange?.(Math.min(84, (planetSize || 24) + 2))} 
-                                        className="w-7 h-7 flex items-center justify-center btn-3d-glow btn-3d-dark text-white font-bold transition-all duration-150 active:scale-90 hover:scale-110 cursor-pointer shadow-sm"
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Signos */}
-                            <div className="space-y-1 pt-1.5 border-t border-white/5">
-                                <div className="flex justify-between items-center text-xs text-white">
-                                    <span className="flex items-center gap-1.5 font-bold">
-                                        <i className="ti ti-zodiac-leo text-emerald-300 text-xs" /> Tamanho Signos
-                                    </span>
-                                    <span className="text-xs font-mono font-bold text-emerald-300 bg-emerald-500/20 px-1.5 py-0.5 rounded border border-emerald-500/30">
-                                        {zodiacSignSize}px
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button 
-                                        onClick={() => onZodiacSignSizeChange?.(Math.max(10, (zodiacSignSize || 20) - 2))} 
-                                        className="w-7 h-7 flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 rounded-lg text-white font-bold transition-all border border-white/10 cursor-pointer"
-                                    >
-                                        -
-                                    </button>
-                                    <input 
-                                        type="range"
-                                        min="10"
-                                        max="60"
-                                        step="2"
-                                        value={zodiacSignSize || 20}
-                                        onChange={(e) => onZodiacSignSizeChange?.(parseInt(e.target.value))}
-                                        className="flex-1 accent-emerald-400 cursor-pointer h-1.5 bg-white/10 rounded-lg"
-                                    />
-                                    <button 
-                                        onClick={() => onZodiacSignSizeChange?.(Math.min(60, (zodiacSignSize || 20) + 2))} 
-                                        className="w-7 h-7 flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 rounded-lg text-white font-bold transition-all border border-white/10 cursor-pointer"
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Escala do Painel */}
-                            <div className="space-y-1 pt-1.5 border-t border-white/5">
-                                <div className="flex justify-between items-center text-xs text-white">
-                                    <span className="flex items-center gap-1.5 font-bold">
-                                        <i className="ti ti-zoom-in text-purple-300 text-xs" /> Escala Painel
-                                    </span>
-                                    <span className="text-xs font-mono font-bold text-purple-300 bg-purple-500/20 px-1.5 py-0.5 rounded border border-purple-500/30">
-                                        {Math.round((panelScale || 1) * 100)}%
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button 
-                                        onClick={() => onPanelScaleChange?.(Math.max(0.6, Number(((panelScale || 1) - 0.1).toFixed(1))))} 
-                                        className="w-7 h-7 flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 rounded-lg text-white font-bold transition-all border border-white/10 cursor-pointer"
-                                    >
-                                        -
-                                    </button>
-                                    <input 
-                                        type="range"
-                                        min="0.6"
-                                        max="1.4"
-                                        step="0.05"
-                                        value={panelScale || 1}
-                                        onChange={(e) => onPanelScaleChange?.(parseFloat(e.target.value))}
-                                        className="flex-1 accent-purple-500 cursor-pointer h-1.5 bg-white/10 rounded-lg"
-                                    />
-                                    <button 
-                                        onClick={() => onPanelScaleChange?.(Math.min(1.4, Number(((panelScale || 1) + 0.1).toFixed(1))))} 
-                                        className="w-7 h-7 flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 rounded-lg text-white font-bold transition-all border border-white/10 cursor-pointer"
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                            <OptGroup title="Tamanho" />
+                            <OptSlider label="Planetas" value={planetSize || 24} min={12} max={84} step={2} unit="px" onChange={(v) => onPlanetSizeChange?.(v)} />
+                            <OptSlider label="Signos" value={zodiacSignSize || 20} min={10} max={60} step={2} unit="px" onChange={(v) => onZodiacSignSizeChange?.(v)} />
+                            <OptSlider label="Escala do painel" value={panelScale || 1} min={0.6} max={1.4} step={0.1} display={(v) => `${Math.round(v * 100)}%`} onChange={(v) => onPanelScaleChange?.(v)} />
                         </div>
                     </div>
                 </PopupMenu>
+            )}
+
+            {retroInfo && (
+                <RetroPopover info={retroInfo} date={referenceDate || new Date()} onClose={() => setRetroInfo(null)} />
             )}
 
             {tooltip && (

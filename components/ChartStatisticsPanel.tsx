@@ -568,299 +568,125 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                     ))}
                 </div>
             ) : (
-                <>
-                    {/* Compact Summary Chip for Dominant & Rhythm */}
-                    <div 
-                        className={`flex items-center justify-between px-2 py-1 rounded-lg border font-bold shrink-0 ${isLight ? 'bg-amber-500/10 border-amber-500/25 text-amber-950' : 'bg-amber-500/10 border-amber-500/20 text-amber-200'}`}
-                        style={{ fontSize: `${Math.max(9, Math.round(10 * scale))}px` }}
-                    >
-                        <div className="flex items-center gap-1 min-w-0">
-                            <span className="uppercase tracking-wider opacity-60" style={{ fontSize: `${Math.max(7.5, Math.round(8 * scale))}px` }}>Dom:</span>
-                            <span className="leading-none" style={{ fontSize: `${Math.max(10, Math.round(12 * scale))}px` }}>{stats.dominantElement.icon}</span>
-                            <span className="font-extrabold truncate" style={{ fontSize: `${Math.max(9, Math.round(10 * scale))}px` }}>{stats.dominantElement.label}</span>
-                            <span className="font-mono font-extrabold opacity-80" style={{ fontSize: `${Math.max(8, Math.round(9 * scale))}px` }}>({stats.dominantElement.count})</span>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                            <span className="uppercase tracking-wider opacity-60" style={{ fontSize: `${Math.max(7.5, Math.round(8 * scale))}px` }}>Ritmo:</span>
-                            <span className="font-extrabold" style={{ fontSize: `${Math.max(9, Math.round(10 * scale))}px` }}>{stats.dominantModality.label}</span>
-                            <span className="font-mono font-extrabold opacity-80" style={{ fontSize: `${Math.max(8, Math.round(9 * scale))}px` }}>({stats.dominantModality.count})</span>
-                        </div>
-                    </div>
-
-                    {/* SESSÃO 1: POLARIDADES */}
-                    <div data-status-group="polarity" className={groupClass('polarity')}>
-                        {renderSectionHeader('Polaridade', 'polarity', 'ti-yin-yang')}
-                        <div 
-                            className={`rounded-xl border ${isLight ? 'border-amber-900/15 bg-black/[0.03]' : 'border-white/10 bg-white/[0.03]'} flex flex-col gap-1`}
-                            style={{ padding: `${Math.max(4, Math.round(6 * scale))}px` }}
-                        >
-                            <div className="flex items-center justify-between font-bold" style={{ fontSize: `${Math.max(10, Math.round(11 * scale))}px` }}>
-                                {/* Feminino */}
-                                <div 
-                                    className={`flex items-center gap-1.5 ${isLight ? 'text-blue-800 hover:text-blue-900' : 'text-blue-400 hover:text-blue-300'} cursor-pointer transition-colors`}
-                                    onMouseEnter={() => handleHover('polarity', 'feminine')}
-                                    onClick={() => handleCardClick('polarity', 'feminine')}
-                                    data-status-card="polarity"
-                                    data-pinned={isPinned('polarity', 'feminine') ? 'true' : undefined}
+                <div className="flex flex-col gap-2.5">
+                    <style>{`
+.sb-card{border-radius:14px;padding:${Math.max(7, Math.round(9 * scale))}px;border:1px solid ${isLight ? 'rgba(35,23,20,.14)' : '#221d27'};transition:border-color .25s}
+.sb-card.on{border-color:${isLight ? 'rgba(138,106,18,.55)' : 'rgba(212,175,55,.5)'}}
+.sb-head{width:100%;display:flex;align-items:baseline;justify-content:space-between;gap:8px;background:none;border:0;padding:0 2px;margin-bottom:${Math.max(6, Math.round(8 * scale))}px;cursor:pointer;color:inherit;text-align:left}
+.sb-title{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;line-height:1}
+.sb-dom{font-family:'DM Sans',system-ui,sans-serif;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:${isLight ? '#7a6a5c' : '#8a8590'};white-space:nowrap}
+.sb-dom b{font-family:'DM Mono',ui-monospace,monospace;font-weight:400;letter-spacing:0;color:${isLight ? '#231714' : '#EDE9E3'}}
+.sb-grid{display:grid;gap:6px}
+.sb-box{border-radius:10px;border:1px solid;display:flex;flex-direction:column;justify-content:space-between;gap:6px;cursor:pointer;min-width:0;transition:border-color .2s,background-color .2s,transform .2s,flex-grow .6s cubic-bezier(.16,1,.3,1),opacity .2s}
+.sb-box:hover{transform:translateY(-1px)}
+.sb-box .t{display:flex;align-items:center;justify-content:space-between;gap:6px;font-family:'DM Sans',system-ui,sans-serif;white-space:nowrap}
+.sb-box .t span:first-child{overflow:hidden;text-overflow:ellipsis}
+.sb-box .n{font-family:'DM Mono',ui-monospace,monospace}
+.sb-box .p{display:flex;flex-wrap:wrap;gap:3px 5px;align-items:center;min-height:14px}
+.sb-box.zero{opacity:.45}
+.sb-box.dim{opacity:.35}
+.sb-box.pin{outline:1.5px solid ${isLight ? 'rgba(138,106,18,.8)' : 'rgba(245,217,138,.85)'};outline-offset:1px}
+`}</style>
+                    {(() => {
+                        const pad = Math.max(6, Math.round(8 * scale));
+                        const fs = Math.max(11, Math.round(12 * scale));
+                        const glyph = Math.max(11, Math.round(12.5 * scale));
+                        const titleFs = Math.max(15, Math.round(17 * scale));
+                        const glyphColor = isLight ? '#3b2f2a' : '#EDE9E3';
+                        const anyFilter = !!highlightFilter;
+                        const Box = ({ type, value, label, count, color, planets, extraStyle }: { type: 'element' | 'modality' | 'polarity'; value: string; label: React.ReactNode; count: number; color: string; planets: Array<{ id: string; name: string }>; extraStyle?: React.CSSProperties }) => {
+                            const hl = anyFilter && highlightFilter!.type === type && highlightFilter!.value === value;
+                            const dim = anyFilter && highlightFilter!.type === type && !hl;
+                            return (
+                                <div
+                                    key={`${type}-${value}`}
+                                    className={`sb-box ${count === 0 ? 'zero' : ''} ${dim ? 'dim' : ''} ${isPinned(type, value) ? 'pin' : ''}`}
+                                    data-status-card={type}
+                                    data-pinned={isPinned(type, value) ? 'true' : undefined}
+                                    onMouseEnter={() => handleHover(type, value)}
                                     onMouseLeave={handleLeave}
-                                    title={`Feminino: ${stats.counts.feminine} astros`}
+                                    onClick={() => handleCardClick(type, value)}
+                                    title={`${typeof label === 'string' ? label : ''}: ${count} de ${totalCount} astros`}
+                                    style={{
+                                        padding: pad,
+                                        minHeight: Math.max(52, Math.round(60 * scale)),
+                                        borderColor: hl ? color : `${color}66`,
+                                        background: hl ? `${color}1f` : `${color}0d`,
+                                        ...extraStyle,
+                                    }}
                                 >
-                                    <CelestialGlyphSvg bodyId="venus" size={Math.max(12, Math.round(14 * scale))} className={`${isLight ? 'text-blue-700' : 'text-blue-400'} shrink-0`} />
-                                    <span 
-                                        className={`font-mono font-extrabold ${isLight ? 'text-blue-900 bg-blue-500/20 border-blue-500/40' : 'text-blue-300 bg-blue-500/20 border-blue-500/30'} px-1.5 py-0.5 rounded border`}
-                                        style={{ fontSize: `${Math.max(9, Math.round(10 * scale))}px` }}
-                                    >
-                                        {stats.counts.feminine}
-                                    </span>
+                                    <div className="t" style={{ fontSize: fs }}>
+                                        <span style={{ color }}>{label}</span>
+                                        <span className="n" style={{ fontSize: fs, color: isLight ? '#231714' : '#EDE9E3' }}>{count}</span>
+                                    </div>
+                                    <div className="p">
+                                        {planets.length === 0
+                                            ? <span style={{ fontSize: Math.max(10, fs - 1.5), color: isLight ? '#9a8a7c' : '#6f6a76' }}>nenhum astro</span>
+                                            : planets.map(p => (
+                                                <span key={p.id} title={p.name} className="inline-flex">
+                                                    <CelestialGlyphSvg bodyId={p.id} size={glyph} style={{ color: glyphColor } as any} className="shrink-0" />
+                                                </span>
+                                            ))}
+                                    </div>
                                 </div>
-
-                                {/* Masculino */}
-                                <div 
-                                    className={`flex items-center gap-1.5 ${isLight ? 'text-red-800 hover:text-red-900' : 'text-red-400 hover:text-red-300'} cursor-pointer transition-colors`}
-                                    onMouseEnter={() => handleHover('polarity', 'masculine')}
-                                    onClick={() => handleCardClick('polarity', 'masculine')}
-                                    data-status-card="polarity"
-                                    data-pinned={isPinned('polarity', 'masculine') ? 'true' : undefined}
-                                    onMouseLeave={handleLeave}
-                                    title={`Masculino: ${stats.counts.masculine} astros`}
+                            );
+                        };
+                        const Head = ({ mode, label, domLabel, domCount }: { mode: 'element' | 'modality' | 'polarity'; label: string; domLabel: string; domCount: number }) => {
+                            const active = zodiacColorMode === mode;
+                            return (
+                                <button
+                                    type="button"
+                                    className="sb-head"
+                                    data-status-section={mode}
+                                    data-tour={`status-${mode}`}
+                                    onClick={() => onZodiacColorModeChange?.(active ? 'none' : mode)}
+                                    title={active ? 'Clique para tirar as cores do zodíaco' : `Clique para colorir o zodíaco por ${label.toLowerCase()}`}
                                 >
-                                    <span 
-                                        className={`font-mono font-extrabold ${isLight ? 'text-red-900 bg-red-500/20 border-red-500/40' : 'text-red-300 bg-red-500/20 border-red-500/30'} px-1.5 py-0.5 rounded border`}
-                                        style={{ fontSize: `${Math.max(9, Math.round(10 * scale))}px` }}
-                                    >
-                                        {stats.counts.masculine}
+                                    <span className="sb-title flex items-center gap-1.5" style={{ fontSize: titleFs }}>
+                                        {label}
+                                        {active && <i className="ti ti-check" style={{ fontSize: 12, fontStyle: 'normal', color: isLight ? '#8a6a12' : '#F5D98A' }} />}
                                     </span>
-                                    <CelestialGlyphSvg bodyId="mars" size={Math.max(12, Math.round(14 * scale))} className={`${isLight ? 'text-red-700' : 'text-red-400'} shrink-0`} />
-                                </div>
-                            </div>
-
-                            {/* Split Dual Bar */}
-                            <div 
-                                className={`w-full ${isLight ? 'bg-black/10 border-black/5' : 'bg-white/10 border-white/5'} rounded-full overflow-hidden flex p-0 border`}
-                                style={{ height: `${Math.max(5, Math.round(6 * scale))}px` }}
-                            >
-                                <div 
-                                    className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-300 cursor-pointer"
-                                    style={{ width: `${(stats.counts.feminine / totalCount) * 100}%` }}
-                                    onMouseEnter={() => handleHover('polarity', 'feminine')}
-                                    onClick={() => handleCardClick('polarity', 'feminine')}
-                                    data-status-card="polarity"
-                                    data-pinned={isPinned('polarity', 'feminine') ? 'true' : undefined}
-                                    onMouseLeave={handleLeave}
-                                    title={`Feminino: ${stats.counts.feminine} astros`}
-                                />
-                                <div 
-                                    className="h-full bg-gradient-to-r from-red-500 to-amber-500 transition-all duration-300 cursor-pointer"
-                                    style={{ width: `${(stats.counts.masculine / totalCount) * 100}%` }}
-                                    onMouseEnter={() => handleHover('polarity', 'masculine')}
-                                    onClick={() => handleCardClick('polarity', 'masculine')}
-                                    data-status-card="polarity"
-                                    data-pinned={isPinned('polarity', 'masculine') ? 'true' : undefined}
-                                    onMouseLeave={handleLeave}
-                                    title={`Masculino: ${stats.counts.masculine} astros`}
-                                />
-                            </div>
-
-                            {/* Planets list below bar using SVG glyphs */}
-                            <div 
-                                className="flex justify-between items-center pt-0.5"
-                                style={{ fontSize: `${Math.max(9, Math.round(10 * scale))}px`, minHeight: `${Math.max(14, Math.round(16 * scale))}px` }}
-                            >
-                                <div className="flex items-center gap-1 flex-wrap">
-                                    {stats.planetsByPolarity.feminine.map(p => (
-                                        <span key={p.id} title={`${p.name} (Feminino)`} className="hover:scale-125 transition-transform">
-                                            <CelestialGlyphSvg bodyId={p.id} size={Math.max(10, Math.round(11 * scale))} className={isLight ? 'text-blue-700' : 'text-blue-300'} />
-                                        </span>
-                                    ))}
-                                </div>
-                                <div className="flex items-center gap-1 flex-wrap justify-end">
-                                    {stats.planetsByPolarity.masculine.map(p => (
-                                        <span key={p.id} title={`${p.name} (Masculino)`} className="hover:scale-125 transition-transform">
-                                            <CelestialGlyphSvg bodyId={p.id} size={Math.max(10, Math.round(11 * scale))} className={isLight ? 'text-red-700' : 'text-red-400'} />
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* SESSÃO 2: ELEMENTOS */}
-                    <div data-status-group="element" className={groupClass('element')}>
-                        {renderSectionHeader('Elementos', 'element', 'ti-flame')}
-                        <div className="grid grid-cols-2 gap-1">
-                            {(['fire', 'earth', 'air', 'water'] as const).map(elKey => {
-                                const count = stats.counts[elKey];
-                                const style = ELEMENT_SYMBOLS[elKey];
-                                const planets = stats.planetsByElement[elKey];
-                                const isHighlighted = !highlightFilter || (highlightFilter.type === 'element' && highlightFilter.value === elKey);
-
-                                return (
-                                    <div 
-                                        key={elKey}
-                                        onMouseEnter={() => handleHover('element', elKey)}
-                                    onClick={() => handleCardClick('element', elKey)}
-                                    data-status-card="element"
-                                    data-pinned={isPinned('element', elKey) ? 'true' : undefined}
-                                        onMouseLeave={handleLeave}
-                                        title={`${style.label}: ${count} astros`}
-                                        className={`flex flex-col rounded-lg border transition-all duration-200 ${style.bg} ${style.border} ${isHighlighted ? 'opacity-100' : 'opacity-40'}`}
-                                        style={{ padding: `${Math.max(4, Math.round(6 * scale))}px` }}
-                                    >
-                                        <div className="flex items-center justify-between w-full">
-                                            <div className="flex items-center gap-1 min-w-0">
-                                                <span className={style.text} style={{ fontSize: `${Math.max(10, Math.round(11 * scale))}px` }}>{style.svg}</span>
-                                                <span className={`font-bold tracking-tight truncate ${isLight ? 'text-amber-950' : 'text-white'}`} style={{ fontSize: `${Math.max(9, Math.round(10 * scale))}px` }}>{style.label}</span>
-                                            </div>
-                                            <span 
-                                                className={`font-mono font-extrabold ${style.text} ${isLight ? 'bg-black/10 border-black/10' : 'bg-white/10 border-white/10'} px-1 py-0.2 rounded border`}
-                                                style={{ fontSize: `${Math.max(9, Math.round(10 * scale))}px` }}
-                                            >
-                                                {count}
-                                            </span>
-                                        </div>
-
-                                        {/* Planet SVG Glyphs List */}
-                                        <div 
-                                            className={`w-full flex items-center gap-1 flex-wrap content-start mt-1 pt-1 border-t ${isLight ? 'border-amber-900/10' : 'border-white/5'}`}
-                                            style={{ minHeight: `${Math.max(14, Math.round(16 * scale))}px` }}
-                                        >
-                                            {planets.length > 0 ? (
-                                                planets.map(p => (
-                                                    <span 
-                                                        key={p.id} 
-                                                        className="inline-flex items-center justify-center hover:scale-125 transition-transform"
-                                                        title={`${p.name} (${style.label})`}
-                                                    >
-                                                        <CelestialGlyphSvg bodyId={p.id} size={Math.max(10, Math.round(11 * scale))} className={style.text} />
-                                                    </span>
-                                                ))
-                                            ) : (
-                                                <span className={`italic ${isLight ? 'text-amber-900/40' : 'text-white/30'}`} style={{ fontSize: `${Math.max(7.5, Math.round(8 * scale))}px` }}>—</span>
-                                            )}
-                                        </div>
+                                    <span className="sb-dom">Dominante <b>{domLabel} {domCount}</b></span>
+                                </button>
+                            );
+                        };
+                        const fem = stats.counts.feminine, mas = stats.counts.masculine;
+                        const minShare = Math.max(1, (fem + mas) * 0.28);
+                        const POL_FEM = isLight ? '#1d4ed8' : '#60A5FA';
+                        const POL_MAS = isLight ? '#b91c1c' : '#F87171';
+                        const EL = { fire: isLight ? '#b91c1c' : '#F87171', earth: isLight ? '#15803d' : '#4ADE80', air: isLight ? '#0369a1' : '#38BDF8', water: isLight ? '#4338ca' : '#818CF8' } as Record<string, string>;
+                        const MO = { cardinal: isLight ? '#b91c1c' : '#F87171', fixed: isLight ? '#15803d' : '#4ADE80', mutable: isLight ? '#1d4ed8' : '#60A5FA' } as Record<string, string>;
+                        const EL_NAMES: Record<string, string> = { fire: 'Fogo', earth: 'Terra', air: 'Ar', water: 'Água' };
+                        const MO_NAMES: Record<string, string> = { cardinal: 'Cardinal', fixed: 'Fixo', mutable: 'Mutável' };
+                        return (
+                            <>
+                                <div data-status-group="polarity" className={`sb-card ${zodiacColorMode === 'polarity' ? 'on' : ''}`}>
+                                    {Head({ mode: 'polarity', label: 'Polaridades', domLabel: mas >= fem ? 'Masculino' : 'Feminino', domCount: Math.max(mas, fem) })}
+                                    <div className="flex" style={{ gap: 6 }}>
+                                        {Box({ type: 'polarity', value: 'feminine', label: '♀ Feminino', count: fem, color: POL_FEM, planets: stats.planetsByPolarity.feminine, extraStyle: { flex: `${Math.max(fem, minShare)} 1 0` } })}
+                                        {Box({ type: 'polarity', value: 'masculine', label: '♂ Masculino', count: mas, color: POL_MAS, planets: stats.planetsByPolarity.masculine, extraStyle: { flex: `${Math.max(mas, minShare)} 1 0` } })}
                                     </div>
-                                );
-                            })}
-                        </div>
-
-                        {/* Combined Multi-Color Bar */}
-                        <div 
-                            className={`w-full ${isLight ? 'bg-black/10 border-black/5' : 'bg-white/10 border-white/5'} rounded-full overflow-hidden flex border mt-0.5`}
-                            style={{ height: `${Math.max(5, Math.round(6 * scale))}px` }}
-                        >
-                            {(['fire', 'earth', 'air', 'water'] as const).map(elKey => {
-                                const count = stats.counts[elKey];
-                                const pct = (count / totalCount) * 100;
-                                const style = ELEMENT_SYMBOLS[elKey];
-                                return (
-                                    <div 
-                                        key={elKey}
-                                        className={`h-full ${style.bar} transition-all duration-500`}
-                                        style={{ width: `${pct}%` }}
-                                        onMouseEnter={() => handleHover('element', elKey)}
-                                    onClick={() => handleCardClick('element', elKey)}
-                                    data-status-card="element"
-                                    data-pinned={isPinned('element', elKey) ? 'true' : undefined}
-                                        onMouseLeave={handleLeave}
-                                        title={`${style.label}: ${count} astros`}
-                                    />
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* SESSÃO 3: MODALIDADES */}
-                    <div data-status-group="modality" className={groupClass('modality')}>
-                        {renderSectionHeader('Ritmos', 'modality', 'ti-arrows-exchange')}
-                        {/* Compact Bento 3-Column Grid for Modalities with Planet SVG Glyphs */}
-                        <div className="grid grid-cols-3 gap-1">
-                            {(['cardinal', 'fixed', 'mutable'] as const).map(modKey => {
-                                const count = stats.counts[modKey];
-                                const style = MODALITY_SYMBOLS[modKey];
-                                const planets = stats.planetsByModality[modKey];
-                                const isHighlighted = !highlightFilter || (highlightFilter.type === 'modality' && highlightFilter.value === modKey);
-                                const shortLabels = { cardinal: 'Card.', fixed: 'Fixo', mutable: 'Mut.' };
-
-                                return (
-                                    <div 
-                                        key={modKey}
-                                        onMouseEnter={() => handleHover('modality', modKey)}
-                                    onClick={() => handleCardClick('modality', modKey)}
-                                    data-status-card="modality"
-                                    data-pinned={isPinned('modality', modKey) ? 'true' : undefined}
-                                        onMouseLeave={handleLeave}
-                                        title={`${style.label} (${style.desc}): ${count} astros`}
-                                        className={`flex flex-col rounded-lg border ${isLight ? 'border-amber-900/15 bg-black/[0.03]' : 'border-white/10 bg-white/[0.03]'} transition-all duration-200 ${isHighlighted ? 'opacity-100' : 'opacity-40'}`}
-                                        style={{ padding: `${Math.max(3, Math.round(4 * scale))}px ${Math.max(4, Math.round(6 * scale))}px` }}
-                                    >
-                                        <div className="flex items-center justify-between w-full">
-                                            <div className="flex items-center gap-0.5 min-w-0">
-                                                <span className={style.text} style={{ fontSize: `${Math.max(9, Math.round(10 * scale))}px` }}>{style.svg}</span>
-                                                <span className={`font-bold truncate ${isLight ? 'text-amber-950' : 'text-white/90'}`} style={{ fontSize: `${Math.max(8, Math.round(9 * scale))}px` }}>{shortLabels[modKey]}</span>
-                                            </div>
-                                            <span 
-                                                className={`font-mono font-extrabold ${style.text} ${isLight ? 'bg-black/10' : 'bg-white/10'} px-1 py-0.2 rounded`}
-                                                style={{ fontSize: `${Math.max(8, Math.round(9 * scale))}px` }}
-                                            >
-                                                {count}
-                                            </span>
-                                        </div>
-
-                                        {/* Planet SVG Glyphs List — altura FIXA de 2 linhas (evita o "pulo" do painel
-                                            quando um astro muda de signo e a lista passa de 1 para 2 linhas) */}
-                                        {(() => {
-                                            const baseGlyph = Math.max(10, Math.round(11 * scale));
-                                            const rowGap = 2;
-                                            // muitos astros no mesmo ritmo: símbolos menores para continuar em 2 linhas
-                                            const glyph = planets.length > 8 ? Math.max(8, Math.round(baseGlyph * 0.78)) : baseGlyph;
-                                            return (
-                                        <div 
-                                            className={`flex items-center gap-0.5 flex-wrap content-start overflow-hidden pt-1 mt-1 border-t ${isLight ? 'border-amber-900/10' : 'border-white/5'}`}
-                                            style={{ height: `${baseGlyph * 2 + rowGap + 1}px`, rowGap: `${rowGap}px`, boxSizing: 'content-box' }}
-                                        >
-                                            {planets.length > 0 ? (
-                                                planets.map(p => (
-                                                    <span key={p.id} title={`${p.name} (${style.label})`} className="inline-flex items-center justify-center" style={{ height: `${glyph}px` }}>
-                                                        <CelestialGlyphSvg bodyId={p.id} size={glyph} className={style.text} />
-                                                    </span>
-                                                ))
-                                            ) : (
-                                                <span className={`italic ${isLight ? 'text-amber-900/40' : 'text-white/30'}`} style={{ fontSize: `${Math.max(7.5, Math.round(8 * scale))}px` }}>—</span>
-                                            )}
-                                        </div>
-                                            );
-                                        })()}
+                                </div>
+                                <div data-status-group="element" className={`sb-card ${zodiacColorMode === 'element' ? 'on' : ''}`}>
+                                    {Head({ mode: 'element', label: 'Elementos', domLabel: stats.dominantElement.label, domCount: stats.dominantElement.count })}
+                                    <div className="sb-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                                        {(['fire', 'earth', 'air', 'water'] as const).map(k => (
+                                            Box({ type: 'element', value: k, label: EL_NAMES[k], count: stats.counts[k], color: EL[k], planets: stats.planetsByElement[k] })
+                                        ))}
                                     </div>
-                                );
-                            })}
-                        </div>
-
-                        {/* Combined Multi-Color Bar for Modalities */}
-                        <div 
-                            className={`w-full ${isLight ? 'bg-black/10 border-black/5' : 'bg-white/10 border-white/5'} rounded-full overflow-hidden flex border mt-0.5`}
-                            style={{ height: `${Math.max(5, Math.round(6 * scale))}px` }}
-                        >
-                            {(['cardinal', 'fixed', 'mutable'] as const).map(modKey => {
-                                const count = stats.counts[modKey];
-                                const pct = (count / totalCount) * 100;
-                                const style = MODALITY_SYMBOLS[modKey];
-                                return (
-                                    <div 
-                                        key={modKey}
-                                        className={`h-full ${style.bar} transition-all duration-500`}
-                                        style={{ width: `${pct}%` }}
-                                        onMouseEnter={() => handleHover('modality', modKey)}
-                                    onClick={() => handleCardClick('modality', modKey)}
-                                    data-status-card="modality"
-                                    data-pinned={isPinned('modality', modKey) ? 'true' : undefined}
-                                        onMouseLeave={handleLeave}
-                                        title={`${style.label}: ${count} astros`}
-                                    />
-                                );
-                            })}
-                        </div>
-                    </div>
-                </>
+                                </div>
+                                <div data-status-group="modality" className={`sb-card ${zodiacColorMode === 'modality' ? 'on' : ''}`}>
+                                    {Head({ mode: 'modality', label: 'Modalidades', domLabel: stats.dominantModality.label, domCount: stats.dominantModality.count })}
+                                    <div className="sb-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+                                        {(['cardinal', 'fixed', 'mutable'] as const).map(k => (
+                                            Box({ type: 'modality', value: k, label: MO_NAMES[k], count: stats.counts[k], color: MO[k], planets: stats.planetsByModality[k] })
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        );
+                    })()}
+                </div>
             )}
         </div>
     );
