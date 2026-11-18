@@ -582,7 +582,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
 .sb-box .t{display:flex;align-items:center;justify-content:space-between;gap:6px;font-family:'DM Sans',system-ui,sans-serif;white-space:nowrap}
 .sb-box .t span:first-child{overflow:hidden;text-overflow:ellipsis}
 .sb-box .n{font-family:'DM Mono',ui-monospace,monospace}
-.sb-box .p{display:flex;flex-wrap:wrap;gap:3px 5px;align-items:center;min-height:14px}
+.sb-box .p{display:flex;flex-wrap:wrap;gap:3px 4px;align-content:flex-start;align-items:center;overflow:hidden}
 .sb-box.zero{opacity:.45}
 .sb-box.dim{opacity:.35}
 .sb-box.pin{outline:1.5px solid ${isLight ? 'rgba(138,106,18,.8)' : 'rgba(245,217,138,.85)'};outline-offset:1px}
@@ -594,7 +594,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                         const titleFs = Math.max(15, Math.round(17 * scale));
                         const glyphColor = isLight ? '#3b2f2a' : '#EDE9E3';
                         const anyFilter = !!highlightFilter;
-                        const Box = ({ type, value, label, count, color, planets, extraStyle }: { type: 'element' | 'modality' | 'polarity'; value: string; label: React.ReactNode; count: number; color: string; planets: Array<{ id: string; name: string }>; extraStyle?: React.CSSProperties }) => {
+                        const Box = ({ type, value, label, count, color, planets, extraStyle, lines = 2, fullName }: { type: 'element' | 'modality' | 'polarity'; value: string; label: React.ReactNode; count: number; color: string; planets: Array<{ id: string; name: string }>; extraStyle?: React.CSSProperties; lines?: number; fullName?: string }) => {
                             const hl = anyFilter && highlightFilter!.type === type && highlightFilter!.value === value;
                             const dim = anyFilter && highlightFilter!.type === type && !hl;
                             return (
@@ -606,10 +606,9 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                                     onMouseEnter={() => handleHover(type, value)}
                                     onMouseLeave={handleLeave}
                                     onClick={() => handleCardClick(type, value)}
-                                    title={`${typeof label === 'string' ? label : ''}: ${count} de ${totalCount} astros`}
+                                    title={`${fullName || (typeof label === 'string' ? label : '')}: ${count} de ${totalCount} astros`}
                                     style={{
                                         padding: pad,
-                                        minHeight: Math.max(52, Math.round(60 * scale)),
                                         borderColor: hl ? color : `${color}66`,
                                         background: hl ? `${color}1f` : `${color}0d`,
                                         ...extraStyle,
@@ -619,7 +618,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                                         <span style={{ color }}>{label}</span>
                                         <span className="n" style={{ fontSize: fs, color: isLight ? '#231714' : '#EDE9E3' }}>{count}</span>
                                     </div>
-                                    <div className="p">
+                                    <div className="p" style={{ height: lines * glyph + (lines - 1) * 3 }}>
                                         {planets.length === 0
                                             ? <span style={{ fontSize: Math.max(10, fs - 1.5), color: isLight ? '#9a8a7c' : '#6f6a76' }}>nenhum astro</span>
                                             : planets.map(p => (
@@ -642,36 +641,34 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                                     onClick={() => onZodiacColorModeChange?.(active ? 'none' : mode)}
                                     title={active ? 'Clique para tirar as cores do zodíaco' : `Clique para colorir o zodíaco por ${label.toLowerCase()}`}
                                 >
-                                    <span className="sb-title flex items-center gap-1.5" style={{ fontSize: titleFs }}>
-                                        {label}
-                                        {active && <i className="ti ti-check" style={{ fontSize: 12, fontStyle: 'normal', color: isLight ? '#8a6a12' : '#F5D98A' }} />}
-                                    </span>
-                                    <span className="sb-dom">Dominante <b>{domLabel} {domCount}</b></span>
+                                    <span className="sb-title" style={{ fontSize: titleFs }}>{label}</span>
+                                    <span className="sb-dom"><b>{domLabel} {domCount}</b></span>
                                 </button>
                             );
                         };
                         const fem = stats.counts.feminine, mas = stats.counts.masculine;
-                        const minShare = Math.max(1, (fem + mas) * 0.28);
+                        const minShare = Math.max(1, (fem + mas) * 0.34);
                         const POL_FEM = isLight ? '#1d4ed8' : '#60A5FA';
                         const POL_MAS = isLight ? '#b91c1c' : '#F87171';
                         const EL = { fire: isLight ? '#b91c1c' : '#F87171', earth: isLight ? '#15803d' : '#4ADE80', air: isLight ? '#0369a1' : '#38BDF8', water: isLight ? '#4338ca' : '#818CF8' } as Record<string, string>;
                         const MO = { cardinal: isLight ? '#b91c1c' : '#F87171', fixed: isLight ? '#15803d' : '#4ADE80', mutable: isLight ? '#1d4ed8' : '#60A5FA' } as Record<string, string>;
                         const EL_NAMES: Record<string, string> = { fire: 'Fogo', earth: 'Terra', air: 'Ar', water: 'Água' };
                         const MO_NAMES: Record<string, string> = { cardinal: 'Cardinal', fixed: 'Fixo', mutable: 'Mutável' };
+                        const MO_SHORT: Record<string, string> = { cardinal: 'Card.', fixed: 'Fixo', mutable: 'Mut.' };
                         return (
                             <>
                                 <div data-status-group="polarity" className={`sb-card ${zodiacColorMode === 'polarity' ? 'on' : ''}`}>
                                     {Head({ mode: 'polarity', label: 'Polaridades', domLabel: mas >= fem ? 'Masculino' : 'Feminino', domCount: Math.max(mas, fem) })}
                                     <div className="flex" style={{ gap: 6 }}>
-                                        {Box({ type: 'polarity', value: 'feminine', label: '♀ Feminino', count: fem, color: POL_FEM, planets: stats.planetsByPolarity.feminine, extraStyle: { flex: `${Math.max(fem, minShare)} 1 0` } })}
-                                        {Box({ type: 'polarity', value: 'masculine', label: '♂ Masculino', count: mas, color: POL_MAS, planets: stats.planetsByPolarity.masculine, extraStyle: { flex: `${Math.max(mas, minShare)} 1 0` } })}
+                                        {Box({ type: 'polarity', value: 'feminine', label: '♀ Fem.', fullName: 'Feminino', count: fem, color: POL_FEM, planets: stats.planetsByPolarity.feminine, lines: 2, extraStyle: { flex: `${Math.max(fem, minShare)} 1 0` } })}
+                                        {Box({ type: 'polarity', value: 'masculine', label: '♂ Masc.', fullName: 'Masculino', count: mas, color: POL_MAS, planets: stats.planetsByPolarity.masculine, lines: 2, extraStyle: { flex: `${Math.max(mas, minShare)} 1 0` } })}
                                     </div>
                                 </div>
                                 <div data-status-group="element" className={`sb-card ${zodiacColorMode === 'element' ? 'on' : ''}`}>
                                     {Head({ mode: 'element', label: 'Elementos', domLabel: stats.dominantElement.label, domCount: stats.dominantElement.count })}
                                     <div className="sb-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
                                         {(['fire', 'earth', 'air', 'water'] as const).map(k => (
-                                            Box({ type: 'element', value: k, label: EL_NAMES[k], count: stats.counts[k], color: EL[k], planets: stats.planetsByElement[k] })
+                                            Box({ type: 'element', value: k, label: EL_NAMES[k], count: stats.counts[k], color: EL[k], planets: stats.planetsByElement[k], lines: 2 })
                                         ))}
                                     </div>
                                 </div>
@@ -679,7 +676,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                                     {Head({ mode: 'modality', label: 'Modalidades', domLabel: stats.dominantModality.label, domCount: stats.dominantModality.count })}
                                     <div className="sb-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
                                         {(['cardinal', 'fixed', 'mutable'] as const).map(k => (
-                                            Box({ type: 'modality', value: k, label: MO_NAMES[k], count: stats.counts[k], color: MO[k], planets: stats.planetsByModality[k] })
+                                            Box({ type: 'modality', value: k, label: MO_SHORT[k], fullName: MO_NAMES[k], count: stats.counts[k], color: MO[k], planets: stats.planetsByModality[k], lines: 3 })
                                         ))}
                                     </div>
                                 </div>

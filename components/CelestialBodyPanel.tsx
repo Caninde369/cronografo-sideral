@@ -448,11 +448,12 @@ const CelestialBodyCard: React.FC<{
     );
     
     // Colunas: o espaço que sobra é dividido entre todas (não só depois do nome)
+    // mínimos enxutos: a linha nunca fica mais larga que o painel (o destaque da seleção acompanha)
     const cols: string[] = ['minmax(0, 2.2fr)'];
-    if (settings.signs.enabled) cols.push(`minmax(${settings.signs.abbr ? (settings.signs.symbols ? signSize + 32 : 30) : signSize + 4}px, 1fr)`);
-    if (settings.houses.enabled) cols.push(`minmax(${Math.round(26 * scale)}px, 0.7fr)`);
-    if (settings.degrees) cols.push(`minmax(${Math.round(48 * scale)}px, 1fr)`);
-    if (settings.retrograde) cols.push(`${Math.max(16, Math.round(17 * scale))}px`);
+    if (settings.signs.enabled) cols.push(`minmax(${settings.signs.abbr ? (settings.signs.symbols ? signSize + 26 : 24) : signSize + 2}px, 1fr)`);
+    if (settings.houses.enabled) cols.push(`minmax(${Math.round(22 * scale)}px, 0.7fr)`);
+    if (settings.degrees) cols.push(`minmax(${Math.round(42 * scale)}px, 1fr)`);
+    if (settings.retrograde) cols.push(`${Math.max(14, Math.round(16 * scale))}px`);
     const badge = Math.max(15, Math.round(16 * scale));
 
     return (
@@ -462,7 +463,9 @@ const CelestialBodyCard: React.FC<{
                 display: 'grid',
                 gridTemplateColumns: cols.join(' '),
                 alignItems: 'center',
-                columnGap: `${Math.max(4, Math.round(6 * scale))}px`,
+                columnGap: `${Math.max(3, Math.round(5 * scale))}px`,
+                minWidth: 0,
+                overflow: 'hidden',
                 paddingTop: `${cardPaddingY}px`,
                 paddingBottom: `${cardPaddingY}px`,
                 paddingLeft: `${cardPaddingX}px`,
@@ -679,7 +682,7 @@ export const CelestialBodyPanel: React.FC<CelestialBodyPanelProps> = ({
         
         setCalculatedWidth(width);
         if (onWidthChange) {
-            const minW = settings.planets.names ? (settings.planets.namesAbbr ? 215 : 280) : 180;
+            const minW = (settings.planets.names ? (settings.planets.namesAbbr ? 215 : 280) : 180) * (panelScale || 1);
             const w = Math.max(minW, Math.ceil(width * (panelScale || 1)));
             onWidthChange(w);
         }
