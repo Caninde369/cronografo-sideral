@@ -32,7 +32,9 @@ export const DateTimePicker: React.FC<{
   rightOffset?: number;
   onClose: () => void;
   onConfirm: (date: Date, loc: Loc) => void;
-}> = ({ open, value, location, focusLocation, rightOffset = 0, onClose, onConfirm }) => {
+  /** Local escolhido vale na hora (o tutorial espera a troca de local antes do OK da data) */
+  onLocationPick?: (loc: Loc) => void;
+}> = ({ open, value, location, focusLocation, rightOffset = 0, onClose, onConfirm, onLocationPick }) => {
   const [y, setY] = useState(value.getFullYear());
   const [m, setM] = useState(value.getMonth());
   const [d, setD] = useState(value.getDate());
@@ -43,6 +45,8 @@ export const DateTimePicker: React.FC<{
   const [yBase, setYBase] = useState(value.getFullYear() - (value.getFullYear() % 12));
   const [clockMode, setClockMode] = useState<'h' | 'm'>('h');
   const [query, setQuery] = useState('');
+  const [quick, setQuick] = useState('');
+  const [quickErr, setQuickErr] = useState(false);
   const { results, isLoading } = useLocationSearch(query);
   const searchRef = useRef<HTMLInputElement>(null);
   const locRef = useRef<HTMLDivElement>(null);
@@ -52,7 +56,7 @@ export const DateTimePicker: React.FC<{
     if (!open) return;
     setY(value.getFullYear()); setM(value.getMonth()); setD(value.getDate());
     setH(value.getHours()); setMi(value.getMinutes()); setLoc(location);
-    setView('dias'); setClockMode('h'); setQuery('');
+    setView('dias'); setClockMode('h'); setQuery(''); setQuick(''); setQuickErr(false);
     setYBase(value.getFullYear() - (value.getFullYear() % 12));
     if (focusLocation) {
       window.setTimeout(() => { locRef.current?.scrollIntoView({ block: 'nearest' }); searchRef.current?.focus(); }, 60);
@@ -104,12 +108,34 @@ export const DateTimePicker: React.FC<{
     } else setMi(Math.round(deg / 6) % 60);
   };
 
+  const chooseLoc = (l: Loc) => { setLoc(l); onLocationPick?.(l); };
+
+  // digitação rápida: DDMMAAAA ou DDMMAAAAHHMM (ex.: 210319900815)
+  const fmtQuick = (raw: string) => {
+    const g = raw.replace(/\D/g, '').slice(0, 12);
+    let out = g.slice(0, 2);
+    if (g.length > 2) out += '/' + g.slice(2, 4);
+    if (g.length > 4) out += '/' + g.slice(4, 8);
+    if (g.length > 8) out += ' ' + g.slice(8, 10);
+    if (g.length > 10) out += ':' + g.slice(10, 12);
+    return out;
+  };
+  const applyQuick = () => {
+    const g = quick.replace(/\D/g, '');
+    if (g.length < 8) { setQuickErr(true); return; }
+    const qd = +g.slice(0, 2), qm = +g.slice(2, 4), qy = +g.slice(4, 8);
+    const qh = g.length >= 10 ? +g.slice(8, 10) : h, qi = g.length >= 12 ? +g.slice(10, 12) : mi;
+    const date = new Date(qy, qm - 1, qd, qh, qi, 0);
+    if (qd < 1 || qd > 31 || qm < 1 || qm > 12 || qh > 23 || qi > 59 || date.getDate() !== qd) { setQuickErr(true); return; }
+    onConfirm(date, loc);
+  };
+
   if (!open) return null;
 
   return (
     <>
       <div className="dtp-scrim" onClick={onClose} />
-      <div className="dtp" role="dialog" aria-label="Escolher data, hora e local" style={{ right: `${rightOffset + 16}px` }}>
+      <div className="dtp" data-tour="calendar-panel" role="dialog" aria-label="Escolher data, hora e local" style={{ right: `${rightOffset + 16}px` }}>
         <style>{CSS}</style>
         <div className="dtp-h">
           <span className="dtp-t">Data, hora e local</span>
@@ -117,6 +143,23 @@ export const DateTimePicker: React.FC<{
         </div>
 
         <div className="dtp-body">
+          <div className="dtp-quick">
+            <label className={`dtp-search ${quickErr ? 'err' : ''}`}>
+              <i className="ti ti-keyboard" />
+              <input
+                data-tour="date-input"
+                inputMode="numeric"
+                value={quick}
+                onChange={e => { setQuick(fmtQuick(e.target.value)); setQuickErr(false); }}
+                onKeyDown={e => { if (e.key === 'Enter') applyQuick(); }}
+                placeholder="Digite 21/03/1990 08:15"
+                autoComplete="off"
+                aria-label="Digitar data e hora"
+              />
+            </label>
+            <button data-tour="date-ok" className="dtp-okq" onClick={applyQuick}>OK</button>
+          </div>
+          {quickErr && <div className="dtp-err">Use dia, mês, ano e hora, como 21/03/1990 08:15.</div>}
           <div className="dtp-my">
             <button className="dtp-nav" onClick={prevMonth} aria-label="Mês anterior"><i className="ti ti-chevron-left" /></button>
             <button className={`dtp-m ${view === 'meses' ? 'on' : ''}`} onClick={() => setView(view === 'meses' ? 'dias' : 'meses')}>
@@ -205,7 +248,7 @@ export const DateTimePicker: React.FC<{
             </svg>
           </div>
 
-          <div className="dtp-loc" ref={locRef}>
+          <div className="dtp-loc" ref={locRef} data-tour="location">
             <div className="dtp-eyebrow">Local · <span className="dtp-cur">{loc.displayName}</span></div>
             <label className="dtp-search">
               <i className="ti ti-search" />
@@ -215,7 +258,7 @@ export const DateTimePicker: React.FC<{
             {query.trim().length >= 2 && results.length > 0 && (
               <div className="dtp-results">
                 {results.map(r => (
-                  <button key={`${r.latitude},${r.longitude}`} onClick={() => { setLoc(r); setQuery(''); }}>
+                  <button key={`${r.latitude},${r.longitude}`} onClick={() => { chooseLoc(r); setQuery(''); }}>
                     <i className="ti ti-world" /><span>{r.displayName}</span>
                   </button>
                 ))}
@@ -226,7 +269,7 @@ export const DateTimePicker: React.FC<{
                 const label = `${nome}, ${uf}, Brasil`;
                 const sel = loc.displayName === label || loc.displayName.startsWith(`${nome}, ${uf}`);
                 return (
-                  <button key={uf} className={sel ? 'sel' : ''} onClick={() => setLoc({ latitude: lat, longitude: lng, displayName: label })}>
+                  <button key={uf} className={sel ? 'sel' : ''} onClick={() => chooseLoc({ latitude: lat, longitude: lng, displayName: label })}>
                     <span>{nome}</span><b>{uf}</b>
                   </button>
                 );
@@ -286,6 +329,12 @@ const CSS = `
 .dtp-search{display:flex;align-items:center;gap:8px;height:34px;border-radius:999px;border:1px solid rgba(237,233,227,.22);background:rgba(0,0,0,.35);padding:0 12px}
 .dtp-search i{color:#B9B4BE}
 .dtp-search input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#EDE9E3;font-family:'DM Sans',system-ui,sans-serif;font-size:12px}
+.dtp-quick{display:flex;gap:6px}
+.dtp-quick .dtp-search{flex:1}
+.dtp-search.err{border-color:rgba(248,113,113,.7)}
+.dtp-okq{height:34px;padding:0 14px;border-radius:999px;border:1px solid rgba(237,233,227,.28);background:transparent;font-size:10.5px;font-weight:500;letter-spacing:.14em}
+.dtp-okq:hover{border-color:#EDE9E3}
+.dtp-err{font-size:11px;color:#F87171;margin-top:-6px}
 .dtp-spin{animation:dtp-spin 1s linear infinite}
 @keyframes dtp-spin{to{transform:rotate(360deg)}}
 .dtp-results{display:flex;flex-direction:column;gap:4px;max-height:132px;overflow-y:auto}

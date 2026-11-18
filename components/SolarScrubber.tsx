@@ -92,6 +92,26 @@ export const getFreeTierSolarYearBounds = (now: Date = new Date()) => {
     return { startDate, endDate };
 };
 
+/** Curvatura da linha do tempo: o centro desce CURVE_SAG px; as pontas ficam no alto e afinam. */
+const CURVE_SAG = 10;
+const curveY = (p: number) => { const q = Math.max(0, Math.min(1, p)); return CURVE_SAG * 4 * q * (1 - q); };
+const CURVE_LAYER_H = CURVE_SAG + 8; // a camada começa 3px acima da linha reta
+const buildCurveMask = (thick: (q: number) => number) => {
+  const N = 48, top: string[] = [], bot: string[] = [];
+  for (let i = 0; i <= N; i++) {
+    const q = i / N, x = (q * 1000).toFixed(1), c = 4 + curveY(q), w = thick(q) / 2;
+    top.push(`${x},${(c - w).toFixed(2)}`); bot.unshift(`${x},${(c + w).toFixed(2)}`);
+  }
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 ${CURVE_LAYER_H}' preserveAspectRatio='none'><polygon fill='white' points='${top.concat(bot).join(' ')}'/></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+};
+const CURVE_MASK_LINE = buildCurveMask(q => 0.5 + 2.3 * Math.pow(Math.sin(Math.PI * q), 0.55));
+const CURVE_MASK_BAND = buildCurveMask(() => 8);
+const curveLayer = (mask: string): React.CSSProperties => ({
+  position: 'absolute', left: 0, right: 0, top: -3, height: CURVE_LAYER_H, pointerEvents: 'none',
+  WebkitMaskImage: mask, maskImage: mask, WebkitMaskSize: '100% 100%', maskSize: '100% 100%', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+} as React.CSSProperties);
+
 export const SolarScrubber: React.FC<SolarScrubberProps> = ({ 
   currentDate, 
   onChange, 
@@ -718,7 +738,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
             title={`${sign.name}: clique para ir ao dia 1 | duplo clique para definir Loop A/B`}
             className="cursor-pointer hover:scale-130 transition-transform p-1.5 -m-1.5 rounded-full hover:bg-white/10 flex items-center justify-center"
             style={{
-              position: 'absolute', left: `${pct * 100}%`, bottom: isMacro ? 2 : 22, transform: 'translateX(-50%)',
+              position: 'absolute', left: `${pct * 100}%`, bottom: isMacro ? 2 : 22, transform: `translateX(-50%) translateY(${curveY(pct)}px)`,
               color: getSignColor(midD, 1),
               zIndex: 30
             }}
@@ -812,16 +832,17 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
               className={`flex flex-col items-start gap-1 -ml-2 px-2 pt-1 pb-0.5 rounded-xl cursor-pointer transition-colors ${isLight ? 'hover:bg-black/[0.05]' : 'hover:bg-white/[0.05]'}`}
             >
               <span className={`text-[9.5px] font-medium uppercase tracking-[0.22em] ${isLight ? 'text-neutral-500' : 'text-white/60'}`} style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>Dia solar</span>
-              <span className="flex items-baseline gap-1.5 leading-none">
-                {CurrentSignIcon && <CurrentSignIcon style={{ width: 14, height: 14, color: getSignColor(zodiacDay, 1), alignSelf: 'center' }} />}
-                <span className="text-[16px]" style={{ fontFamily: "'DM Mono', ui-monospace, monospace" }}>{daysIntoSign}</span>
-                <span className="text-[22px]" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic', fontWeight: 500, color: getSignColor(zodiacDay, 1) }}>{currentSign.name}</span>
-                <i className={`ti ti-chevron-up text-[11px] self-center ${isLight ? 'text-neutral-500' : 'text-white/50'}`} aria-hidden="true" />
+              <span className={`flex items-center gap-2 leading-none ${isLight ? 'text-neutral-900' : 'text-white'}`} style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic', fontWeight: 500 }}>
+                {CurrentSignIcon && (
+                  <span className="inline-flex items-center justify-center shrink-0" style={{ width: 22, height: 22 }}>
+                    <CurrentSignIcon style={{ width: 20, height: 20, color: 'currentColor', display: 'block' }} />
+                  </span>
+                )}
+                <span className="text-[22px] leading-none">{daysIntoSign}</span>
+                <span className="text-[22px] leading-none">{currentSign.name}</span>
+                <i className={`ti ti-chevron-up text-[11px] ${isLight ? 'text-neutral-500' : 'text-white/50'}`} aria-hidden="true" />
               </span>
             </button>
-            <span className={`scrub-mode text-[10px] uppercase tracking-wider font-mono px-1.5 py-0.2 rounded ml-0.5 ${isLight ? 'bg-black/10 text-neutral-700 font-bold' : 'bg-white/10 text-white/70'}`}>
-              {MODE_TITLES[vMode]}
-            </span>
 
             {isFreeTier && (
               <button
@@ -916,7 +937,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
                 top: 0,
                 bottom: 0,
                 zIndex: 25,
-                transform: 'translateX(-50%)'
+                transform: `translateX(-50%) translateY(${curveY(sb.pct)}px)`
               }}
             >
               {/* Pequena linha centralizada alinhada horizontalmente com os signos */}
@@ -987,7 +1008,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
               top: 0,
               bottom: 0,
               zIndex: 26,
-              transform: 'translateX(-50%)'
+              transform: `translateX(-50%) translateY(${curveY(mp.pct)}px)`
             }}
           >
             {/* Linha vertical com tom da fase */}
@@ -1021,7 +1042,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
         {!isMacro && ticks.map(t => (
           <div 
             key={t.key} 
-            style={{ position: 'absolute', left: `${t.pct * 100}%`, bottom: 0 }}
+            style={{ position: 'absolute', left: `${t.pct * 100}%`, bottom: 0, transform: `translateY(${curveY(t.pct)}px)` }}
             className="group/tick cursor-pointer select-none"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
@@ -1119,7 +1140,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
 
       <div 
         ref={trackRef}
-        style={{ touchAction: 'none' }}
+        style={{ touchAction: 'none', paddingBottom: 8 + CURVE_SAG }}
         className="scrub-track w-full py-2 cursor-pointer relative"
         onPointerDown={handleTrackPointerDown}
         onPointerMove={handleTrackPointerMove}
@@ -1127,22 +1148,23 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
         onPointerLeave={handleTrackPointerUp}
         onDoubleClick={handleDoubleClick}
       >
-        <div style={{ position: 'relative', width: '100%', height: 2, borderRadius: 1, background: 'rgba(255,255,255,0.05)' }}>
-          <div style={{ position: 'absolute', inset: 0, background: bgDim, borderRadius: 2 }} />
-          
-          <div style={{ 
-            position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
-            clipPath: isRealTime ? `inset(0 ${Math.max(0, 100 - cursorPct * 100)}% 0 0)` : 'none',
-            background: bgBright,
-            borderRadius: 2
-          }} />
+        <div style={{ position: 'relative', width: '100%', height: 2 }}>
+          <div style={curveLayer(CURVE_MASK_LINE)}>
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.05)' }} />
+            <div style={{ position: 'absolute', inset: 0, background: bgDim }} />
+            <div style={{
+              position: 'absolute', inset: 0,
+              clipPath: isRealTime ? `inset(0 ${Math.max(0, 100 - cursorPct * 100)}% 0 0)` : 'none',
+              background: bgBright
+            }} />
+          </div>
 
           {/* Loop A-B Highlight Region */}
           {pctA !== null && pctB !== null && (
-            <div style={{
+            <div style={curveLayer(CURVE_MASK_BAND)}><div style={{
               position: 'absolute',
-              top: -3,
-              bottom: -3,
+              top: 0,
+              bottom: 0,
               left: `${Math.max(0, Math.min(1, Math.min(pctA, pctB))) * 100}%`,
               width: `${Math.max(0, Math.min(1, Math.abs(pctB - pctA))) * 100}%`,
               background: 'linear-gradient(90deg, rgba(6, 182, 212, 0.35), rgba(236, 72, 153, 0.35))',
@@ -1150,7 +1172,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
               borderRadius: 3,
               pointerEvents: 'none',
               zIndex: 4
-            }} />
+            }} /></div>
           )}
 
           {/* Point A Marker Pin */}
@@ -1159,7 +1181,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
               position: 'absolute',
               left: `${pctA * 100}%`,
               top: '50%',
-              transform: 'translateX(-50%)',
+              transform: `translateX(-50%) translateY(${curveY(pctA)}px)`,
               zIndex: 15,
               pointerEvents: 'none',
               display: 'flex',
@@ -1198,7 +1220,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
               position: 'absolute',
               left: `${pctB * 100}%`,
               top: '50%',
-              transform: 'translateX(-50%)',
+              transform: `translateX(-50%) translateY(${curveY(pctB)}px)`,
               zIndex: 15,
               pointerEvents: 'none',
               display: 'flex',
@@ -1235,7 +1257,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
             position: 'absolute',
             left: `${cursorPct * 100}%`,
             top: '50%',
-            transform: 'translate(-50%, -50%)',
+            transform: `translate(-50%, calc(-50% + ${curveY(cursorPct)}px))`,
             zIndex: 10,
             cursor: 'ew-resize'
           }}>

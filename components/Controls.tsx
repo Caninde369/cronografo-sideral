@@ -234,6 +234,8 @@ const TC_CSS = `
 .tcb-amber{border-color:rgba(252,211,77,.55);color:#FCD34D}
 .tcb-violet{border-color:rgba(196,181,253,.6);color:#C4B5FD}
 .tcb-active{border-color:currentColor}
+.tcb.tcb-ghost{border-color:transparent;opacity:.75}
+.tcb.tcb-ghost:hover{border-color:transparent;opacity:1}
 .tcb-solid{background:#EDE9E3;border-color:#EDE9E3;color:#040004}
 .tcb-solid:hover{background:#fff;border-color:#fff}
 .tcb-solid-l{background:#231714;border-color:#231714;color:#F4F1EA}
@@ -700,6 +702,7 @@ export const TimeControls: React.FC<{
                         focusLocation={pickerFocusLoc}
                         rightOffset={effectiveRightOffset}
                         onClose={() => setShowPicker(false)}
+                        onLocationPick={(loc) => { if (onLocationChange && loc.displayName !== location?.displayName) onLocationChange(loc); }}
                         onConfirm={(date, loc) => {
                             if (isFreeTier) {
                                 const { startDate, endDate } = getFreeTierSolarYearBounds(new Date());
@@ -762,6 +765,16 @@ export const TimeControls: React.FC<{
                                             )}
                                         </span>
                                     )}
+                                    <button
+                                        type="button"
+                                        className={`tc-loc ${isLight ? 'tc-loc-l' : ''}`}
+                                        onClick={() => { setPickerFocusLoc(true); setShowPicker(true); }}
+                                        title="Trocar local"
+                                    >
+                                        <i className="ti ti-map-pin" aria-hidden="true" />
+                                        <span>{shortPlace(location?.displayName)}</span>
+                                        <i className="ti ti-pencil tc-loc-ed" aria-hidden="true" />
+                                    </button>
                                     <div className={`flex items-baseline gap-2 leading-none ${isLight ? 'text-neutral-900' : 'text-white'}`}>
                                         <div className="flex items-baseline">
                                             <UnitCell value={dayVal} isSelected={selectedStampUnit === 'd'} onClick={() => setSelectedStampUnit(prev => prev === 'd' ? null : 'd')} onNudge={(dir) => nudge('d', dir)} isLight={isLight} textSizeClass="text-[16px]" fontFamily="'DM Mono', ui-monospace, monospace" />
@@ -783,37 +796,29 @@ export const TimeControls: React.FC<{
                                             />
                                         </div>
                                         <div className="flex items-baseline">
-                                            <UnitCell value={hourVal} isSelected={selectedStampUnit === 'h'} onClick={() => setSelectedStampUnit(prev => prev === 'h' ? null : 'h')} onNudge={(dir) => nudge('h', dir)} isLight={isLight} textSizeClass="text-[22px]" fontFamily="'Cormorant Garamond', Georgia, serif" italic />
+                                            <UnitCell value={hourVal} isSelected={selectedStampUnit === 'h'} onClick={() => setSelectedStampUnit(prev => prev === 'h' ? null : 'h')} onNudge={(dir) => nudge('h', dir)} isLight={isLight} textSizeClass="text-[22px]" fontFamily="'Cormorant Garamond', Georgia, serif" italic fixedDigits />
                                             <span className={`${isLight ? 'text-neutral-400' : 'text-white/45'} text-[20px]`} style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic' }}>:</span>
-                                            <UnitCell value={minVal} isSelected={selectedStampUnit === 'i'} onClick={() => setSelectedStampUnit(prev => prev === 'i' ? null : 'i')} onNudge={(dir) => nudge('i', dir)} isLight={isLight} textSizeClass="text-[22px]" fontFamily="'Cormorant Garamond', Georgia, serif" italic />
+                                            <UnitCell value={minVal} isSelected={selectedStampUnit === 'i'} onClick={() => setSelectedStampUnit(prev => prev === 'i' ? null : 'i')} onNudge={(dir) => nudge('i', dir)} isLight={isLight} textSizeClass="text-[22px]" fontFamily="'Cormorant Garamond', Georgia, serif" italic fixedDigits />
                                         </div>
                                     </div>
-                                    <button
-                                        type="button"
-                                        className={`tc-loc ${isLight ? 'tc-loc-l' : ''}`}
-                                        onClick={() => { setPickerFocusLoc(true); setShowPicker(true); }}
-                                        title="Trocar local"
-                                    >
-                                        <i className="ti ti-map-pin" aria-hidden="true" />
-                                        <span>{shortPlace(location?.displayName)}</span>
-                                        <i className="ti ti-pencil tc-loc-ed" aria-hidden="true" />
-                                    </button>
                                 </div>
                                 <button
                                     type="button"
                                     data-tour="date"
                                     onClick={() => { setPickerFocusLoc(false); setShowPicker(true); }}
-                                    className={`tcb w-[34px] h-[34px] flex items-center justify-center shrink-0 cursor-pointer ${isLight ? 'tcb-l' : ''}`}
+                                    className={`tcb flex items-center justify-center shrink-0 cursor-pointer ${isLight ? 'tcb-l' : ''}`}
+                                    style={{ width: 34, height: 34, padding: 0 }}
                                     title="Escolher data, hora e local"
                                     aria-label="Escolher data, hora e local"
                                 >
-                                    <i className="ti ti-calendar text-[15px]" aria-hidden="true" />
+                                    <i className="ti ti-calendar text-[16px]" aria-hidden="true" />
                                 </button>
                                 {onSetNatalHere && (
                                     <button
                                         type="button"
                                         onClick={onSetNatalHere}
-                                        className={`tcb tcb-solid w-[34px] h-[34px] flex items-center justify-center shrink-0 cursor-pointer ${isLight ? 'tcb-solid-l' : ''}`}
+                                        className={`tcb tcb-solid flex items-center justify-center shrink-0 cursor-pointer ${isLight ? 'tcb-solid-l' : ''}`}
+                                        style={{ width: 34, height: 34, padding: 0 }}
                                         title="Calcular o mapa desta data"
                                         aria-label="Calcular o mapa desta data"
                                     >
@@ -843,7 +848,7 @@ export const TimeControls: React.FC<{
                         <button
                             data-m-hide=""
                             onClick={() => setIsTimelineMinimized(!isTimelineMinimized)}
-                            className={`tcb ${isLight ? 'tcb-l' : ''} flex items-center justify-center gap-1.5 ${showTimelineText ? 'px-3 sm:px-3.5' : 'w-9 px-0'} h-9 rounded-full text-xs font-bold active:scale-95 cursor-pointer shrink-0`}
+                            className={`tcb tcb-ghost ${isLight ? 'tcb-l' : ''} flex items-center justify-center gap-1.5 ${showTimelineText ? 'px-2' : 'w-9 px-0'} h-9 rounded-full text-xs font-bold active:scale-95 cursor-pointer shrink-0`}
                             title={isTimelineMinimized ? "Ver linha do tempo" : "Ocultar linha do tempo"}
                         >
                             <i className={`ti ${isTimelineMinimized ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm shrink-0`} />
@@ -1047,7 +1052,9 @@ const UnitCell: React.FC<{
     useRegularFont?: boolean;
     fontFamily?: string;
     italic?: boolean;
-}> = ({ value, isSelected, onClick, onNudge, isLight, textSizeClass = "text-xs", useRegularFont = false, fontFamily, italic }) => {
+    /** cada algarismo numa caixa de largura fixa: o número não "dança" quando muda */
+    fixedDigits?: boolean;
+}> = ({ value, isSelected, onClick, onNudge, isLight, textSizeClass = "text-xs", useRegularFont = false, fontFamily, italic, fixedDigits }) => {
     const ref = useRef<HTMLDivElement>(null);
     const onNudgeRef = useRef(onNudge);
     onNudgeRef.current = onNudge;
@@ -1080,7 +1087,9 @@ const UnitCell: React.FC<{
                 isSelected 
                     ? (isLight ? 'text-neutral-900 font-bold' : 'text-white font-bold') 
                     : (isLight ? 'text-neutral-800 font-normal' : 'text-white/80 font-normal')
-            }`} style={fontFamily ? { fontFamily, fontStyle: italic ? 'italic' : undefined, fontWeight: italic ? 500 : 400 } : undefined}>{value}</span>
+            }`} style={fontFamily ? { fontFamily, fontStyle: italic ? 'italic' : undefined, fontWeight: italic ? 500 : 400 } : undefined}>{fixedDigits
+                ? String(value).split('').map((ch, i) => <span key={i} style={{ display: 'inline-block', width: '0.56em', textAlign: 'center' }}>{ch}</span>)
+                : value}</span>
         </div>
     );
 };
