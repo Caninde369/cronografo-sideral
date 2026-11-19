@@ -119,6 +119,66 @@ const PLANET_HEX_COLORS: Record<string, string> = {
     partOfFortune: '#F59E0B',
 };
 
+/** Casas em lista: número romano, signo da cúspide (colorido, com sigla), astros da casa em branco no tamanho do signo e o grau da cúspide. */
+const HouseListRow: React.FC<{
+    houseNumber: number; longitude: number; isSelected: boolean; isSecondarySelected: boolean;
+    onHover: (h: number | null) => void; onClick: (h: number) => void; onRightClick: (h: number) => void;
+    houseFormat: 'arabic' | 'roman'; scale: number; zodiacColorMode: 'none' | 'element' | 'modality' | 'polarity';
+    showCuspDegrees?: boolean; planetsInHouse?: string[]; showPlanetsInHouses?: boolean; theme?: 'dark' | 'light';
+}> = ({ houseNumber, longitude, isSelected, isSecondarySelected, onHover, onClick, onRightClick, houseFormat, scale, zodiacColorMode, showCuspDegrees = true, planetsInHouse = [], showPlanetsInHouses = true, theme = 'dark' }) => {
+    const isLight = theme === 'light';
+    const sign: any = ZODIAC_DATA[Math.floor(longitude / 30)] || ZODIAC_DATA[0];
+    const SignSymbol = ZODIAC_ICONS[sign.id as keyof typeof ZODIAC_ICONS];
+    const C = isLight
+        ? { fire: '#b91c1c', earth: '#15803d', air: '#0369a1', water: '#4338ca', cardinal: '#b91c1c', fixed: '#15803d', mutable: '#1d4ed8', masculine: '#b91c1c', feminine: '#1d4ed8' }
+        : { fire: '#F87171', earth: '#4ADE80', air: '#38BDF8', water: '#818CF8', cardinal: '#F87171', fixed: '#4ADE80', mutable: '#60A5FA', masculine: '#F87171', feminine: '#60A5FA' };
+    const fg = isLight ? '#231714' : '#F5F2EB';
+    const signColor = zodiacColorMode === 'none' ? fg : (C as Record<string, string>)[zodiacColorMode === 'modality' ? sign.modality : zodiacColorMode === 'polarity' ? sign.polarity : sign.element] || fg;
+    const glyph = Math.max(12, Math.round(13 * scale));
+    const h = Math.max(22, Math.round(24 * scale));
+    const label = houseFormat === 'roman' ? toRoman(houseNumber) : String(houseNumber);
+    const has = showPlanetsInHouses && planetsInHouse.length > 0;
+    return (
+        <div
+            className="grid items-center cursor-pointer select-none rounded-[8px] border transition-colors duration-150"
+            style={{
+                display: 'grid', alignItems: 'center',
+                gridTemplateColumns: `${Math.round(30 * scale)}px ${glyph + 3}px ${Math.round(30 * scale)}px minmax(0,1fr) ${showCuspDegrees ? Math.round(46 * scale) + 'px' : '0px'}`,
+                columnGap: Math.round(6 * scale), height: h, minHeight: h, padding: `0 ${Math.round(6 * scale)}px`,
+                borderColor: isSelected ? (isLight ? 'rgba(138,106,18,.6)' : 'rgba(212,175,55,.6)') : isSecondarySelected ? (isLight ? 'rgba(138,106,18,.3)' : 'rgba(212,175,55,.3)') : 'transparent',
+                background: isSelected ? (isLight ? 'rgba(212,175,55,.14)' : 'rgba(212,175,55,.07)') : undefined,
+            }}
+            title={HOUSE_KEYWORDS[houseNumber]}
+            onMouseEnter={(e) => { onHover(houseNumber); if (!isSelected) (e.currentTarget as HTMLElement).style.background = isLight ? 'rgba(35,23,20,.05)' : '#130f16'; }}
+            onMouseLeave={(e) => { onHover(null); if (!isSelected) (e.currentTarget as HTMLElement).style.background = ''; }}
+            onClick={() => onClick(houseNumber)}
+            onContextMenu={(e) => { e.preventDefault(); onRightClick(houseNumber); }}
+        >
+            <span style={houseFormat === 'roman'
+                ? { fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, fontSize: Math.round(14 * scale), letterSpacing: '.06em', color: fg, lineHeight: 1 }
+                : { fontFamily: "'DM Mono', ui-monospace, monospace", fontSize: Math.round(12 * scale), color: fg }}>
+                {label}
+            </span>
+            <span className="flex items-center justify-center" style={{ display: 'flex', justifyContent: 'center' }}>
+                {SignSymbol && <SignSymbol style={{ width: glyph, height: glyph, color: signColor, display: 'block' }} />}
+            </span>
+            <span style={{ fontFamily: "'DM Mono', ui-monospace, monospace", fontSize: Math.max(10, Math.round(10.5 * scale)), color: signColor, letterSpacing: '.02em' }}>{sign.abbr}</span>
+            <span className="flex items-center min-w-0 overflow-hidden" style={{ display: 'flex', alignItems: 'center', gap: Math.round(4 * scale) }}>
+                {has ? planetsInHouse.map(p => (
+                    <span key={p} title={p} className="shrink-0 leading-none" style={{ fontSize: Math.round(glyph * 1.15), color: fg, fontFamily: '"Noto Sans Symbols", "Noto Sans Symbols 2", "Segoe UI Symbol", sans-serif' }}>
+                        {CELESTIAL_GLYPHS[p as keyof typeof CELESTIAL_GLYPHS] || p.substring(0, 1)}
+                    </span>
+                )) : <span style={{ fontSize: 10, color: isLight ? 'rgba(35,23,20,.25)' : '#3A3440' }}>—</span>}
+            </span>
+            {showCuspDegrees ? (
+                <span className="tabular-nums whitespace-nowrap text-right" style={{ fontFamily: "'DM Mono', ui-monospace, monospace", fontSize: Math.max(10, Math.round(11 * scale)), color: isLight ? '#5c4b3e' : '#B9B4BE' }}>
+                    {formatDegrees(longitude % 30)}
+                </span>
+            ) : <span />}
+        </div>
+    );
+};
+
 const HouseCuspCard: React.FC<{
     houseNumber: number;
     longitude: number;
@@ -500,9 +560,9 @@ export const HouseCuspsPanel: React.FC<HouseCuspsPanelProps> = ({
             {/* Grid de Casas: 2 Colunas (6 Casas por coluna) ou 1 Coluna */}
             <div className="p-1.5 flex flex-1 min-h-0 overflow-y-auto custom-scrollbar gap-1.5">
                 {columns === '1col' ? (
-                    <div className="flex-1 min-w-0 flex flex-col gap-1">
+                    <div className="flex-1 min-w-0 flex flex-col">
                         {houseCusps.map((longitude, index) => (
-                            <HouseCuspCard 
+                            <HouseListRow 
                                 key={`h-${index + 1}`}
                                 houseNumber={index + 1}
                                 longitude={longitude}
@@ -514,8 +574,6 @@ export const HouseCuspsPanel: React.FC<HouseCuspsPanelProps> = ({
                                 houseFormat={houseFormat}
                                 scale={scale}
                                 zodiacColorMode={zodiacColorMode}
-                                layoutMode={layoutMode}
-                                isCompact={isCompact}
                                 showCuspDegrees={showCuspDegrees}
                                 planetsInHouse={Object.keys(visiblePlanets || {}).filter(p => (visiblePlanets as any)[p] && (housePlacements as any)?.[p] === index + 1)}
                                 showPlanetsInHouses={showPlanetsInHouses}

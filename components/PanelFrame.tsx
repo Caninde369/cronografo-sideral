@@ -148,9 +148,10 @@ export const PanelFrame: React.FC<PanelFrameProps> = ({
                 <span
                     className="truncate flex-grow"
                     style={{
-                        fontFamily: "'Playfair Display', Georgia, serif",
-                        fontWeight: 600,
-                        fontSize: `${titleFontSize}px`,
+                        fontFamily: "'Cormorant Garamond', Georgia, serif",
+                        fontStyle: 'italic',
+                        fontWeight: 500,
+                        fontSize: `${titleFontSize + 4}px`,
                         lineHeight: 1,
                         letterSpacing: '.005em',
                         color: isLight ? '#3B2F14' : '#F5F2EB',

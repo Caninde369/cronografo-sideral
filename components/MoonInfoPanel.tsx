@@ -334,29 +334,17 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
                     }}
                     data-tour="lunar"
                     title="Clique para abrir o Calendário Lunar"
-                    className={`flex flex-col gap-1.5 backdrop-blur-xl rounded-[14px] transition-all select-none w-full shrink-0 relative cursor-pointer group ${
+                    className={`flex flex-col rounded-[16px] border transition-colors select-none w-full shrink-0 relative cursor-pointer group ${
                         isLight 
-                            ? 'liquid-glass bg-[#f4f1ea]/95 border border-[#8b8370]/25 text-amber-950 shadow-[0_12px_32px_rgba(110,98,75,0.18)] hover:border-amber-700/40 hover:bg-[#eae5d8]' 
-                            : 'bg-[#06060a]/95 border border-white/20 shadow-[0_12px_32px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,255,255,0.25)] hover:border-amber-400/40 hover:bg-[#12101e]'
+                            ? 'bg-[#FBF8F2] border-[rgba(35,23,20,.14)] text-[#231714] hover:border-[rgba(35,23,20,.28)]' 
+                            : 'bg-[#0a070c] border-[#221d27] text-[#EDE9E3] hover:border-[#3A3440]'
                     } ${className || ''}`}
-                    style={{ padding: `${Math.max(6, Math.round(8 * scale))}px` }}
+                    style={{ padding: `${Math.max(8, Math.round(10 * scale))}px ${Math.max(10, Math.round(12 * scale))}px ${Math.max(10, Math.round(12 * scale))}px` }}
                 >
-                    {/* Header com botão de minimizar */}
-                    <div className="flex items-center justify-between px-1 -mt-0.5 mb-0.5">
-                        {/* DS v2 · Playfair Display title */}
-                        <span
-                            className="flex items-center gap-1.5"
-                            style={{
-                                fontFamily: "'Playfair Display', Georgia, serif",
-                                fontWeight: 600,
-                                fontSize: `${Math.max(12, Math.round(15 * scale))}px`,
-                                lineHeight: 1,
-                                letterSpacing: '.005em',
-                                color: isLight ? '#3B2F14' : '#F5F2EB',
-                            }}
-                        >
-                            <span>🌙</span>
-                            <span>Calendário Lunar</span>
+                    {/* Cabeçalho no estilo dos painéis */}
+                    <div className="flex items-center justify-between" style={{ marginBottom: Math.round(8 * scale) }}>
+                        <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic', fontWeight: 500, fontSize: `${Math.max(17, Math.round(20 * scale))}px`, lineHeight: 1 }}>
+                            Lua
                         </span>
                         <button
                             type="button"
@@ -366,18 +354,18 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
                                 handleToggleMinimize(e);
                             }}
                             className={`rounded flex items-center justify-center transition-colors cursor-pointer ${
-                                isLight ? 'text-black/50 hover:text-black hover:bg-black/10' : 'text-white/50 hover:text-white hover:bg-white/15'
+                                isLight ? 'text-black/40 hover:text-black hover:bg-black/10' : 'text-white/40 hover:text-white hover:bg-white/10'
                             }`}
-                            style={{ width: `${Math.max(16, Math.round(20 * scale))}px`, height: `${Math.max(16, Math.round(20 * scale))}px` }}
+                            style={{ width: 20, height: 20 }}
                             title="Minimizar Card da Lua"
                         >
-                            <svg width={Math.max(10, Math.round(12 * scale))} height={Math.max(10, Math.round(12 * scale))} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                                 <line x1="5" y1="12" x2="19" y2="12" />
                             </svg>
                         </button>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col" style={{ gap: 9 }}>
                         {eclipse && (
                             <div
                                 role={onEclipseClick ? 'button' : undefined}
@@ -433,99 +421,48 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
                             </div>
                         )}
 
-                        {/* 1. Card Ciclo Lunar com Barra de Progresso */}
-                        <div 
-                            className={`flex flex-col gap-1 px-2 py-1.5 w-full shrink-0 overflow-hidden rounded-[10px] border transition-all shadow-sm ${
-                                isLight 
-                                    ? 'bg-gradient-to-b from-black/[0.03] to-black/[0.01] border-black/10 hover:border-black/20' 
-                                    : 'bg-gradient-to-b from-white/[0.06] to-white/[0.02] border-white/12 hover:border-white/25'
-                            }`}
-                        >
-                            <div className="flex items-center gap-1.5 w-full">
-                                <span style={{ fontSize: `${Math.max(13, Math.round(16 * scale))}px`, flexShrink: 0 }}>{cycleEmoji}</span>
-                                <div className="overflow-hidden min-w-0 flex-1">
-                                    <div 
-                                        className={`font-bold truncate leading-tight ${isLight ? 'text-neutral-800' : 'text-white/95'}`}
-                                        style={{ fontSize: `${Math.max(9, Math.round(11 * scale))}px` }}
-                                    >
-                                        {cycleName}
-                                    </div>
-                                    <div 
-                                        className={`font-medium font-mono tabular-nums truncate leading-tight mt-0.5 ${isLight ? 'text-neutral-500' : 'text-slate-400'}`}
-                                        style={{ fontSize: `${Math.max(8, Math.round(10 * scale))}px` }}
-                                    >
-                                        Ciclo {cycleIndex}, Dia {moonAge}/{cycleData?.totalDays || 29}
-                                    </div>
+                        {/* Mês lunar: ícone do mês, nome e o número do ciclo (que define o mês) em serifa clara */}
+                        <div className="flex items-center" style={{ gap: 10 }}>
+                            <span
+                                className="flex items-center justify-center shrink-0"
+                                style={{ width: Math.round(38 * scale), height: Math.round(38 * scale), borderRadius: 12, border: `1px solid ${isLight ? 'rgba(35,23,20,.16)' : '#2a2430'}`, background: isLight ? 'rgba(35,23,20,.03)' : '#100c13', fontSize: Math.round(20 * scale) }}
+                                title={`Mês: ${cycleName}`}
+                            >
+                                {cycleEmoji}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                                <div className="truncate" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic', fontWeight: 500, fontSize: `${Math.max(15, Math.round(17 * scale))}px`, lineHeight: 1.05 }}>
+                                    {cycleName}
+                                </div>
+                                <div className="flex items-baseline" style={{ gap: 5, marginTop: 3, fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: isLight ? '#7a6a5c' : '#8a8590' }}>
+                                    <span>Ciclo</span>
+                                    <b style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic', fontWeight: 500, fontSize: 17, letterSpacing: 0, lineHeight: .8, color: isLight ? '#231714' : '#F5F2EB' }}>{cycleIndex}</b>
+                                    <span>· Dia</span>
+                                    <span style={{ fontFamily: "'DM Mono', ui-monospace, monospace", letterSpacing: 0, color: isLight ? '#5c4b3e' : '#B9B4BE' }}>{moonAge}/{cycleData?.totalDays || 29}</span>
                                 </div>
                             </div>
-
-                            {/* Barra 3D de Progresso do Ciclo Lunar */}
-                            <div 
-                                className={`relative w-full rounded-full overflow-hidden mt-0.5 border ${
-                                    isLight 
-                                        ? 'bg-neutral-100 border-amber-500/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.15)]' 
-                                        : 'bg-slate-950/90 border-amber-500/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]'
-                                }`} 
-                                style={{ height: `${Math.max(5, Math.round(6 * scale))}px` }}
-                                title="Progresso do Ciclo Lunar"
-                            >
-                                <div 
-                                    className="h-full rounded-full bg-gradient-to-r from-amber-500 via-orange-400 to-yellow-300 shadow-[0_0_8px_rgba(245,158,11,0.6)] transition-all duration-500"
-                                    style={{ width: `${Math.max(1, Math.min(100, Math.round(1 + ((moonAge - 1) / ((cycleData?.totalDays || 29) - 1)) * 99)))}%` }}
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-transparent pointer-events-none" />
-                            </div>
                         </div>
 
-                        {/* 2. Card Fase Lunar */}
-                        <div 
-                            className={`flex items-center justify-between gap-1.5 px-2 py-1.5 w-full shrink-0 rounded-[10px] border transition-all shadow-sm ${
-                                isLight 
-                                    ? 'bg-gradient-to-b from-black/[0.03] to-black/[0.01] border-black/10 hover:border-cyan-500/30' 
-                                    : 'bg-gradient-to-b from-white/[0.06] to-white/[0.02] border-white/12 hover:border-cyan-400/30'
-                            }`}
-                        >
-                            <div className="flex items-center gap-1.5 min-w-0">
-                                <MoonPhaseDisk phase={moonPhase} size={Math.max(16, Math.round(20 * scale))} />
-                                <span 
-                                    className={`font-bold truncate leading-tight ${isLight ? 'text-neutral-800' : 'text-white/95'}`}
-                                    style={{ fontSize: `${Math.max(9, Math.round(11 * scale))}px` }}
-                                >
-                                    {phaseAbbr}
-                                </span>
-                            </div>
-                            <div 
-                                className={`px-1.5 py-0.5 rounded-md font-mono font-extrabold shrink-0 border ${
-                                    isLight 
-                                        ? 'bg-cyan-50 border-cyan-400/50 text-cyan-700 shadow-[0_1px_2px_rgba(0,0,0,0.05),inset_0_1px_1px_rgba(255,255,255,0.9)]' 
-                                        : 'bg-slate-950 border-cyan-400/50 text-cyan-300 shadow-[0_2px_4px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.4)]'
-                                }`} 
-                                style={{ fontSize: `${Math.max(8, Math.round(10 * scale))}px` }}
-                                title="Iluminação"
-                            >
+                        {/* Fase da Lua em destaque */}
+                        <div className="flex items-center" style={{ gap: 10, padding: '8px 10px', border: `1px solid ${isLight ? 'rgba(35,23,20,.14)' : '#221d27'}`, borderRadius: 12 }}>
+                            <MoonPhaseDisk phase={moonPhase} size={Math.max(24, Math.round(30 * scale))} />
+                            <span className="truncate" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic', fontWeight: 500, fontSize: `${Math.max(16, Math.round(19 * scale))}px`, lineHeight: 1 }} title={moonPhaseInfo.name}>
+                                {moonPhaseInfo.name.charAt(0) + moonPhaseInfo.name.slice(1).toLowerCase()}
+                            </span>
+                            <span className="ml-auto tabular-nums" style={{ fontFamily: "'DM Mono', ui-monospace, monospace", fontSize: Math.max(13, Math.round(15 * scale)), color: isLight ? '#231714' : '#F5F2EB' }} title="Iluminação">
                                 {illumPercent}%
-                            </div>
+                            </span>
                         </div>
 
-                        {/* 3. Nascer e Pôr da Lua */}
-                        <div 
-                            className={`flex items-center justify-between px-2 py-1.5 w-full shrink-0 rounded-[10px] border font-sans shadow-inner ${
-                                isLight 
-                                    ? 'bg-black/[0.04] border-black/5 text-neutral-800' 
-                                    : 'bg-black/60 border-white/15 text-white'
-                            }`}
-                            style={{ fontSize: `${Math.max(8.5, Math.round(10.5 * scale))}px` }}
-                        >
-                            <div className="flex items-center gap-0.5" title="Horário do Nascer da Lua">
-                                <span className={isLight ? 'text-amber-600 font-bold' : 'text-amber-400 font-bold'} style={{ fontSize: `${Math.max(10, Math.round(12 * scale))}px` }}>↑</span>
-                                <span className={`${isLight ? 'text-neutral-600' : 'text-amber-300/90'} font-medium mr-0.5`}>Nascer:</span>
-                                <span className={`font-bold font-mono ${isLight ? 'text-neutral-900' : 'text-white'}`} style={{ fontSize: `${Math.max(9, Math.round(11 * scale))}px` }}>{moonriseTime || '--:--'}</span>
-                            </div>
-                            <div className="flex items-center gap-0.5" title="Horário do Pôr da Lua">
-                                <span className={isLight ? 'text-sky-600 font-bold' : 'text-sky-400 font-bold'} style={{ fontSize: `${Math.max(10, Math.round(12 * scale))}px` }}>↓</span>
-                                <span className={`${isLight ? 'text-neutral-600' : 'text-sky-300/90'} font-medium mr-0.5`}>Pôr:</span>
-                                <span className={`font-bold font-mono ${isLight ? 'text-neutral-900' : 'text-white'}`} style={{ fontSize: `${Math.max(9, Math.round(11 * scale))}px` }}>{moonsetTime || '--:--'}</span>
-                            </div>
+                        {/* Progresso do mês lunar (linha fina) */}
+                        <div className="relative w-full overflow-hidden" style={{ height: 2, borderRadius: 2, background: isLight ? 'rgba(35,23,20,.12)' : '#221d27' }} title="Progresso do mês lunar">
+                            <div className="h-full transition-all duration-500" style={{ background: isLight ? '#231714' : '#F5F2EB', width: `${Math.max(1, Math.min(100, Math.round(1 + ((moonAge - 1) / ((cycleData?.totalDays || 29) - 1)) * 99)))}%` }} />
+                        </div>
+
+                        {/* Nascer e pôr */}
+                        <div className="flex items-center justify-between" style={{ fontSize: 11, color: isLight ? '#7a6a5c' : '#8a8590' }}>
+                            <span title="Nascer da Lua">Nasce<b style={{ fontFamily: "'DM Mono', ui-monospace, monospace", fontWeight: 400, color: isLight ? '#231714' : '#EDE9E3', marginLeft: 5 }}>{moonriseTime || '--:--'}</b></span>
+                            <span title="Pôr da Lua">Põe<b style={{ fontFamily: "'DM Mono', ui-monospace, monospace", fontWeight: 400, color: isLight ? '#231714' : '#EDE9E3', marginLeft: 5 }}>{moonsetTime || '--:--'}</b></span>
                         </div>
                     </div>
                 </div>

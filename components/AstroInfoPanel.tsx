@@ -323,7 +323,7 @@ const AspectCard: React.FC<{
     const symbolWidth = Math.max(16, Math.round(20 * scale));
     const aspectCenterWidth = Math.max(22, Math.round((settings.aspects.names ? 64 : settings.aspects.abbr ? 40 : 28) * scale));
     const orbWidth = Math.max(30, Math.round(40 * scale));
-    const cardPaddingY = Math.max(3, Math.round(5 * scale));
+    const cardPaddingY = Math.max(4, Math.round(6.5 * scale));
     const cardPaddingX = Math.max(6, Math.round(8 * scale));
 
     const transitRange = useMemo(() => {
@@ -521,7 +521,7 @@ export const AstroInfoPanel: React.FC<AstroInfoPanelProps> = ({
 }) => {
     const isFree = Boolean(isFreeTier || isFreeTrial);
     const panelRef = useRef<HTMLDivElement>(null);
-    const [itemSize, setItemSize] = useState(14);
+    const [itemSize, setItemSize] = useState(15);
     const scaledItemSize = itemSize * scale * (panelScale || 1);
     const [tooltip, setTooltip] = useState<{ text: React.ReactNode, x: number, y: number } | null>(null);
     const hoverTimeout = useRef<number | null>(null);

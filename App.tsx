@@ -190,7 +190,7 @@ export const App: React.FC = () => {
     const resetAllPanelLayouts = useCallback(() => {
         setSidebarStatusHeight(null);
         setSidebarCuspsHeight(215);
-        setShowCuspDegrees(false);
+        setShowCuspDegrees(true);
         setPanelWidths({
             statistics: 220,
             celestial: 220,
@@ -480,8 +480,8 @@ export const App: React.FC = () => {
         transitDates: true
     });
     const [houseCuspsLayout, setHouseCuspsLayout] = useState<'table' | 'cards'>('table');
-    const [houseCuspsColumns, setHouseCuspsColumns] = useState<'1col' | '2col'>('2col');
-    const [showCuspDegrees, setShowCuspDegrees] = useState(false);
+    const [houseCuspsColumns, setHouseCuspsColumns] = useState<'1col' | '2col'>('1col');
+    const [showCuspDegrees, setShowCuspDegrees] = useState(true);
     const [statsLayout, setStatsLayout] = useState<'minimal' | 'ultraslim'>(() => {
         if (typeof window !== 'undefined' && (window.innerHeight < 820 || window.innerWidth <= 1366)) {
             return 'ultraslim';
@@ -2661,23 +2661,12 @@ const handlePlanetClick = useCallback((id: string) => {
                         </div>
                     )}
 
-                    {/* Resizer interativo unificado entre Aspectos e Casas - Hairline Elegante */}
-                    {!isMobile && panelStates.aspects.isOpen && panelStates.cusps.isOpen && !panelStates.cusps.isCollapsed && (
-                        <div
-                            onPointerDown={handleRightSidebarSplitResizePointerDown}
-                            className="h-2 w-full cursor-ns-resize py-0.5 flex items-center justify-center shrink-0 -my-0.5 z-30 group select-none pointer-events-auto"
-                            title="Arraste para ajustar a altura relativa entre os painéis Aspectos e Casas"
-                        >
-                            <div className="w-8 h-[2px] rounded-full bg-white/20 group-hover:bg-cyan-300 group-hover:w-12 group-hover:h-[3px] group-active:bg-cyan-400 transition-all duration-150 shadow-sm" />
-                        </div>
-                    )}
-
                     {/* Painel CASAS (Abaixo de Aspectos) */}
                     {(isMobile ? mTab === 'casas' : panelStates.cusps.isOpen) && (
                         <div 
                             data-tour="cusps-panel"
                             className="pointer-events-auto flex-shrink-0 flex flex-col overflow-hidden"
-                            style={{ height: panelStates.cusps.isCollapsed ? 'auto' : `${sidebarCuspsHeight}px` }}
+                            style={{ height: 'auto' }}
                         >
                             <PanelFrame
                                 title={t ? t('Casas') : 'Casas'}
