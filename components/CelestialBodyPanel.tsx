@@ -500,7 +500,7 @@ const CelestialBodyCard: React.FC<{
                         <span
                             className={`text-center leading-none ${isLight ? 'text-neutral-700' : 'text-[#D9D4DE]'}`}
                             style={houseFormat === 'roman'
-                                ? { fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 600, fontSize: `${houseSize + 1.5}px`, letterSpacing: '0.07em' }
+                                ? { fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, fontSize: `${houseSize + 1.5}px`, letterSpacing: '0.07em' }
                                 : { fontFamily: "'DM Mono', ui-monospace, monospace", fontSize: `${degreeSize}px` }}
                         >
                             {houseFormat === 'roman' ? toRoman(houseNumber) : houseNumber}
@@ -681,7 +681,7 @@ export const CelestialBodyPanel: React.FC<CelestialBodyPanelProps> = ({
         
         setCalculatedWidth(width);
         if (onWidthChange) {
-            const minW = settings.planets.names ? (settings.planets.namesAbbr ? 215 : 280) : 180;
+            const minW = settings.planets.names ? (settings.planets.namesAbbr ? 215 : 320) : 180;
             const w = Math.max(minW, Math.ceil(width * (panelScale || 1)));
             onWidthChange(w);
         }

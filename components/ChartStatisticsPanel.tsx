@@ -90,6 +90,10 @@ const PLANET_DEFINITIONS: Record<string, { name: string; symbol: string; color: 
     uranus: { name: 'Urano', symbol: '♅', color: '#06B6D4' },
     neptune: { name: 'Netuno', symbol: '♆', color: '#3B82F6' },
     pluto: { name: 'Plutão', symbol: '♇', color: '#8B5CF6' },
+    northNode: { name: 'Nodo Norte', symbol: '☊', color: '#94A3B8' },
+    southNode: { name: 'Nodo Sul', symbol: '☋', color: '#94A3B8' },
+    lilith: { name: 'Lilith', symbol: '⚸', color: '#94A3B8' },
+    chiron: { name: 'Quíron', symbol: '⚷', color: '#5EA18D' },
 };
 
 const getElementSymbols = (isLight: boolean): Record<string, { svg: React.ReactNode; label: string; bg: string; border: string; text: string; bar: string }> => ({
@@ -259,7 +263,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
     
     useEffect(() => {
         if (onWidthChange) {
-            const baseWidth = isUltraSlim ? 185 : 210;
+            const baseWidth = isUltraSlim ? 185 : 320;
             const w = baseWidth * scale;
             setTimeout(() => onWidthChange(w), 0);
         }
@@ -275,18 +279,13 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
     };
     
     const stats = useMemo(() => {
-        const ALL_BODIES = [
-            'sun', 'moon', 'mercury', 'venus', 'mars', 
+        // As faixas contam sempre os mesmos 14 astros (não mudam ao ligar/desligar no painel Astros):
+        // 10 planetas + Nodo Norte, Nodo Sul, Lilith e Quíron.
+        const PLANETS = [
+            'sun', 'moon', 'mercury', 'venus', 'mars',
             'jupiter', 'saturn', 'uranus', 'neptune', 'pluto',
-            'lilith', 'northNode', 'southNode', 'partOfFortune'
+            'northNode', 'southNode', 'lilith', 'chiron'
         ];
-        
-        const PLANETS = ALL_BODIES.filter(id => {
-            if (visiblePlanets) {
-                return !!visiblePlanets[id];
-            }
-            return ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'].includes(id);
-        });
 
         const counts = {
             masculine: 0, feminine: 0,
@@ -447,7 +446,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
     };
 
     const moonInfo = moonPhase !== undefined ? getMoonPhaseInfo(moonPhase) : null;
-    const totalCount = stats.counts.total || 10;
+    const totalCount = stats.counts.total || 14;
 
     return (
         <div data-tour="status" className={`flex flex-col font-sans w-full bg-transparent relative p-1.5 gap-1.5 ${isLight ? 'text-amber-950' : 'text-white'} overflow-hidden`}>
@@ -572,114 +571,90 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                     <style>{`
 .sb-card{border-radius:14px;padding:${Math.max(7, Math.round(9 * scale))}px;border:1px solid ${isLight ? 'rgba(35,23,20,.14)' : '#221d27'};transition:border-color .25s}
 .sb-card.on{border-color:${isLight ? 'rgba(138,106,18,.55)' : 'rgba(212,175,55,.5)'}}
-.sb-head{width:100%;display:flex;align-items:baseline;justify-content:space-between;gap:8px;background:none;border:0;padding:0 2px;margin-bottom:${Math.max(6, Math.round(8 * scale))}px;cursor:pointer;color:inherit;text-align:left}
-.sb-title{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;line-height:1}
-.sb-dom{font-family:'DM Sans',system-ui,sans-serif;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:${isLight ? '#7a6a5c' : '#8a8590'};white-space:nowrap}
-.sb-dom b{font-family:'DM Mono',ui-monospace,monospace;font-weight:400;letter-spacing:0;color:${isLight ? '#231714' : '#EDE9E3'}}
-.sb-grid{display:grid;gap:6px}
-.sb-box{border-radius:10px;border:1px solid;display:flex;flex-direction:column;justify-content:space-between;gap:6px;cursor:pointer;min-width:0;transition:border-color .2s,background-color .2s,transform .2s,flex-grow .6s cubic-bezier(.16,1,.3,1),opacity .2s}
-.sb-box:hover{transform:translateY(-1px)}
-.sb-box .t{display:flex;align-items:center;justify-content:space-between;gap:6px;font-family:'DM Sans',system-ui,sans-serif;white-space:nowrap}
-.sb-box .t span:first-child{overflow:hidden;text-overflow:ellipsis}
-.sb-box .n{font-family:'DM Mono',ui-monospace,monospace}
-.sb-box .p{display:flex;flex-wrap:wrap;gap:3px 4px;align-content:flex-start;align-items:center;overflow:hidden}
-.sb-box.zero{opacity:.45}
-.sb-box.dim{opacity:.35}
-.sb-box.pin{outline:1.5px solid ${isLight ? 'rgba(138,106,18,.8)' : 'rgba(245,217,138,.85)'};outline-offset:1px}
+.sb-head{width:100%;display:flex;align-items:baseline;justify-content:space-between;gap:8px;background:none;border:0;padding:0 2px;margin-bottom:${Math.max(6, Math.round(8 * scale))}px;cursor:pointer;color:inherit;text-align:left;min-width:0}
+.sb-title{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;line-height:1;white-space:nowrap;flex:none}
+.sb-stats{font-family:'DM Sans',system-ui,sans-serif;font-size:${Math.max(8.5, Math.round(9 * scale * 10) / 10)}px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.sb-stats b{font-family:'DM Mono',ui-monospace,monospace;font-weight:400;letter-spacing:0;color:${isLight ? '#231714' : '#EDE9E3'}}
+.sb-stats i{font-style:normal;color:${isLight ? 'rgba(35,23,20,.3)' : '#3A3440'}}
+.sb-strip{display:flex;gap:4px}
+.sb-fx{border-radius:9px;border:1px solid;display:flex;align-items:center;justify-content:space-around;gap:1px;min-width:0;padding:0 5px;cursor:pointer;overflow:hidden;transition:flex-grow .6s cubic-bezier(.16,1,.3,1),filter .2s,transform .2s,opacity .2s,background-color .2s,border-color .2s}
+.sb-fx:hover{filter:brightness(1.25);transform:translateY(-1px)}
+.sb-fx.dim{opacity:.35}
+.sb-fx.pin{outline:1.5px solid ${isLight ? 'rgba(138,106,18,.8)' : 'rgba(245,217,138,.85)'};outline-offset:1px}
 `}</style>
                     {(() => {
-                        const pad = Math.max(6, Math.round(8 * scale));
-                        const fs = Math.max(11, Math.round(12 * scale));
                         const glyph = Math.max(11, Math.round(12.5 * scale));
+                        const stripH = Math.max(26, Math.round(30 * scale));
                         const titleFs = Math.max(15, Math.round(17 * scale));
-                        const glyphColor = isLight ? '#3b2f2a' : '#EDE9E3';
+                        const glyphColor = isLight ? '#231714' : '#EDE9E3';
                         const anyFilter = !!highlightFilter;
-                        const Box = ({ type, value, label, count, color, planets, extraStyle, lines = 2, fullName }: { type: 'element' | 'modality' | 'polarity'; value: string; label: React.ReactNode; count: number; color: string; planets: Array<{ id: string; name: string }>; extraStyle?: React.CSSProperties; lines?: number; fullName?: string }) => {
-                            const hl = anyFilter && highlightFilter!.type === type && highlightFilter!.value === value;
-                            const dim = anyFilter && highlightFilter!.type === type && !hl;
-                            return (
-                                <div
-                                    key={`${type}-${value}`}
-                                    className={`sb-box ${count === 0 ? 'zero' : ''} ${dim ? 'dim' : ''} ${isPinned(type, value) ? 'pin' : ''}`}
-                                    data-status-card={type}
-                                    data-pinned={isPinned(type, value) ? 'true' : undefined}
-                                    onMouseEnter={() => handleHover(type, value)}
-                                    onMouseLeave={handleLeave}
-                                    onClick={() => handleCardClick(type, value)}
-                                    title={`${fullName || (typeof label === 'string' ? label : '')}: ${count} de ${totalCount} astros`}
-                                    style={{
-                                        padding: pad,
-                                        borderColor: hl ? color : `${color}66`,
-                                        background: hl ? `${color}1f` : `${color}0d`,
-                                        ...extraStyle,
-                                    }}
-                                >
-                                    <div className="t" style={{ fontSize: fs }}>
-                                        <span style={{ color }}>{label}</span>
-                                        <span className="n" style={{ fontSize: fs, color: isLight ? '#231714' : '#EDE9E3' }}>{count}</span>
-                                    </div>
-                                    <div className="p" style={{ height: lines * glyph + (lines - 1) * 3 }}>
-                                        {planets.length === 0
-                                            ? <span style={{ fontSize: Math.max(10, fs - 1.5), color: isLight ? '#9a8a7c' : '#6f6a76' }}>nenhum astro</span>
-                                            : planets.map(p => (
-                                                <span key={p.id} title={p.name} className="inline-flex">
-                                                    <CelestialGlyphSvg bodyId={p.id} size={glyph} style={{ color: glyphColor } as any} className="shrink-0" />
-                                                </span>
-                                            ))}
-                                    </div>
-                                </div>
-                            );
-                        };
-                        const Head = ({ mode, label, domLabel, domCount }: { mode: 'element' | 'modality' | 'polarity'; label: string; domLabel: string; domCount: number }) => {
-                            const active = zodiacColorMode === mode;
-                            return (
-                                <button
-                                    type="button"
-                                    className="sb-head"
-                                    data-status-section={mode}
-                                    data-tour={`status-${mode}`}
-                                    onClick={() => onZodiacColorModeChange?.(active ? 'none' : mode)}
-                                    title={active ? 'Clique para tirar as cores do zodíaco' : `Clique para colorir o zodíaco por ${label.toLowerCase()}`}
-                                >
-                                    <span className="sb-title" style={{ fontSize: titleFs }}>{label}</span>
-                                    <span className="sb-dom"><b>{domLabel} {domCount}</b></span>
-                                </button>
-                            );
-                        };
-                        const fem = stats.counts.feminine, mas = stats.counts.masculine;
-                        const minShare = Math.max(1, (fem + mas) * 0.34);
-                        const POL_FEM = isLight ? '#1d4ed8' : '#60A5FA';
-                        const POL_MAS = isLight ? '#b91c1c' : '#F87171';
+                        const POL = { feminine: isLight ? '#1d4ed8' : '#60A5FA', masculine: isLight ? '#b91c1c' : '#F87171' } as Record<string, string>;
                         const EL = { fire: isLight ? '#b91c1c' : '#F87171', earth: isLight ? '#15803d' : '#4ADE80', air: isLight ? '#0369a1' : '#38BDF8', water: isLight ? '#4338ca' : '#818CF8' } as Record<string, string>;
                         const MO = { cardinal: isLight ? '#b91c1c' : '#F87171', fixed: isLight ? '#15803d' : '#4ADE80', mutable: isLight ? '#1d4ed8' : '#60A5FA' } as Record<string, string>;
-                        const EL_NAMES: Record<string, string> = { fire: 'Fogo', earth: 'Terra', air: 'Ar', water: 'Água' };
-                        const MO_NAMES: Record<string, string> = { cardinal: 'Cardinal', fixed: 'Fixo', mutable: 'Mutável' };
-                        const MO_SHORT: Record<string, string> = { cardinal: 'Card.', fixed: 'Fixo', mutable: 'Mut.' };
+                        const GROUPS: Array<{ mode: 'polarity' | 'element' | 'modality'; title: string; order: string[]; names: Record<string, string>; colors: Record<string, string>; planets: Record<string, Array<{ id: string; name: string }>> }> = [
+                            { mode: 'polarity', title: 'Polaridades', order: ['feminine', 'masculine'], names: { feminine: 'Feminino', masculine: 'Masculino' }, colors: POL, planets: stats.planetsByPolarity },
+                            { mode: 'element', title: 'Elementos', order: ['water', 'earth', 'fire', 'air'], names: { fire: 'Fogo', earth: 'Terra', air: 'Ar', water: 'Água' }, colors: EL, planets: stats.planetsByElement },
+                            { mode: 'modality', title: 'Modalidades', order: ['cardinal', 'fixed', 'mutable'], names: { cardinal: 'Cardinal', fixed: 'Fixo', mutable: 'Mutável' }, colors: MO, planets: stats.planetsByModality },
+                        ];
                         return (
                             <>
-                                <div data-status-group="polarity" className={`sb-card ${zodiacColorMode === 'polarity' ? 'on' : ''}`}>
-                                    {Head({ mode: 'polarity', label: 'Polaridades', domLabel: mas >= fem ? 'Masculino' : 'Feminino', domCount: Math.max(mas, fem) })}
-                                    <div className="flex" style={{ gap: 6 }}>
-                                        {Box({ type: 'polarity', value: 'feminine', label: '♀ Fem.', fullName: 'Feminino', count: fem, color: POL_FEM, planets: stats.planetsByPolarity.feminine, lines: 2, extraStyle: { flex: `${Math.max(fem, minShare)} 1 0` } })}
-                                        {Box({ type: 'polarity', value: 'masculine', label: '♂ Masc.', fullName: 'Masculino', count: mas, color: POL_MAS, planets: stats.planetsByPolarity.masculine, lines: 2, extraStyle: { flex: `${Math.max(mas, minShare)} 1 0` } })}
-                                    </div>
-                                </div>
-                                <div data-status-group="element" className={`sb-card ${zodiacColorMode === 'element' ? 'on' : ''}`}>
-                                    {Head({ mode: 'element', label: 'Elementos', domLabel: stats.dominantElement.label, domCount: stats.dominantElement.count })}
-                                    <div className="sb-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-                                        {(['fire', 'earth', 'air', 'water'] as const).map(k => (
-                                            Box({ type: 'element', value: k, label: EL_NAMES[k], count: stats.counts[k], color: EL[k], planets: stats.planetsByElement[k], lines: 2 })
-                                        ))}
-                                    </div>
-                                </div>
-                                <div data-status-group="modality" className={`sb-card ${zodiacColorMode === 'modality' ? 'on' : ''}`}>
-                                    {Head({ mode: 'modality', label: 'Modalidades', domLabel: stats.dominantModality.label, domCount: stats.dominantModality.count })}
-                                    <div className="sb-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-                                        {(['cardinal', 'fixed', 'mutable'] as const).map(k => (
-                                            Box({ type: 'modality', value: k, label: MO_SHORT[k], fullName: MO_NAMES[k], count: stats.counts[k], color: MO[k], planets: stats.planetsByModality[k], lines: 3 })
-                                        ))}
-                                    </div>
-                                </div>
+                                {GROUPS.map(G => {
+                                    const active = zodiacColorMode === G.mode;
+                                    return (
+                                        <div key={G.mode} data-status-group={G.mode} className={`sb-card ${active ? 'on' : ''}`}>
+                                            <button
+                                                type="button"
+                                                className="sb-head"
+                                                data-status-section={G.mode}
+                                                data-tour={`status-${G.mode}`}
+                                                onClick={() => onZodiacColorModeChange?.(active ? 'none' : G.mode)}
+                                                title={active ? 'Clique para tirar as cores do zodíaco' : `Clique para colorir o zodíaco por ${G.title.toLowerCase()}`}
+                                            >
+                                                <span className="sb-title" style={{ fontSize: titleFs }}>{G.title}</span>
+                                                <span className="sb-stats">
+                                                    {G.order.map((k, i) => (
+                                                        <React.Fragment key={k}>
+                                                            {i > 0 && <i> · </i>}
+                                                            <span style={{ color: G.colors[k] }}>{G.names[k]} <b>{(G.planets[k] || []).length}</b></span>
+                                                        </React.Fragment>
+                                                    ))}
+                                                </span>
+                                            </button>
+                                            <div className="sb-strip">
+                                                {G.order.filter(k => (G.planets[k] || []).length > 0).map(k => {
+                                                    const list = G.planets[k];
+                                                    const color = G.colors[k];
+                                                    const hl = anyFilter && highlightFilter!.type === G.mode && highlightFilter!.value === k;
+                                                    const dim = anyFilter && highlightFilter!.type === G.mode && !hl;
+                                                    return (
+                                                        <div
+                                                            key={k}
+                                                            className={`sb-fx ${dim ? 'dim' : ''} ${isPinned(G.mode, k) ? 'pin' : ''}`}
+                                                            data-status-card={G.mode}
+                                                            data-pinned={isPinned(G.mode, k) ? 'true' : undefined}
+                                                            onMouseEnter={() => handleHover(G.mode, k)}
+                                                            onMouseLeave={handleLeave}
+                                                            onClick={() => handleCardClick(G.mode, k)}
+                                                            title={`${G.names[k]}: ${list.length} de ${totalCount} astros`}
+                                                            style={{
+                                                                flex: `${list.length} 1 0`,
+                                                                height: stripH,
+                                                                borderColor: hl ? color : `${color}80`,
+                                                                background: hl ? `${color}40` : `${color}26`,
+                                                            }}
+                                                        >
+                                                            {list.map(p => (
+                                                                <span key={p.id} title={p.name} className="inline-flex">
+                                                                    <CelestialGlyphSvg bodyId={p.id} size={glyph} style={{ color: glyphColor } as any} className="shrink-0" />
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </>
                         );
                     })()}

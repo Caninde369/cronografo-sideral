@@ -453,8 +453,8 @@ export const App: React.FC = () => {
     const [uiScale, setUiScale] = useState(1.0);
     const [clockScale, setClockScale] = useState(1.15);
     const [celestialSettings, setCelestialSettings] = useState<CelestialSettings>({
-        planets: { symbols: true, glyphs: false, colors: true, names: true, namesColors: true, namesAbbr: true },
-        signs: { enabled: true, symbols: true, colors: true, abbr: false },
+        planets: { symbols: true, glyphs: false, colors: true, names: true, namesColors: true, namesAbbr: false },
+        signs: { enabled: true, symbols: true, colors: true, abbr: true },
         houses: { enabled: true, format: 'roman' },
         degrees: true,
         degrees_colors: false,
@@ -2487,23 +2487,12 @@ const handlePlanetClick = useCallback((id: string) => {
                                 </div>
                             )}
 
-                            {/* Resizer interativo unificado entre Astros e Status - Hairline Elegante */}
-                            {panelStates.celestial.isOpen && panelStates.statistics.isOpen && !panelStates.statistics.isCollapsed && (
-                                <div
-                                    onPointerDown={handleSidebarSplitResizePointerDown}
-                                    className="h-2 w-full cursor-ns-resize py-0.5 flex items-center justify-center shrink-0 -my-0.5 z-30 group select-none pointer-events-auto"
-                                    title="Arraste para ajustar a altura relativa entre os painéis Astros e Status"
-                                >
-                                    <div className="w-8 h-[2px] rounded-full bg-white/20 group-hover:bg-cyan-300 group-hover:w-12 group-hover:h-[3px] group-active:bg-cyan-400 transition-all duration-150 shadow-sm" />
-                                </div>
-                            )}
-
                             {/* Painel STATUS (Diretamente abaixo de Astros) */}
                             {(isMobile ? (mTab === 'astros' && mSub === 'resumo') : panelStates.statistics.isOpen) && (
                                 <div 
                                     ref={statusPanelRef}
                                     className="pointer-events-auto flex-shrink-0 flex flex-col overflow-hidden"
-                                    style={{ height: panelStates.statistics.isCollapsed ? 'auto' : sidebarStatusHeight ? `${sidebarStatusHeight}px` : 'auto' }}
+                                    style={{ height: 'auto' }}
                                 >
                                     <PanelFrame
                                         title={t ? t('Status') : 'Status'}
