@@ -725,7 +725,7 @@ export const App: React.FC = () => {
     const rightPanelWidth = 0;
 
     const handleCelestialWidthChange = useCallback((width: number) => {
-        setPanelWidths(prev => (prev.celestial === width && prev.statistics === width) ? prev : { ...prev, celestial: width, statistics: width });
+        setPanelWidths(prev => prev.celestial === width ? prev : { ...prev, celestial: width });
     }, []);
 
     const handleCuspsWidthChange = useCallback((width: number) => {

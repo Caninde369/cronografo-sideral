@@ -263,7 +263,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
     
     useEffect(() => {
         if (onWidthChange) {
-            const baseWidth = isUltraSlim ? 185 : 270;
+            const baseWidth = isUltraSlim ? 185 : 240;
             const w = baseWidth * scale;
             setTimeout(() => onWidthChange(w), 0);
         }
@@ -571,9 +571,9 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                     <style>{`
 .sb-card{border-radius:12px;padding:${Math.max(6, Math.round(7 * scale))}px;border:1px solid ${isLight ? 'rgba(35,23,20,.14)' : '#221d27'};transition:border-color .25s}
 .sb-card.on{border-color:${isLight ? 'rgba(138,106,18,.55)' : 'rgba(212,175,55,.5)'}}
-.sb-head{width:100%;display:flex;align-items:baseline;justify-content:space-between;gap:6px;background:none;border:0;padding:0 2px;margin-bottom:${Math.max(6, Math.round(8 * scale))}px;cursor:pointer;color:inherit;text-align:left;min-width:0}
+.sb-head{width:100%;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:6px;row-gap:5px;background:none;border:0;padding:0 2px;margin-bottom:${Math.max(6, Math.round(8 * scale))}px;cursor:pointer;color:inherit;text-align:left;min-width:0}
 .sb-title{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;line-height:1;white-space:nowrap;flex:none}
-.sb-stats{font-family:'DM Sans',system-ui,sans-serif;font-size:${Math.max(8, Math.round(8.5 * scale * 10) / 10)}px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.sb-stats{font-family:'DM Sans',system-ui,sans-serif;font-size:${Math.max(8, Math.round(8.5 * scale * 10) / 10)}px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;text-align:left;flex-basis:100%;overflow:hidden;text-overflow:ellipsis}
 .sb-stats b{font-family:'DM Mono',ui-monospace,monospace;font-weight:400;letter-spacing:0;color:${isLight ? '#231714' : '#EDE9E3'}}
 .sb-stats i{font-style:normal;margin:0 3px;color:${isLight ? 'rgba(35,23,20,.3)' : '#3A3440'}}
 .sb-strip{display:flex;gap:3px}

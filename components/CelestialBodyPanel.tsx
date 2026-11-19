@@ -365,9 +365,17 @@ const CelestialBodyCard: React.FC<{
         ? (PLANET_HEX_COLORS[body.id] || (isLight ? '#3B2F14' : '#F5F2EB'))
         : (isLight ? '#3B2F14' : '#F5F2EB');
 
-    const signColorClass = settings.signs.colors
-        ? getZodiacColorClass(sign, zodiacColorMode)
-        : 'text-brand-text';
+    // Cor do signo calculada aqui (não depende de classes do tema, que se perdiam ao voltar do modo claro)
+    const signHex = (() => {
+        const neutral = isLight ? '#3B2F14' : '#EDE9E3';
+        if (!settings.signs.colors || !sign) return neutral;
+        const sg: any = sign;
+        const D = isLight
+            ? { fire: '#b91c1c', earth: '#15803d', air: '#0369a1', water: '#4338ca', cardinal: '#b91c1c', fixed: '#15803d', mutable: '#1d4ed8', masculine: '#b91c1c', feminine: '#1d4ed8' }
+            : { fire: '#F87171', earth: '#4ADE80', air: '#38BDF8', water: '#818CF8', cardinal: '#F87171', fixed: '#4ADE80', mutable: '#60A5FA', masculine: '#F87171', feminine: '#60A5FA' };
+        const key = zodiacColorMode === 'modality' ? sg.modality : zodiacColorMode === 'polarity' ? sg.polarity : sg.element;
+        return (D as Record<string, string>)[key] || neutral;
+    })();
     const cardPaddingY = Math.max(2, Math.round(4 * scale));
     const cardPaddingX = Math.max(3, Math.round(5 * scale));
     const baseClasses = `flex items-center gap-1 sm:gap-1.5 transition-[background,border-color] duration-150 cursor-pointer rounded-[10px] border ease-out w-full max-w-full ${className || ''}`;
@@ -489,16 +497,16 @@ const CelestialBodyCard: React.FC<{
                 <div className={`flex items-center ${settings.signs.abbr ? 'justify-start' : 'justify-center'} gap-1 min-w-0`}>
                     {settings.signs.symbols && SignSymbol && (
                         <span className="inline-flex items-center justify-center shrink-0" style={{ width: `${signSize + 2}px`, height: `${signSize + 2}px` }}>
-                            <SignSymbol className={signColorClass} style={{ width: `${signSize}px`, height: `${signSize}px`, display: 'block' }} />
+                            <SignSymbol style={{ width: `${signSize}px`, height: `${signSize}px`, display: 'block', color: signHex }} />
                         </span>
                     )}
                     {settings.signs.abbr && (
                         signFull ? (
-                            <span className={`${signColorClass} leading-none truncate min-w-0`} style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: `${Math.max(10.5, textSize - 0.5)}px` }}>
+                            <span className="leading-none truncate min-w-0" style={{ color: signHex, fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: `${Math.max(10.5, textSize - 0.5)}px` }}>
                                 {sign ? (sign as any).name : '-'}
                             </span>
                         ) : (
-                            <span className={`${signColorClass} leading-none`} style={{ fontFamily: "'DM Mono', ui-monospace, monospace", fontSize: `${Math.max(10, degreeSize - 0.5)}px`, letterSpacing: '0.02em', width: '3ch' }}>
+                            <span className="leading-none" style={{ color: signHex, fontFamily: "'DM Mono', ui-monospace, monospace", fontSize: `${Math.max(10, degreeSize - 0.5)}px`, letterSpacing: '0.02em', width: '3ch' }}>
                                 {sign ? (sign as any).abbr : '-'}
                             </span>
                         )
