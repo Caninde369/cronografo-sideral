@@ -15,6 +15,7 @@ import { CELESTIAL_GLYPHS } from '../../components/icons';
 import { Aspect, getAspectTiming } from './aspects';
 import { getDecanRuler } from './dignities';
 import { getSignTerms, getTermAt } from './terms';
+import { BODY_SHEET, SIGN_SHEET, TERM_SHEET, DECAN_SHEET } from './tooltipSheets';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos
@@ -433,9 +434,13 @@ export const buildPlanetTooltip = (id: string, ctx: TooltipContext): TooltipMode
 
   return {
     key: `planet-${id}`, kind: 'planet', glyph: glyph(id), accent,
-    title: BODY_NAMES[id], keywords: [], text: PLANET_COPY[id]?.text ?? '',
+    title: BODY_NAMES[id], keywords: [], text: BODY_SHEET[id]?.text ?? PLANET_COPY[id]?.text ?? '',
     sub: PLANET_COPY[id]?.practice ? [{ label: 'Na prática', text: PLANET_COPY[id].practice }] : undefined,
-    rows: PLANET_COPY[id]?.body ? [...rows, bodyRow(PLANET_COPY[id].body as string, ctx)] : rows,
+    rows: [
+      ...(BODY_SHEET[id] ? [{ label: 'Tipo', icon: 'ti-category', color: P.muted, lines: [[txt(`${BODY_SHEET[id].type} · ${BODY_SHEET[id].class}`)]] }] : []),
+      ...rows,
+      ...(PLANET_COPY[id]?.body ? [bodyRow(PLANET_COPY[id].body as string, ctx)] : []),
+    ],
   };
 };
 
@@ -452,7 +457,7 @@ export const buildSignTooltip = (signIndexOrId: number | string, ctx: TooltipCon
   const list = (ids: string[]) => ids.length ? ids.map(i => bodyLine(i, ctx)) : [[txt('—', { muted: true })]];
   return {
     key: `sign-${s}`, kind: 'sign', glyph: z.symbol, signId: z.id, accent,
-    title: z.name, keywords: [], text: SIGN_COPY[s].text,
+    title: z.name, keywords: [], text: SIGN_SHEET[s] ?? SIGN_COPY[s].text,
     sub: [{ label: 'O jeito', text: SIGN_COPY[s].way }],
     rows: [
       { label: 'Elemento', icon: ELEMENT_ICON[z.element] ?? 'ti-circle', color: accent, pill: true, lines: [[txt(ELEMENT_PT[z.element] ?? z.element)]] },
@@ -525,7 +530,7 @@ export const buildTermTooltip = (signIndex: number, termIndex: number, ctx: Tool
     key: `term-${signIndex}-${termIndex}`, kind: 'term', glyph: glyph(t.ruler), accent,
     title: `Termo ${ofBody(t.ruler)} em ${z.name}`,
     keywords: splitKw(TERM_COPY[signIndex]?.[t.ruler]?.kw),
-    text: 'Pedaço do signo com um astro responsável.',
+    text: TERM_SHEET[signIndex]?.[t.ruler] ?? 'Pedaço do signo com um astro responsável.',
     sub: TERM_COPY[signIndex]?.[t.ruler]?.text ? [{ label: 'Neste trecho', text: TERM_COPY[signIndex][t.ruler].text }] : undefined,
     rows: [
       { label: 'Signo', icon: `ti-zodiac-${z.id}`, color: P.element[z.element] ?? P.gold, lines: [signParts(signIndex, ctx)] },
@@ -550,7 +555,7 @@ export const buildDecanTooltip = (decanIndex: number, ctx: TooltipContext): Tool
     title: `${n + 1}º decanato de ${z.name}`,
     keywords: splitKw(DECAN_COPY[ruler]?.kw),
     text: 'Cada terço de um signo, com seu astro regente.',
-    sub: [{ label: 'Neste trecho', text: `O ${['primeiro', 'segundo', 'último'][n]} terço de ${z.name} é ${ofBody(ruler)}: mais ${DECAN_COPY[ruler]?.tone ?? ''}.` }],
+    sub: [{ label: 'Neste trecho', text: DECAN_SHEET[decanIndex]?.text ?? `O ${['primeiro', 'segundo', 'último'][n]} terço de ${z.name} é ${ofBody(ruler)}: mais ${DECAN_COPY[ruler]?.tone ?? ''}.` }],
     rows: [
       { label: 'Signo', icon: `ti-zodiac-${z.id}`, color: P.element[z.element] ?? P.gold, lines: [signParts(s, ctx)] },
       { label: 'Trecho', icon: 'ti-ruler-2', color: P.gold, lines: [[txt(`${n * 10}°–${n * 10 + 10}°`, { mono: true })]] },
