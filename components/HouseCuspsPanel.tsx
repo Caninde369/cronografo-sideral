@@ -401,10 +401,8 @@ export const HouseCuspsPanel: React.FC<HouseCuspsPanelProps> = ({
     
     useEffect(() => {
         if (onWidthChange) {
-            let baseWidth = columns === '1col' ? 140 : 235;
-            if (!showCuspDegrees) {
-                baseWidth = columns === '1col' ? 115 : 185;
-            }
+            // Casas sempre em lista (formato aprovado em 19/11): largura igual à do Aspectos
+            const baseWidth = showCuspDegrees ? 245 : 215;
             const w = baseWidth * scale;
             onWidthChange(w);
         }
@@ -532,25 +530,6 @@ export const HouseCuspsPanel: React.FC<HouseCuspsPanelProps> = ({
                             </div>
                         </div>
 
-                        <div className="h-px bg-white/10 my-0.5" />
-
-                        <div>
-                            <div className="text-[9.5px] font-bold uppercase text-white/70 tracking-wider mb-1 px-1 font-sans">Colunas</div>
-                            <div className="flex bg-slate-950/60 rounded-lg p-0.5 border border-white/10 shadow-inner">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onColumnsChange?.('2col'); }}
-                                    className={`flex-1 px-2 py-1 text-[9.5px] font-bold uppercase rounded transition-all duration-150 cursor-pointer active:scale-95 ${columns === '2col' ? 'bg-gradient-to-b from-[#D4AF37]/[0.22] to-[#D4AF37]/[0.08] border border-[#D4AF37]/50 text-[#F5D98A]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
-                                >
-                                    2 Colunas
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onColumnsChange?.('1col'); }}
-                                    className={`flex-1 px-2 py-1 text-[9.5px] font-bold uppercase rounded transition-all duration-150 cursor-pointer active:scale-95 ${columns === '1col' ? 'bg-gradient-to-b from-[#D4AF37]/[0.22] to-[#D4AF37]/[0.08] border border-[#D4AF37]/50 text-[#F5D98A]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
-                                >
-                                    1 Coluna
-                                </button>
-                            </div>
-                        </div>
 
                         </div>
                     </div>
@@ -559,7 +538,7 @@ export const HouseCuspsPanel: React.FC<HouseCuspsPanelProps> = ({
 
             {/* Grid de Casas: 2 Colunas (6 Casas por coluna) ou 1 Coluna */}
             <div className="p-1.5 flex flex-1 min-h-0 overflow-y-auto custom-scrollbar gap-1.5">
-                {columns === '1col' ? (
+                {true ? (
                     <div className="flex-1 min-w-0 flex flex-col">
                         {houseCusps.map((longitude, index) => (
                             <HouseListRow 

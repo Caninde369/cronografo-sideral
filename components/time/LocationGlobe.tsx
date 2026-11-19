@@ -15,7 +15,8 @@ const GRATICULE = geoGraticule10();
 const SPHERE = { type: 'Sphere' } as const;
 const clampLat = (v: number) => Math.max(-70, Math.min(70, v));
 
-const LocationGlobe: React.FC<{ lat: number; lon: number; timeMs: number; size?: number }> = ({ lat, lon, timeMs, size = 190 }) => {
+/** onPick: duplo clique no globo marca esse ponto (latitude e longitude do lugar clicado). */
+const LocationGlobe: React.FC<{ lat: number; lon: number; timeMs: number; size?: number; onPick?: (lat: number, lon: number) => void }> = ({ lat, lon, timeMs, size = 190, onPick }) => {
     const [rotate, setRotate] = useState<[number, number]>([-lon, -clampLat(lat)]);
     const rotRef = useRef(rotate);
     rotRef.current = rotate;
@@ -73,7 +74,16 @@ const LocationGlobe: React.FC<{ lat: number; lon: number; timeMs: number; size?:
             onPointerMove={e => { if (!drag.current) return; const k = 180 / size; const { x, y, r } = drag.current; setRotate([r[0] + (e.clientX - x) * k, clampLat(r[1] - (e.clientY - y) * k)]); }}
             onPointerUp={() => { drag.current = null; }}
             onPointerCancel={() => { drag.current = null; }}
+            onDoubleClick={e => {
+                if (!onPick) return;
+                const b = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+                const x = (e.clientX - b.left) * size / b.width, y = (e.clientY - b.top) * size / b.height;
+                if (Math.hypot(x - size / 2, y - size / 2) > size / 2 - 3) return; // fora do globo
+                const ll = projection.invert?.([x, y]);
+                if (ll && isFinite(ll[0]) && isFinite(ll[1])) onPick(ll[1], ((ll[0] + 540) % 360) - 180);
+            }}
         >
+            <title>Arraste para girar · dois cliques marcam o ponto</title>
             <path d={path(SPHERE) ?? undefined} fill="#0f1d30" stroke="rgba(255,255,255,0.18)" />
             <path d={path(GRATICULE) ?? undefined} fill="none" stroke="rgba(255,255,255,0.06)" />
             <path d={path(LAND) ?? undefined} fill="#253f37" stroke="rgba(160,210,180,0.25)" strokeWidth={0.5} />

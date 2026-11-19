@@ -742,16 +742,17 @@ export const TimeControls: React.FC<{
                             <div className="fixed inset-0 z-[11490]" onClick={() => setMoreMenu(null)} />
                             <div
                                 role="menu"
+                                data-tour="more-menu"
                                 className="fixed z-[11500] w-[200px] rounded-2xl border border-[#2a2430] bg-[#0a070c] p-1.5 shadow-[0_24px_60px_-16px_rgba(0,0,0,.9)] tc-more"
                                 style={{ right: Math.max(8, window.innerWidth - moreMenu.right), bottom: Math.max(8, window.innerHeight - moreMenu.top + 8), fontFamily: "'DM Sans', system-ui, sans-serif", transformOrigin: 'bottom right' }}
                             >
                                 {onSaveMap && (
-                                    <button role="menuitem" type="button" className="tc-mi" onClick={() => { setMoreMenu(null); onSaveMap(); }}>
+                                    <button role="menuitem" type="button" data-tour="more-save" className="tc-mi" onClick={() => { setMoreMenu(null); onSaveMap(); }}>
                                         <i className="ti ti-bookmark" aria-hidden="true" /><span>Salvar mapa</span>
                                     </button>
                                 )}
                                 {exportData && (
-                                    <button role="menuitem" type="button" className="tc-mi" onClick={() => { setMoreMenu(null); setExportReq(n => n + 1); }}>
+                                    <button role="menuitem" type="button" data-tour="more-export" className="tc-mi" onClick={() => { setMoreMenu(null); setExportReq(n => n + 1); }}>
                                         <i className="ti ti-download" aria-hidden="true" /><span>Exportar PDF</span>
                                     </button>
                                 )}

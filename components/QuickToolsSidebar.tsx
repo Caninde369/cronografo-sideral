@@ -61,6 +61,8 @@ export interface QuickToolsSidebarProps {
   setShowOrbits: (v: boolean) => void;
   allPlanetsSameOrbit: boolean;
   setAllPlanetsSameOrbit: (v: boolean) => void;
+  freeOrbits?: boolean;
+  setFreeOrbits?: (v: boolean) => void;
   showPlanetSpheres?: boolean;
   setShowPlanetSpheres?: (v: boolean) => void;
   planetColorMode?: 'colored' | 'gold';
@@ -1216,6 +1218,15 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                       >
                         <Toggle on={!props.allPlanetsSameOrbit} onToggle={() => props.setAllPlanetsSameOrbit(!props.allPlanetsSameOrbit)} activeColor="bg-blue-500" isLight={isLight} />
                       </CtrlRow>
+                      {!props.allPlanetsSameOrbit && (
+                        <CtrlRow
+                          label="Trânsito livre"
+                          badge={<span className="font-mono text-[9px] px-1 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold" title="Cada planeta fica no seu grau real e pode passar por cima de outro">sobrepor</span>}
+                          isLight={isLight}
+                        >
+                          <Toggle on={!!props.freeOrbits} onToggle={() => props.setFreeOrbits?.(!props.freeOrbits)} activeColor="bg-blue-500" isLight={isLight} />
+                        </CtrlRow>
+                      )}
                     </OptionCard>
 
                     <SubSec icon="ti-palette" color="text-indigo-400" isLight={isLight}>Cores & Estilização</SubSec>
@@ -1552,6 +1563,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                 </div>
               </div>
               <button
+                data-tour="degrees"
                 onClick={() => togglePopover('graus')}
                 className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer active:scale-95 shrink-0 ${
                   props.showDegreeLabels || openPopover === 'graus'
@@ -1600,7 +1612,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
 
                   <OptionCard isLight={isLight}>
                     <CtrlRow label="Graus nos Planetas" icon="ti-ruler" iconColor="text-blue-400" isLight={isLight}>
-                      <Toggle on={!!props.showDegreeLabels} onToggle={() => props.setShowDegreeLabels?.(!props.showDegreeLabels)} activeColor="bg-blue-500" isLight={isLight} />
+                      <span data-tour="degrees-toggle" className="inline-flex"><Toggle on={!!props.showDegreeLabels} onToggle={() => props.setShowDegreeLabels?.(!props.showDegreeLabels)} activeColor="bg-blue-500" isLight={isLight} /></span>
                     </CtrlRow>
                   </OptionCard>
 

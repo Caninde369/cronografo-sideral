@@ -900,9 +900,6 @@ export const OptionsRail: React.FC<OptionsRailProps> = (props) => {
                   <CtrlRow label="Formato dos Números" isLight={isLight}>
                     <SegSel options={[{label:'1, 2, 3', value:'arabic'}, {label:'I, II, III', value:'roman'}]} value={props.houseFormat} onChange={v => props.setHouseFormat(v as 'arabic' | 'roman')} isLight={isLight} />
                   </CtrlRow>
-                  <CtrlRow label="Layout Painel" isLight={isLight}>
-                    <SegSel options={[{label:'2 Colunas', value:'2col'}, {label:'1 Coluna', value:'1col'}]} value={props.houseCuspsColumns || '2col'} onChange={v => props.setHouseCuspsColumns?.(v as '1col' | '2col')} isLight={isLight} />
-                  </CtrlRow>
 
                   <SDivider isLight={isLight} />
                   <SubSec isLight={isLight}>Anel dos Marcadores (Temporário)</SubSec>

@@ -201,7 +201,7 @@ export const App: React.FC = () => {
         setRightPanelScale(1.0);
         setUiScale(1.0);
         setStatsLayout('minimal');
-        setHouseCuspsColumns('2col');
+        setHouseCuspsColumns('1col');
         setPanelStates(prev => ({
             celestial: { ...prev.celestial, isOpen: true, isCollapsed: false },
             statistics: { ...prev.statistics, isOpen: true, isCollapsed: false },
@@ -282,7 +282,7 @@ export const App: React.FC = () => {
     const [panelPlanetSize, setPanelPlanetSize] = useState(12);
     const [panelZodiacSignSize, setPanelZodiacSignSize] = useState(16);
     const [showPlanetSpheres, setShowPlanetSpheres] = useState(true);
-    const [showDegreeLabels, setShowDegreeLabels] = useState(true);
+    const [showDegreeLabels, setShowDegreeLabels] = useState(false);
     const [degreeLabelSize, setDegreeLabelSize] = useState(18);
     const [degreeLabelPosition, setDegreeLabelPosition] = useState<'responsive' | 'static' | 'callout' | 'staggered'>('responsive');
     const [degreeLabelFormat, setDegreeLabelFormat] = useState<'radial' | 'vertical' | 'horizontal' | 'callout'>('callout');
@@ -296,6 +296,8 @@ export const App: React.FC = () => {
     const [showTimeRing, setShowTimeRing] = useState(false);
     const [showOrbits, setShowOrbits] = useState(false);
     const [allPlanetsSameOrbit, setAllPlanetsSameOrbit] = useState(false);
+    // Órbitas individuais livres: cada planeta no seu grau real, podendo se sobrepor (sem afastamento)
+    const [freeOrbits, setFreeOrbits] = useState(false);
     const [planetColorMode, setPlanetColorMode] = useState<'colored' | 'gold'>('colored');
     const [natalColorMode, setNatalColorMode] = useState<'gold' | 'colored'>('gold');
     const [showStars, setShowStars] = useState(true);
@@ -2278,6 +2280,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                                 showTimeRing={showTimeRing}
                                                 showOrbits={showOrbits}
                                                 allPlanetsSameOrbit={allPlanetsSameOrbit}
+                                                freeOrbits={freeOrbits}
                                                 planetColorMode={planetColorMode}
                                                 natalColorMode={natalColorMode}
                                                 showStars={showStars}
@@ -2665,7 +2668,7 @@ const handlePlanetClick = useCallback((id: string) => {
                     {(isMobile ? mTab === 'casas' : panelStates.cusps.isOpen) && (
                         <div 
                             data-tour="cusps-panel"
-                            className="pointer-events-auto flex-shrink-0 flex flex-col overflow-hidden"
+                            className={`pointer-events-auto flex-shrink-0 flex flex-col overflow-hidden ${isMobile ? '' : 'mt-auto'}`}
                             style={{ height: 'auto' }}
                         >
                             <PanelFrame
@@ -3279,6 +3282,7 @@ const handlePlanetClick = useCallback((id: string) => {
                         highlight: !!highlightFilter,
                         planetsVisible: TOUR_MAIN_PLANETS.filter(id => (visiblePlanets as Record<string, boolean>)[id]).length,
                         planetsSelected: selectedPlanets.length,
+                        degrees: showDegreeLabels,
                         place: location?.displayName || '',
                     }}
                     theme={theme === 'light' ? 'light' : 'dark'}
@@ -3605,6 +3609,8 @@ const handlePlanetClick = useCallback((id: string) => {
                     setShowOrbits={setShowOrbits}
                     allPlanetsSameOrbit={allPlanetsSameOrbit}
                     setAllPlanetsSameOrbit={setAllPlanetsSameOrbit}
+                    freeOrbits={freeOrbits}
+                    setFreeOrbits={setFreeOrbits}
                     showPlanetSpheres={showPlanetSpheres}
                     setShowPlanetSpheres={setShowPlanetSpheres}
                     planetColorMode={planetColorMode}

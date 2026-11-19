@@ -94,7 +94,7 @@ export const DateTimePicker: React.FC<{
     if (!open) return;
     setY(value.getFullYear()); setM(value.getMonth()); setD(value.getDate());
     setH(value.getHours()); setMi(value.getMinutes()); setLoc(location);
-    setView('dias'); setClockMode('h'); setQuery(''); setQuick(''); setQuickErr(false); setShowMaps(false);
+    setView('dias'); setClockMode('h'); setQuery(''); setQuick(''); setQuickErr(false); setShowMaps(false); setQuickOk(false);
     if (focusLocation) {
       window.setTimeout(() => { locRef.current?.scrollIntoView({ block: 'nearest' }); searchRef.current?.focus(); }, 60);
     }
@@ -144,6 +144,11 @@ export const DateTimePicker: React.FC<{
   };
 
   const chooseLoc = (l: Loc) => { setLoc(l); onLocationPick?.(l); };
+  const [quickOk, setQuickOk] = useState(false);
+  const pickOnGlobe = (lat: number, lon: number) => {
+    const f = (v: number, pos: string, neg: string) => `${Math.abs(v).toFixed(2).replace('.', ',')}° ${v >= 0 ? pos : neg}`;
+    chooseLoc({ latitude: +lat.toFixed(4), longitude: +lon.toFixed(4), displayName: `${f(lat, 'N', 'S')} · ${f(lon, 'L', 'O')}` });
+  };
 
   // digitação rápida: DDMMAAAA ou DDMMAAAAHHMM (ex.: 210319900815)
   const fmtQuick = (raw: string) => {
@@ -162,7 +167,8 @@ export const DateTimePicker: React.FC<{
     const qh = g.length >= 10 ? +g.slice(8, 10) : h, qi = g.length >= 12 ? +g.slice(10, 12) : mi;
     const date = new Date(qy, qm - 1, qd, qh, qi, 0);
     if (qd < 1 || qd > 31 || qm < 1 || qm > 12 || qh > 23 || qi > 59 || date.getDate() !== qd) { setQuickErr(true); return; }
-    onConfirm(date, loc);
+    // preenche data e hora; o Confirmar aplica (assim dá para ajustar o local antes)
+    setY(qy); setM(qm - 1); setD(qd); setH(qh); setMi(qi); setView('dias'); setQuickOk(true);
   };
 
   if (!open) return null;
@@ -178,16 +184,16 @@ export const DateTimePicker: React.FC<{
         </div>
 
         <div className="dtp-body">
-         <div className="dtp-col dtp-col-date">
+         <div className="dtp-col dtp-col-date" data-tour="date-col">
           <div className="dtp-eyebrow"><i className="ti ti-calendar dtp-pin" aria-hidden="true" />Data</div>
-          <div className="dtp-quick">
+          <div className="dtp-quick" data-tour="date-quick">
             <label className={`dtp-search ${quickErr ? 'err' : ''}`}>
               <i className="ti ti-keyboard" />
               <input
                 data-tour="date-input"
                 inputMode="numeric"
                 value={quick}
-                onChange={e => { setQuick(fmtQuick(e.target.value)); setQuickErr(false); }}
+                onChange={e => { setQuick(fmtQuick(e.target.value)); setQuickErr(false); setQuickOk(false); }}
                 onKeyDown={e => { if (e.key === 'Enter') applyQuick(); }}
                 placeholder="Digite 21/03/1990 08:15"
                 autoComplete="off"
@@ -197,6 +203,8 @@ export const DateTimePicker: React.FC<{
             <button data-tour="date-ok" className="dtp-okq" onClick={applyQuick}>OK</button>
           </div>
           {quickErr && <div className="dtp-err">Use dia, mês, ano e hora, como 21/03/1990 08:15.</div>}
+          {quickOk && !quickErr && <div className="dtp-okmsg"><i className="ti ti-check" /> Data e hora preenchidas. Confira e clique em Confirmar.</div>}
+          <div data-tour="date-nav">
           <div className="dtp-my">
             <button ref={mBtnRef} className={`dtp-m ${view === 'meses' ? 'on' : ''}`} onClick={() => setView(view === 'meses' ? 'dias' : 'meses')} title="Escolher o mês (ou role a rodinha aqui)">
               <span>{MESES[m]}</span><i className={`ti ${view === 'meses' ? 'ti-chevron-up' : 'ti-chevron-down'}`} />
@@ -235,10 +243,11 @@ export const DateTimePicker: React.FC<{
               ))}
             </div>
           )}
+          </div>
 
          </div>
 
-         <div className="dtp-col dtp-col-clock">
+         <div className="dtp-col dtp-col-clock" data-tour="clock-col">
           <div className="dtp-eyebrow"><i className="ti ti-clock dtp-pin" aria-hidden="true" />Hora</div>
           <div>
             <div className="dtp-hm">
@@ -287,8 +296,9 @@ export const DateTimePicker: React.FC<{
           <div className="dtp-loc" ref={locRef} data-tour="location">
             <div className="dtp-eyebrow"><i className="ti ti-map-pin dtp-pin" aria-hidden="true" />Local · <span className="dtp-cur">{loc.displayName}</span></div>
             <React.Suspense fallback={<div className="dtp-globe-ph" />}>
-              <LocationGlobe lat={loc.latitude} lon={loc.longitude} timeMs={new Date(y, m, dd, h, mi).getTime()} size={168} />
+              <LocationGlobe lat={loc.latitude} lon={loc.longitude} timeMs={new Date(y, m, dd, h, mi).getTime()} size={168} onPick={pickOnGlobe} />
             </React.Suspense>
+            <div className="dtp-globe-hint">Dois cliques no globo marcam o ponto exato</div>
             <label className="dtp-search">
               <i className="ti ti-search" />
               <input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar qualquer cidade do mundo" autoComplete="off" />
@@ -318,7 +328,7 @@ export const DateTimePicker: React.FC<{
          </div>
         </div>
 
-        <div className="dtp-foot">
+        <div className="dtp-foot" data-tour="date-foot">
           <div className="dtp-mapsw">
             <button className={`dtp-btn ${showMaps ? 'on' : ''}`} onClick={() => setShowMaps(v => !v)} aria-expanded={showMaps} title="Escolher um mapa salvo">
               <i className="ti ti-bookmarks" /> Mapas salvos
@@ -347,7 +357,7 @@ export const DateTimePicker: React.FC<{
             )}
           </div>
           <button className="dtp-btn" onClick={() => { const n = new Date(); setY(n.getFullYear()); setM(n.getMonth()); setD(n.getDate()); setH(n.getHours()); setMi(n.getMinutes()); setView('dias'); }}><span className="dtp-live" aria-hidden="true" />Agora</button>
-          <button className="dtp-btn dtp-ok" onClick={() => onConfirm(new Date(y, m, dd, h, mi, 0), loc)}><i className="ti ti-check" /> Confirmar</button>
+          <button data-tour="date-confirm" className="dtp-btn dtp-ok" onClick={() => onConfirm(new Date(y, m, dd, h, mi, 0), loc)}><i className="ti ti-check" /> Confirmar</button>
         </div>
       </div>
     </>
@@ -410,6 +420,8 @@ const CSS = `
 .dtp-okq{height:34px;padding:0 14px;border-radius:999px;border:1px solid rgba(237,233,227,.28);background:transparent;font-size:10.5px;font-weight:500;letter-spacing:.14em}
 .dtp-okq:hover{border-color:#EDE9E3}
 .dtp-err{font-size:11px;color:#F87171;margin-top:-6px}
+.dtp-okmsg{margin-top:6px;font-size:11.5px;color:#86EFAC;display:flex;align-items:center;gap:5px}
+.dtp-globe-hint{font-size:10.5px;color:#6f6a76;text-align:center;margin:-2px 0 6px}
 .dtp-spin{animation:dtp-spin 1s linear infinite}
 @keyframes dtp-spin{to{transform:rotate(360deg)}}
 .dtp-results{display:flex;flex-direction:column;gap:4px;max-height:132px;overflow-y:auto}

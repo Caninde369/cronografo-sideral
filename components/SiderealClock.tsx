@@ -73,6 +73,8 @@ interface SiderealClockProps {
   showTimeRing?: boolean;
   showOrbits?: boolean;
   allPlanetsSameOrbit?: boolean;
+  /** órbitas individuais sem afastamento: cada planeta no grau real, podendo se sobrepor */
+  freeOrbits?: boolean;
   showStars?: boolean;
   showSeasonsRing?: boolean;
   showDegreeLabels?: boolean;
@@ -547,6 +549,7 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
   showTimeRing = true,
   showOrbits = true,
   allPlanetsSameOrbit = false,
+  freeOrbits = false,
   showStars = true,
   showSeasonsRing = false,
   showDegreeLabels = false,
@@ -1063,7 +1066,7 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
         p.r = base - lvl * minDist;
         placed.push({ shown: p.angle, lvl, r: p.r });
       });
-    } else {
+    } else if (!freeOrbits) {
       for (let it = 0; it < 80; it++) {
         let moved = false;
         for (const p of vis) for (const q of vis) {
@@ -1093,6 +1096,7 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
     cy,
     visiblePlanets,
     allPlanetsSameOrbit,
+    freeOrbits,
     planetSize,
     numbersProtectionRadius,
   ]);
