@@ -25,7 +25,8 @@ export type CelestialSettings = {
         enabled: boolean;
         symbols: boolean;
         colors: boolean;
-        abbr: boolean;
+        abbr: boolean;   // mostra o nome do signo em texto
+        short?: boolean; // true = sigla (SCO); false/ausente = nome completo (Escorpião)
     };
     houses: {
         enabled: boolean;
@@ -449,10 +450,14 @@ const CelestialBodyCard: React.FC<{
     
     // Colunas: o espaço que sobra é dividido entre todas (não só depois do nome)
     // mínimos enxutos: a linha nunca fica mais larga que o painel (o destaque da seleção acompanha)
-    const cols: string[] = ['minmax(0, 2.2fr)'];
+    // Nome do planeta com largura fixa (igual em todas as linhas): o signo começa logo depois do nome mais longo.
+    const signFull = settings.signs.abbr && !settings.signs.short;
+    const nameColPx = (settings.planets.symbols ? iconContainerSize + 6 : 0)
+        + (settings.planets.names ? Math.round((textSize + 0.5) * (settings.planets.namesAbbr ? 3.2 : 4.5)) : 0);
+    const cols: string[] = [settings.planets.names ? `${nameColPx}px` : `${iconContainerSize + 2}px`];
     if (settings.signs.enabled) cols.push(`minmax(${settings.signs.abbr ? (settings.signs.symbols ? signSize + 26 : 24) : signSize + 2}px, 1fr)`);
-    if (settings.houses.enabled) cols.push(`minmax(${Math.round(22 * scale)}px, 0.7fr)`);
-    if (settings.degrees) cols.push(`minmax(${Math.round(42 * scale)}px, 1fr)`);
+    if (settings.houses.enabled) cols.push(`${Math.round(26 * scale)}px`);
+    if (settings.degrees) cols.push(`${Math.round(44 * scale)}px`);
     if (settings.retrograde) cols.push(`${Math.max(14, Math.round(16 * scale))}px`);
     const badge = Math.max(15, Math.round(16 * scale));
 
@@ -481,16 +486,22 @@ const CelestialBodyCard: React.FC<{
             </div>
 
             {settings.signs.enabled && (
-                <div className="flex items-center justify-center gap-1 min-w-0">
+                <div className={`flex items-center ${settings.signs.abbr ? 'justify-start' : 'justify-center'} gap-1 min-w-0`}>
                     {settings.signs.symbols && SignSymbol && (
                         <span className="inline-flex items-center justify-center shrink-0" style={{ width: `${signSize + 2}px`, height: `${signSize + 2}px` }}>
                             <SignSymbol className={signColorClass} style={{ width: `${signSize}px`, height: `${signSize}px`, display: 'block' }} />
                         </span>
                     )}
                     {settings.signs.abbr && (
-                        <span className={`${signColorClass} leading-none`} style={{ fontFamily: "'DM Mono', ui-monospace, monospace", fontSize: `${Math.max(10, degreeSize - 0.5)}px`, letterSpacing: '0.02em', width: '3ch' }}>
-                            {sign ? (sign as any).abbr : '-'}
-                        </span>
+                        signFull ? (
+                            <span className={`${signColorClass} leading-none truncate min-w-0`} style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: `${Math.max(10.5, textSize - 0.5)}px` }}>
+                                {sign ? (sign as any).name : '-'}
+                            </span>
+                        ) : (
+                            <span className={`${signColorClass} leading-none`} style={{ fontFamily: "'DM Mono', ui-monospace, monospace", fontSize: `${Math.max(10, degreeSize - 0.5)}px`, letterSpacing: '0.02em', width: '3ch' }}>
+                                {sign ? (sign as any).abbr : '-'}
+                            </span>
+                        )
                     )}
                 </div>
             )}
@@ -681,7 +692,7 @@ export const CelestialBodyPanel: React.FC<CelestialBodyPanelProps> = ({
         
         setCalculatedWidth(width);
         if (onWidthChange) {
-            const minW = settings.planets.names ? (settings.planets.namesAbbr ? 215 : 320) : 180;
+            const minW = settings.planets.names ? (settings.planets.namesAbbr ? 215 : 296) : 180;
             const w = Math.max(minW, Math.ceil(width * (panelScale || 1)));
             onWidthChange(w);
         }
@@ -991,7 +1002,7 @@ return (
                             <OptToggle icon={<i className="ti ti-zodiac-aries" />} label="Signos" checked={settings.signs.enabled} onChange={() => onSettingsChange({ ...settings, signs: { ...settings.signs, enabled: !settings.signs.enabled } })} />
                             {settings.signs.enabled && <>
                                 <OptToggle sub label="Símbolo" checked={settings.signs.symbols} onChange={() => onSettingsChange({ ...settings, signs: { ...settings.signs, symbols: !settings.signs.symbols } })} />
-                                <OptToggle sub label="Abreviação" checked={settings.signs.abbr} onChange={() => onSettingsChange({ ...settings, signs: { ...settings.signs, abbr: !settings.signs.abbr } })} />
+                                <OptSegment sub label="Nome" value={!settings.signs.abbr ? 'none' : settings.signs.short ? 'short' : 'full'} options={[{ v: 'full', label: 'Completo' }, { v: 'short', label: 'Sigla' }, { v: 'none', label: 'Não' }]} onChange={(v) => onSettingsChange({ ...settings, signs: { ...settings.signs, abbr: v !== 'none', short: v === 'short' } })} />
                                 <OptToggle sub label="Cores dos signos" checked={settings.signs.colors} onChange={() => onSettingsChange({ ...settings, signs: { ...settings.signs, colors: !settings.signs.colors } })} />
                             </>}
                             <OptToggle icon={<i className="ti ti-home" />} label="Casas" checked={settings.houses.enabled} onChange={() => onSettingsChange({ ...settings, houses: { ...settings.houses, enabled: !settings.houses.enabled } })} />
