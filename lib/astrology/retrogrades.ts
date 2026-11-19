@@ -130,3 +130,46 @@ export const findNearestStation = (bodyId: string, date: Date): { at: Date; turn
     }
     return best;
 };
+
+/** Astros que podem ficar retrógrados (recebem o selo D, R ou S no painel Astros). */
+export const RETRO_CAPABLE_BODIES = Object.keys(LONGITUDE_FNS);
+
+/**
+ * Período de movimento direto que contém a data: começa na estação direta (fim da última retrogradação)
+ * e termina na estação retrógrada (início da próxima retrogradação).
+ */
+export const findDirectPeriod = (bodyId: string, date: Date): RetroPeriod | null => {
+    const fn = LONGITUDE_FNS[bodyId];
+    if (!fn || dailyMotion(fn, date) <= 0) return null;
+    let back = new Date(date), k = 0;
+    while (dailyMotion(fn, back) > 0 && k++ < 900) back = new Date(back.getTime() - DAY_MS);
+    let fwd = new Date(date); k = 0;
+    while (dailyMotion(fn, fwd) > 0 && k++ < 900) fwd = new Date(fwd.getTime() + DAY_MS);
+    return {
+        start: refineStation(fn, back, new Date(back.getTime() + DAY_MS)),
+        end: refineStation(fn, new Date(fwd.getTime() - DAY_MS), fwd),
+    };
+};
+
+// Mesmo limite de "quase parado" (graus por dia) usado para acender o S
+const STATION_THRESHOLDS: Record<string, number> = {
+    mercury: 0.03, venus: 0.03, mars: 0.02, jupiter: 0.01, saturn: 0.008,
+    uranus: 0.005, neptune: 0.004, pluto: 0.002, chiron: 0.005,
+};
+
+/**
+ * Janela da estação mais próxima: quando o planeta começa a ficar parado, o instante exato da virada,
+ * quando volta a se mover e para que lado vai.
+ */
+export const findStationWindow = (bodyId: string, date: Date): { start: Date; at: Date; end: Date; turnsTo: 'retro' | 'direct' } | null => {
+    const fn = LONGITUDE_FNS[bodyId];
+    const st = findNearestStation(bodyId, date);
+    if (!fn || !st) return null;
+    const thr = STATION_THRESHOLDS[bodyId] ?? 0.01;
+    const STEP = DAY_MS / 4;
+    let a = st.at.getTime(), k = 0;
+    while (Math.abs(dailyMotion(fn, new Date(a - STEP))) <= thr && k++ < 400) a -= STEP;
+    let b = st.at.getTime(); k = 0;
+    while (Math.abs(dailyMotion(fn, new Date(b + STEP))) <= thr && k++ < 400) b += STEP;
+    return { start: new Date(a), at: st.at, end: new Date(b), turnsTo: st.turnsTo };
+};

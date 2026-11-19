@@ -7,7 +7,7 @@ import { ZODIAC_ICONS, CELESTIAL_GLYPHS, UI_ICONS } from './icons';
 import { WidgetId } from '../App';
 import { SizeControl, PopupToggle, CompactToggle, MicroToggle } from './Controls';
 import { toRoman, formatDegrees } from '../lib/astrology/utils';
-import { findRetrogradePeriod, findNearestStation } from '../lib/astrology/retrogrades';
+import { findRetrogradePeriod, findDirectPeriod, findStationWindow, RETRO_CAPABLE_BODIES, findNearestStation } from '../lib/astrology/retrogrades';
 import { Tooltip } from './Tooltip';
 import { OPT_CSS, OptHeader, OptGroup, OptToggle, OptSegment, OptSlider } from './panel/PanelOptions';
 import { PLANET_DESCRIPTIONS } from './astro-descriptions';
@@ -339,7 +339,7 @@ const CelestialBodyCard: React.FC<{
     onTooltipLeave: () => void;
     theme?: 'dark' | 'light';
     isLocked?: boolean;
-    onRetroClick?: (id: string, kind: 'retro' | 'station', anchor: DOMRect) => void;
+    onRetroClick?: (id: string, kind: 'retro' | 'station' | 'direct', anchor: DOMRect) => void;
 }> = ({ body, housePlacements, retrogradeStatus, stationaryStatus, onHover, isSelected, isSecondarySelected, isVisible, onClick, onRightClick, itemSize, zodiacSignSize, scale = 1, settings, houseFormat, zodiacColorMode, anyHovered, isHovered, anySelected, moonPhase, className, onTooltip, onTooltipLeave, theme = 'dark', isLocked = false, onRetroClick }) => {
     
     const safeLongitude = body.longitude || 0;
@@ -533,25 +533,34 @@ const CelestialBodyCard: React.FC<{
             )}
             {settings.retrograde && (
                 <div className="flex items-center justify-center">
-                    {(isStationary || isRetro) && (
+                    {(() => {
+                        const kind: 'station' | 'retro' | 'direct' | null = isStationary ? 'station' : isRetro ? 'retro' : (RETRO_CAPABLE_BODIES.includes(body.id) ? 'direct' : null);
+                        if (!kind) return null;
+                        const C = kind === 'station'
+                            ? { c: '#FACC15', b: 'rgba(250,204,21,.55)', bg: 'rgba(250,204,21,.06)', t: 'S', tip: 'Estacionário: ver início e fim da estação', aria: 'estacionário' }
+                            : kind === 'retro'
+                            ? { c: '#F87171', b: 'rgba(248,113,113,.55)', bg: 'rgba(248,113,113,.06)', t: 'R', tip: 'Retrógrado: ver início e fim', aria: 'retrógrado' }
+                            : { c: isLight ? '#5c4b3e' : '#B9B4BE', b: isLight ? 'rgba(35,23,20,.25)' : 'rgba(185,180,190,.32)', bg: 'transparent', t: 'D', tip: 'Direto: ver o período do trânsito direto', aria: 'direto' };
+                        return (
                         <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); onRetroClick?.(body.id, isStationary ? 'station' : 'retro', (e.currentTarget as HTMLElement).getBoundingClientRect()); }}
+                            onClick={(e) => { e.stopPropagation(); onRetroClick?.(body.id, kind, (e.currentTarget as HTMLElement).getBoundingClientRect()); }}
                             className="inline-flex items-center justify-center rounded-[5px] border leading-none cursor-pointer transition-colors"
                             style={{
                                 width: badge, height: badge,
                                 fontFamily: "'DM Mono', ui-monospace, monospace",
                                 fontSize: `${Math.max(9.5, badge * 0.62)}px`,
-                                color: isStationary ? '#FACC15' : '#F87171',
-                                borderColor: isStationary ? 'rgba(250,204,21,.55)' : 'rgba(248,113,113,.55)',
-                                background: isStationary ? 'rgba(250,204,21,.06)' : 'rgba(248,113,113,.06)',
+                                color: C.c,
+                                borderColor: C.b,
+                                background: C.bg,
                             }}
-                            title={isStationary ? 'Estacionário: ver a estação' : 'Retrógrado: ver início e fim'}
-                            aria-label={isStationary ? `${body.name} estacionário` : `${body.name} retrógrado`}
+                            title={C.tip}
+                            aria-label={`${body.name} ${C.aria}`}
                         >
-                            {isStationary ? 'S' : 'R'}
+                            {C.t}
                         </button>
-                    )}
+                        );
+                    })()}
                 </div>
             )}
         </div>
@@ -559,41 +568,54 @@ const CelestialBodyCard: React.FC<{
 };
 
 /** Janela do R / S: quando começou e quando termina a retrogradação, ou quando é a estação. */
-const RetroPopover: React.FC<{ info: { id: string; name: string; kind: 'retro' | 'station'; rect: DOMRect }; date: Date; onClose: () => void }> = ({ info, date, onClose }) => {
+const RetroPopover: React.FC<{ info: { id: string; name: string; kind: 'retro' | 'station' | 'direct'; rect: DOMRect }; date: Date; onClose: () => void }> = ({ info, date, onClose }) => {
     const data = useMemo(() => {
-        const period = findRetrogradePeriod(info.id, date);
-        const station = findNearestStation(info.id, date);
-        return { period, station };
+        if (info.kind === 'station') {
+            const w = findStationWindow(info.id, date);
+            return { rows: w ? [
+                { k: 'Estação começa', v: w.start },
+                { k: w.turnsTo === 'retro' ? 'Vira retrógrado' : 'Vira direto', v: w.at },
+                { k: 'Estação termina', v: w.end },
+            ] : [], period: w ? { start: w.start, end: w.end } : null };
+        }
+        if (info.kind === 'direct') {
+            const p = findDirectPeriod(info.id, date);
+            return { rows: p ? [
+                { k: 'Direto desde', v: p.start },
+                { k: 'Fica retrógrado em', v: p.end },
+            ] : [], period: p };
+        }
+        const p = findRetrogradePeriod(info.id, date);
+        return { rows: p ? [
+            { k: 'Começou', v: p.start },
+            { k: 'Volta a andar direto em', v: p.end },
+        ] : [], period: p };
     }, [info.id, info.kind, date.getTime()]);
     const fmt = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-    const W = 236;
+    const W = 248;
     const left = Math.max(8, Math.min(window.innerWidth - W - 8, info.rect.right - W));
-    const top = Math.min(window.innerHeight - 170, info.rect.bottom + 6);
-    const { period, station } = data;
-    const prog = period ? Math.max(0, Math.min(1, (date.getTime() - period.start.getTime()) / (period.end.getTime() - period.start.getTime()))) : 0;
-    const accent = info.kind === 'station' ? '#FACC15' : '#F87171';
+    const top = Math.min(window.innerHeight - 190, info.rect.bottom + 6);
+    const { rows, period } = data;
+    const prog = period ? Math.max(0, Math.min(1, (date.getTime() - period.start.getTime()) / Math.max(1, period.end.getTime() - period.start.getTime()))) : 0;
+    const accent = info.kind === 'station' ? '#FACC15' : info.kind === 'retro' ? '#F87171' : '#EDE9E3';
+    const title = info.kind === 'station' ? 'estacionário' : info.kind === 'retro' ? 'retrógrado' : 'direto';
     return createPortal(
         <>
             <div className="fixed inset-0 z-[9998]" onClick={onClose} />
             <div className="fixed z-[9999] rounded-xl border border-[#2f2a36] bg-[#141018] px-3 py-2.5 shadow-[0_20px_50px_-12px_rgba(0,0,0,.9)]" style={{ top, left, width: W, fontFamily: "'DM Sans', system-ui, sans-serif", color: '#EDE9E3' }} onClick={e => e.stopPropagation()}>
                 <div className="text-[9.5px] uppercase tracking-[0.2em] mb-1.5" style={{ color: accent }}>
-                    {info.name} {info.kind === 'station' ? 'estacionário' : 'retrógrado'}
+                    {info.name} {title}
                 </div>
-                {info.kind === 'station' && station && (
-                    <div className="flex justify-between text-[12px] py-0.5">
-                        <span className="text-[#B9B4BE]">{station.turnsTo === 'retro' ? 'Fica retrógrado em' : 'Volta a andar direto em'}</span>
-                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11.5 }}>{fmt(station.at)}</span>
-                    </div>
-                )}
+                {rows.map(r => (
+                    <div key={r.k} className="flex justify-between text-[12px] py-0.5"><span className="text-[#B9B4BE]">{r.k}</span><span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11.5 }}>{fmt(r.v)}</span></div>
+                ))}
                 {period && (
                     <>
-                        <div className="flex justify-between text-[12px] py-0.5"><span className="text-[#B9B4BE]">Começou</span><span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11.5 }}>{fmt(period.start)}</span></div>
-                        <div className="flex justify-between text-[12px] py-0.5"><span className="text-[#B9B4BE]">Termina</span><span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11.5 }}>{fmt(period.end)}</span></div>
                         <div className="h-[3px] rounded bg-[#2a2430] mt-2 mb-1 relative overflow-hidden"><div className="absolute inset-y-0 left-0 rounded" style={{ width: `${prog * 100}%`, background: accent }} /></div>
-                        <div className="text-[11px] text-[#8a8590]">{Math.round(prog * 100)}% do período</div>
+                        <div className="text-[11px] text-[#8a8590]">{Math.round(prog * 100)}% do {info.kind === 'station' ? 'período parado' : info.kind === 'retro' ? 'período retrógrado' : 'trânsito direto'}</div>
                     </>
                 )}
-                {!period && !station && <div className="text-[12px] text-[#B9B4BE]">Sem estação nos próximos 30 dias.</div>}
+                {rows.length === 0 && <div className="text-[12px] text-[#B9B4BE]">Não foi possível calcular o período.</div>}
             </div>
         </>,
         document.body
@@ -631,7 +653,7 @@ export const CelestialBodyPanel: React.FC<CelestialBodyPanelProps> = ({
     onOpenPaymentPlans,
     referenceDate
 }) => {
-    const [retroInfo, setRetroInfo] = useState<{ id: string; name: string; kind: 'retro' | 'station'; rect: DOMRect } | null>(null);
+    const [retroInfo, setRetroInfo] = useState<{ id: string; name: string; kind: 'retro' | 'station' | 'direct'; rect: DOMRect } | null>(null);
     const { t } = useLanguage();
     const isFree = Boolean(isFreeTier || isFreeTrial);
     const isLight = theme === 'light';

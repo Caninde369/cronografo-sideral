@@ -578,7 +578,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
 .sb-stats i{font-style:normal;margin:0 3px;color:${isLight ? 'rgba(35,23,20,.3)' : '#3A3440'}}
 .sb-strip{display:flex;gap:3px}
 .sb-fx{border-radius:9px;border:1px solid;display:flex;align-items:center;justify-content:space-around;gap:0;min-width:0;padding:0 3px;cursor:pointer;overflow:hidden;transition:flex-grow .6s cubic-bezier(.16,1,.3,1),filter .2s,transform .2s,opacity .2s,background-color .2s,border-color .2s}
-.sb-fx:hover{filter:brightness(1.25);transform:translateY(-1px)}
+.sb-fx:hover{filter:${isLight ? 'brightness(.94) saturate(1.15)' : 'brightness(1.25)'};transform:translateY(-1px)}
 .sb-fx.dim{opacity:.35}
 .sb-fx.pin{outline:1.5px solid ${isLight ? 'rgba(138,106,18,.8)' : 'rgba(245,217,138,.85)'};outline-offset:1px}
 `}</style>

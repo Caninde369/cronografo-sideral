@@ -227,32 +227,25 @@ export const TopBar: React.FC<TopBarProps> = (props) => {
           className="flex flex-col select-none group cursor-pointer"
           style={{ marginLeft: '28px' }}
         >
-          <div className="flex items-baseline gap-1.5 leading-none">
-            <span 
-              className={`font-serif not-italic font-normal tracking-tight ${isLight ? 'text-[#231714]' : 'text-white/95'}`}
-              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '20px', fontStyle: 'normal' }}
-            >
-              Cronógrafo
+          {/* Mesmo logo da landing page: Cormorant + Syne, com o cometa espectral passando por baixo */}
+          <style>{`
+.tb-logo-wrap{position:relative;display:inline-flex}
+.tb-logo{display:inline-flex;align-items:baseline;gap:2px;white-space:nowrap;line-height:1}
+.tb-logo-a{font-family:'Cormorant Garamond',Georgia,serif;font-weight:500;font-size:27px;letter-spacing:-.01em}
+.tb-logo-b{font-family:'Syne','DM Sans',sans-serif;font-weight:700;font-size:18px;letter-spacing:.02em}
+.tb-comet{position:absolute;left:0;right:0;top:calc(100% + 4px);height:9px;overflow:hidden;pointer-events:none}
+.tb-comet-run{position:absolute;top:0;left:0;width:60%;height:9px;transform:translateX(-100%);animation:tb-comet 9s cubic-bezier(.45,.05,.55,.95) 1.2s infinite;will-change:transform}
+.tb-comet-tail{position:absolute;inset:4px 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,#4870FF 35%,#22D3EE 58%,#FACC15 76%,#FB923C 88%,#EF4444 96%,#fff)}
+.tb-comet-tail::after{content:'';position:absolute;right:-2px;top:-2px;width:5px;height:5px;border-radius:50%;background:#fff;box-shadow:0 0 8px 2px rgba(255,255,255,.75),0 0 18px 4px rgba(250,204,21,.35)}
+@keyframes tb-comet{0%{transform:translateX(-100%)}30%,100%{transform:translateX(170%)}}
+@media (prefers-reduced-motion:reduce){.tb-comet-run{animation:none;transform:translateX(20%)}}
+`}</style>
+          <span className="tb-logo-wrap" aria-label="Cronógrafo Sideral">
+            <span className="tb-logo" style={{ color: isLight ? '#231714' : '#EDE9E3' }}>
+              <span className="tb-logo-a">Cronógrafo</span><span className="tb-logo-b">SIDERAL</span>
             </span>
-            <span 
-              className={`font-bold tracking-[0.14em] uppercase ${isLight ? 'text-[#231714]' : 'text-white'}`}
-              style={{ fontFamily: "'Inter', sans-serif", fontSize: '15px', fontWeight: 'bold' }}
-            >
-              SIDERAL
-            </span>
-          </div>
-          {/* Linha com as cores vibrantes do gradiente sideral abaixo do nome */}
-          <div 
-            className="rounded-full transition-all duration-300" 
-            style={{
-              height: '0.5px',
-              width: '80px',
-              marginLeft: '103px',
-              marginTop: '2px',
-              background: 'linear-gradient(90deg, #6366F1 0%, #22D3EE 25%, #FDE047 50%, #FB923C 75%, #EF4444 100%)',
-              boxShadow: isLight ? '0 1px 3px rgba(0,0,0,0.12)' : '0 0 10px rgba(34, 211, 238, 0.55)'
-            }}
-          />
+            <span className="tb-comet" aria-hidden="true"><span className="tb-comet-run"><span className="tb-comet-tail" /></span></span>
+          </span>
         </div>
       </div>
 

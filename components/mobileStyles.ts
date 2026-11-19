@@ -26,9 +26,9 @@ body.is-mobile .app-stage{border:0!important;border-radius:0!important;box-shado
 /* ── topo ── */
 .m-head{position:fixed;top:0;left:0;right:0;z-index:45;display:flex;flex-direction:column;padding:0 10px;font-family:'DM Sans',sans-serif;color:var(--m-fg);pointer-events:none}
 .m-head-row{height:52px;display:flex;align-items:center;gap:8px;pointer-events:auto;min-width:0}
-.m-logo{flex:1;min-width:0;display:flex;align-items:baseline;gap:6px;padding-left:4px;white-space:nowrap;overflow:hidden}
-.m-logo span{font-family:'Playfair Display',Georgia,serif;font-size:20px;line-height:1}
-.m-logo b{font-family:'Inter','DM Sans',sans-serif;font-size:12px;letter-spacing:.14em;font-weight:700}
+.m-logo{flex:1;min-width:0;display:flex;align-items:baseline;gap:2px;padding-left:4px;white-space:nowrap;overflow:hidden}
+.m-logo span{font-family:'Cormorant Garamond',Georgia,serif;font-weight:500;font-size:23px;letter-spacing:-.01em;line-height:1}
+.m-logo b{font-family:'Syne','DM Sans',sans-serif;font-size:15px;letter-spacing:.02em;font-weight:700}
 .m-chip{height:32px;padding:0 12px;border-radius:16px;border:1px solid var(--m-line);background:var(--m-card);color:var(--m-fg);font:700 11px/1 'DM Sans',sans-serif;letter-spacing:.06em;text-transform:uppercase;flex:none;cursor:pointer}
 .m-chip-gold{border-color:transparent;background:linear-gradient(90deg,#D4AF37,#F5D98A);color:#1A1408}
 .m-ico{width:44px;height:44px;border-radius:22px;border:1px solid var(--m-line);background:var(--m-card);color:var(--m-fg);display:flex;align-items:center;justify-content:center;font-size:19px;flex:none;cursor:pointer}

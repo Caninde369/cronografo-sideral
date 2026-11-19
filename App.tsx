@@ -282,7 +282,7 @@ export const App: React.FC = () => {
     const [panelPlanetSize, setPanelPlanetSize] = useState(12);
     const [panelZodiacSignSize, setPanelZodiacSignSize] = useState(16);
     const [showPlanetSpheres, setShowPlanetSpheres] = useState(true);
-    const [showDegreeLabels, setShowDegreeLabels] = useState(false);
+    const [showDegreeLabels, setShowDegreeLabels] = useState(true);
     const [degreeLabelSize, setDegreeLabelSize] = useState(18);
     const [degreeLabelPosition, setDegreeLabelPosition] = useState<'responsive' | 'static' | 'callout' | 'staggered'>('responsive');
     const [degreeLabelFormat, setDegreeLabelFormat] = useState<'radial' | 'vertical' | 'horizontal' | 'callout'>('callout');
@@ -453,8 +453,8 @@ export const App: React.FC = () => {
     const [uiScale, setUiScale] = useState(1.0);
     const [clockScale, setClockScale] = useState(1.15);
     const [celestialSettings, setCelestialSettings] = useState<CelestialSettings>({
-        planets: { symbols: true, glyphs: false, colors: true, names: true, namesColors: true, namesAbbr: false },
-        signs: { enabled: true, symbols: true, colors: true, abbr: true },
+        planets: { symbols: true, glyphs: false, colors: true, names: true, namesColors: false, namesAbbr: true },
+        signs: { enabled: true, symbols: true, colors: true, abbr: true, short: true },
         houses: { enabled: true, format: 'roman' },
         degrees: true,
         degrees_colors: false,
@@ -2360,6 +2360,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                     onLocationChange={(loc) => { setLocation({ latitude: loc.latitude, longitude: loc.longitude, displayName: loc.displayName }); }}
                                     onSaveMap={isMobile ? undefined : () => setShowSaveMapModal(true)}
                                     exportData={isMobile ? undefined : exportData}
+                                    savedMaps={savedMaps}
                                 />
                             )}
 
@@ -2548,6 +2549,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                     isFreeTier={isFreeTier}
                                     isFreeTrial={isFreeTrial}
                                     onOpenPaymentPlans={() => setShowPaymentPlansModal(true)}
+                                    theme={theme}
                                 />
                             </PanelFrame>
                         </div>

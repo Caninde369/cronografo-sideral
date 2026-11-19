@@ -292,6 +292,7 @@ export const TimeControls: React.FC<{
     /** Menu ⋯ ao lado do +: salvar e exportar o mapa */
     onSaveMap?: () => void;
     exportData?: any;
+    savedMaps?: any[];
 }> = ({
     currentTime,
     onTimeChange,
@@ -322,6 +323,7 @@ export const TimeControls: React.FC<{
     onClearNatal,
     onLocationChange,
     onSaveMap,
+    savedMaps,
     exportData
 }) => {
     const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
@@ -716,6 +718,7 @@ export const TimeControls: React.FC<{
                         focusLocation={pickerFocusLoc}
                         rightOffset={effectiveRightOffset}
                         anchorRect={anchorRect}
+                        savedMaps={savedMaps}
                         onClose={() => setShowPicker(false)}
                         onLocationPick={(loc) => { if (onLocationChange && loc.displayName !== location?.displayName) onLocationChange(loc); }}
                         onConfirm={(date, loc) => {

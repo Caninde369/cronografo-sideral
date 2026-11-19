@@ -37,7 +37,10 @@ export const DateTimePicker: React.FC<{
   onLocationPick?: (loc: Loc) => void;
   /** Botão que abriu a janela: a entrada é um zoom saindo dele */
   anchorRect?: DOMRect | null;
-}> = ({ open, value, location, focusLocation, rightOffset = 0, onClose, onConfirm, onLocationPick, anchorRect }) => {
+  /** Mapas salvos: escolher um preenche data, hora e local (o Confirmar aplica) */
+  savedMaps?: any[];
+}> = ({ open, value, location, focusLocation, rightOffset = 0, onClose, onConfirm, onLocationPick, anchorRect, savedMaps = [] }) => {
+  const [showMaps, setShowMaps] = useState(false);
   const [y, setY] = useState(value.getFullYear());
   const [m, setM] = useState(value.getMonth());
   const [d, setD] = useState(value.getDate());
@@ -91,7 +94,7 @@ export const DateTimePicker: React.FC<{
     if (!open) return;
     setY(value.getFullYear()); setM(value.getMonth()); setD(value.getDate());
     setH(value.getHours()); setMi(value.getMinutes()); setLoc(location);
-    setView('dias'); setClockMode('h'); setQuery(''); setQuick(''); setQuickErr(false);
+    setView('dias'); setClockMode('h'); setQuery(''); setQuick(''); setQuickErr(false); setShowMaps(false);
     if (focusLocation) {
       window.setTimeout(() => { locRef.current?.scrollIntoView({ block: 'nearest' }); searchRef.current?.focus(); }, 60);
     }
@@ -316,6 +319,33 @@ export const DateTimePicker: React.FC<{
         </div>
 
         <div className="dtp-foot">
+          <div className="dtp-mapsw">
+            <button className={`dtp-btn ${showMaps ? 'on' : ''}`} onClick={() => setShowMaps(v => !v)} aria-expanded={showMaps} title="Escolher um mapa salvo">
+              <i className="ti ti-bookmarks" /> Mapas salvos
+            </button>
+            {showMaps && (
+              <div className="dtp-maps" role="listbox" aria-label="Mapas salvos">
+                {savedMaps.length === 0 ? (
+                  <div className="dtp-maps-empty">Nenhum mapa salvo ainda. Use o menu ⋯ ao lado do + para salvar.</div>
+                ) : savedMaps.map((mp: any) => {
+                  const raw = mp.targetDate || mp.date;
+                  const dt = raw ? new Date(raw) : null;
+                  const ok = !!dt && !isNaN(dt.getTime());
+                  return (
+                    <button key={mp.id || mp.name} disabled={!ok} onClick={() => {
+                      if (!ok || !dt) return;
+                      setY(dt.getFullYear()); setM(dt.getMonth()); setD(dt.getDate()); setH(dt.getHours()); setMi(dt.getMinutes()); setView('dias');
+                      if (mp.location && typeof mp.location.latitude === 'number') chooseLoc(mp.location);
+                      setShowMaps(false);
+                    }}>
+                      <span className="nm">{mp.name || 'Mapa sem nome'}</span>
+                      <span className="dt">{ok && dt ? `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()} · ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}` : '—'}{mp.location?.displayName ? ` · ${String(mp.location.displayName).split(',')[0]}` : ''}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
           <button className="dtp-btn" onClick={() => { const n = new Date(); setY(n.getFullYear()); setM(n.getMonth()); setD(n.getDate()); setH(n.getHours()); setMi(n.getMinutes()); setView('dias'); }}><span className="dtp-live" aria-hidden="true" />Agora</button>
           <button className="dtp-btn dtp-ok" onClick={() => onConfirm(new Date(y, m, dd, h, mi, 0), loc)}><i className="ti ti-check" /> Confirmar</button>
         </div>
@@ -404,7 +434,17 @@ const CSS = `
 @keyframes dtp-zoom{from{opacity:0;transform:scale(.18)}60%{opacity:1}to{opacity:1;transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){.dtp.dtp-in{animation:none}}
 .dtp-foot{padding:12px 16px 14px;border-top:1px solid rgba(255,255,255,.1);display:flex;gap:8px;justify-content:flex-end}
-@media (min-width:901px){.dtp-foot .dtp-btn{flex:0 0 150px}.dtp-foot .dtp-ok{flex:0 0 220px}}
+@media (min-width:901px){.dtp-foot .dtp-btn{flex:0 0 150px}.dtp-foot .dtp-ok{flex:0 0 220px}.dtp-foot .dtp-mapsw{flex:0 0 170px}.dtp-foot .dtp-mapsw .dtp-btn{width:100%}}
+.dtp-mapsw{position:relative;flex:1;display:flex}
+.dtp-mapsw .dtp-btn{flex:1}
+.dtp-btn.on{border-color:#EDE9E3;background:rgba(237,233,227,.08)}
+.dtp-maps{position:absolute;bottom:calc(100% + 8px);left:0;width:300px;max-width:calc(100vw - 40px);max-height:260px;overflow-y:auto;background:#0a070c;border:1px solid #2a2430;border-radius:14px;padding:6px;display:flex;flex-direction:column;gap:2px;box-shadow:0 20px 50px -12px rgba(0,0,0,.85);z-index:5;scrollbar-width:thin}
+.dtp-maps button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;padding:8px 10px;border-radius:9px;border:0;background:transparent;cursor:pointer;min-width:0}
+.dtp-maps button:hover{background:rgba(255,255,255,.06)}
+.dtp-maps button:disabled{opacity:.4;cursor:default}
+.dtp-maps .nm{font-size:12.5px;font-weight:500;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dtp-maps .dt{font-family:'DM Mono',monospace;font-size:10.5px;color:#B9B4BE;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dtp-maps-empty{padding:12px 10px;font-size:11.5px;color:#8a8590;line-height:1.5}
 .dtp-btn{flex:1;height:40px;border-radius:999px;border:1px solid rgba(237,233,227,.28);background:transparent;font-size:10.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .dtp-btn:hover{border-color:#EDE9E3}
 .dtp-ok{flex:2;background:#EDE9E3;border-color:#EDE9E3;color:#040004!important}
