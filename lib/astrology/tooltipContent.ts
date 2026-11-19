@@ -15,7 +15,7 @@ import { CELESTIAL_GLYPHS } from '../../components/icons';
 import { Aspect, getAspectTiming } from './aspects';
 import { getDecanRuler } from './dignities';
 import { getSignTerms, getTermAt } from './terms';
-import { BODY_SHEET, SIGN_SHEET, TERM_SHEET, DECAN_SHEET } from './tooltipSheets';
+import { BODY_SHEET, SIGN_SHEET, TERM_SHEET, DECAN_SHEET, ASPECT_SHEET } from './tooltipSheets';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos
@@ -434,11 +434,12 @@ export const buildPlanetTooltip = (id: string, ctx: TooltipContext): TooltipMode
 
   return {
     key: `planet-${id}`, kind: 'planet', glyph: glyph(id), accent,
-    title: BODY_NAMES[id], keywords: [], text: BODY_SHEET[id]?.text ?? PLANET_COPY[id]?.text ?? '',
-    sub: PLANET_COPY[id]?.practice ? [{ label: 'Na prática', text: PLANET_COPY[id].practice }] : undefined,
+    title: BODY_NAMES[id], keywords: splitKw(BODY_SHEET[id]?.kw), text: BODY_SHEET[id]?.text ?? PLANET_COPY[id]?.text ?? '',
     rows: [
-      ...(BODY_SHEET[id] ? [{ label: 'Tipo', icon: 'ti-category', color: P.muted, lines: [[txt(`${BODY_SHEET[id].type} · ${BODY_SHEET[id].class}`)]] }] : []),
       ...rows,
+      ...(BODY_SHEET[id]?.nature ? [{ label: 'Natureza', icon: 'ti-scale', color: P.muted, lines: [[txt(BODY_SHEET[id].nature as string)]] }] : []),
+      ...(BODY_SHEET[id]?.years ? [{ label: 'Anos maiores', icon: 'ti-hourglass', color: P.muted, lines: [[txt(String(BODY_SHEET[id].years), { mono: true }), txt(' · soma dos termos', { muted: true })]] }] : []),
+      ...(BODY_SHEET[id] ? [{ label: 'Tipo', icon: 'ti-category', color: P.muted, lines: [[txt(BODY_SHEET[id].type)]] }] : []),
       ...(PLANET_COPY[id]?.body ? [bodyRow(PLANET_COPY[id].body as string, ctx)] : []),
     ],
   };
@@ -457,13 +458,14 @@ export const buildSignTooltip = (signIndexOrId: number | string, ctx: TooltipCon
   const list = (ids: string[]) => ids.length ? ids.map(i => bodyLine(i, ctx)) : [[txt('—', { muted: true })]];
   return {
     key: `sign-${s}`, kind: 'sign', glyph: z.symbol, signId: z.id, accent,
-    title: z.name, keywords: [], text: SIGN_SHEET[s] ?? SIGN_COPY[s].text,
-    sub: [{ label: 'O jeito', text: SIGN_COPY[s].way }],
+    title: z.name, keywords: splitKw(SIGN_SHEET[s]?.kw), text: SIGN_SHEET[s]?.text ?? SIGN_COPY[s].text,
+    sub: SIGN_SHEET[s]?.excess ? [{ label: 'Excesso', text: SIGN_SHEET[s].excess }] : undefined,
     rows: [
       { label: 'Elemento', icon: ELEMENT_ICON[z.element] ?? 'ti-circle', color: accent, pill: true, lines: [[txt(ELEMENT_PT[z.element] ?? z.element)]] },
       { label: 'Modalidade', icon: MODALITY_ICON[z.modality] ?? 'ti-circle', color: P.accent, lines: [[txt(MODALITY_PT[z.modality] ?? z.modality)]] },
       { label: 'Polaridade', icon: 'ti-yin-yang', color: P.muted, lines: [[txt(POLARITY_PT[z.polarity] ?? z.polarity)]] },
       { label: 'Regente', icon: 'ti-crown', color: ctx.colors[z.ruler] ?? P.gold, lines: [bodyLine(z.ruler, ctx)] },
+      ...(SIGN_SHEET[s]?.triplicity ? [{ label: 'Triplicidade', icon: 'ti-triangle', color: accent, lines: SIGN_SHEET[s].triplicity.split(' · ').map(t => [txt(t)]) }] : []),
       { label: 'Exaltação', icon: 'ti-arrow-up', color: P.good, lines: list(exalted) },
       { label: 'Exílio', icon: 'ti-arrow-bar-left', color: P.bad, lines: list(exiled) },
       { label: 'Queda', icon: 'ti-arrow-down', color: P.bad, lines: list(fallen) },
@@ -493,6 +495,7 @@ export const buildAspectTooltip = (aspect: Aspect, ctx: TooltipContext): Tooltip
     { label: 'Aspecto', icon: 'ti-angle', color: info.color, lines: [[txt(info.symbol, { sym: true, color: info.color }), txt(` ${info.name} · `), txt(`${info.angle}°`, { mono: true })]] },
     { label: 'Astros', icon: 'ti-planet', color: P.gold, lines: [bodyLine(a, ctx), bodyLine(b, ctx)] },
     { label: 'Orbe', icon: 'ti-target', color: P.gold, lines: [[txt(fmtOrb(aspect.orb), { mono: true })]] },
+    ...(ASPECT_SHEET[aspect.type]?.nature ? [{ label: 'Natureza', icon: 'ti-scale', color: P.muted, lines: [[txt(ASPECT_SHEET[aspect.type].nature)]] }] : []),
   ];
   if (timing) {
     rows.push(timing.applying
@@ -512,8 +515,8 @@ export const buildAspectTooltip = (aspect: Aspect, ctx: TooltipContext): Tooltip
   return {
     key: `aspect-${aspect.id}`, kind: 'aspect', glyph: info.symbol, accent: info.color,
     title: `${BODY_NAMES[a] ?? a} ${info.connector} ${BODY_NAMES[b] ?? b}${natal}`,
-    keywords: splitKw(info.kw), ...aspectWhat(aspect.type, info),
-    sub: [...aspectLines(info), { label: 'Neste par', text: `${ASPECT_KEY[a] ?? 'a energia'} e ${ASPECT_KEY[b] ?? 'a energia'} ${info.verb}.`.replace(/^./, c => c.toUpperCase()) }],
+    keywords: splitKw(ASPECT_SHEET[aspect.type]?.kw ?? info.kw), text: ASPECT_SHEET[aspect.type]?.text ?? info.text,
+    sub: [{ label: 'Neste par', text: `${ASPECT_KEY[a] ?? 'a energia'} e ${ASPECT_KEY[b] ?? 'a energia'} ${info.verb}.`.replace(/^./, c => c.toUpperCase()) }],
     rows,
   };
 };
@@ -529,12 +532,15 @@ export const buildTermTooltip = (signIndex: number, termIndex: number, ctx: Tool
   return {
     key: `term-${signIndex}-${termIndex}`, kind: 'term', glyph: glyph(t.ruler), accent,
     title: `Termo ${ofBody(t.ruler)} em ${z.name}`,
-    keywords: splitKw(TERM_COPY[signIndex]?.[t.ruler]?.kw),
-    text: TERM_SHEET[signIndex]?.[t.ruler] ?? 'Pedaço do signo com um astro responsável.',
-    sub: TERM_COPY[signIndex]?.[t.ruler]?.text ? [{ label: 'Neste trecho', text: TERM_COPY[signIndex][t.ruler].text }] : undefined,
+    keywords: splitKw(TERM_SHEET[signIndex]?.[t.ruler]?.kw ?? TERM_COPY[signIndex]?.[t.ruler]?.kw),
+    text: TERM_SHEET[signIndex]?.[t.ruler]?.text ?? TERM_COPY[signIndex]?.[t.ruler]?.text ?? '',
     rows: [
       { label: 'Signo', icon: `ti-zodiac-${z.id}`, color: P.element[z.element] ?? P.gold, lines: [signParts(signIndex, ctx)] },
-      { label: 'Trecho', icon: 'ti-ruler-2', color: P.gold, lines: [[txt(`${t.start}°–${t.end}°`, { mono: true })]] },
+      { label: 'Trecho', icon: 'ti-ruler-2', color: P.gold, lines: [[txt(`${t.start}°–${t.end}°`, { mono: true }), txt(` · ${t.end - t.start}°`, { mono: true, muted: true })]] },
+      ...(TERM_SHEET[signIndex]?.[t.ruler] ? [
+        { label: 'Dignidade', icon: 'ti-crown', color: accent, lines: [[txt(TERM_SHEET[signIndex][t.ruler].dignity)]] },
+        { label: 'Posição', icon: 'ti-arrows-horizontal', color: P.muted, lines: [[txt(TERM_SHEET[signIndex][t.ruler].position)]] },
+      ] : []),
       { label: 'Sistema', icon: 'ti-books', color: P.muted, lines: [[txt(`Egípcio · ${termIndex + 1}º de ${terms.length}`)]] },
       bodiesRow(here, ctx),
     ],
@@ -553,13 +559,13 @@ export const buildDecanTooltip = (decanIndex: number, ctx: TooltipContext): Tool
   return {
     key: `decan-${decanIndex}`, kind: 'decan', glyph: glyph(ruler), accent,
     title: `${n + 1}º decanato de ${z.name}`,
-    keywords: splitKw(DECAN_COPY[ruler]?.kw),
-    text: 'Cada terço de um signo, com seu astro regente.',
-    sub: [{ label: 'Neste trecho', text: DECAN_SHEET[decanIndex]?.text ?? `O ${['primeiro', 'segundo', 'último'][n]} terço de ${z.name} é ${ofBody(ruler)}: mais ${DECAN_COPY[ruler]?.tone ?? ''}.` }],
+    keywords: splitKw(DECAN_SHEET[decanIndex]?.kw ?? DECAN_COPY[ruler]?.kw),
+    text: DECAN_SHEET[decanIndex]?.text ?? '',
     rows: [
       { label: 'Signo', icon: `ti-zodiac-${z.id}`, color: P.element[z.element] ?? P.gold, lines: [signParts(s, ctx)] },
       { label: 'Trecho', icon: 'ti-ruler-2', color: P.gold, lines: [[txt(`${n * 10}°–${n * 10 + 10}°`, { mono: true })]] },
       { label: 'Regente', icon: 'ti-crown', color: accent, lines: [bodyLine(ruler, ctx)] },
+      ...(DECAN_SHEET[decanIndex]?.dignity ? [{ label: 'Dignidade', icon: 'ti-crown', color: accent, lines: [[txt(DECAN_SHEET[decanIndex].dignity)]] }] : []),
       { label: 'Sistema', icon: 'ti-books', color: P.muted, lines: [[txt(`Caldeu (faces) · ${n + 1}º de 3`)]] },
       bodiesRow(here, ctx),
     ],
