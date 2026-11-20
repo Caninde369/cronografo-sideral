@@ -31,6 +31,7 @@ import { getMoonAge, getCelticMoonCycle } from "../lib/astrology/calendars";
 import { getEclipseOnLocalDate } from "../lib/astrology/eclipses";
 import { MoonPhaseDisk } from "./CalendarPanel";
 import { CelestialGlyphSvg } from "./chart/CelestialGlyphSvg";
+import { useZodiacStyle, MODERN_RING, STAR_PATH } from "../lib/appearance";
 
 interface SiderealClockProps {
   celestialData: CelestialData;
@@ -895,10 +896,16 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
   const cx = 500;
   const cy = 500;
 
-  const baseZodiacWidth = 40;
+  // Aparência escolhida no painel admin: "modern" = anel espectral mais largo e estrela no relógio
+  const zodiacStyle = useZodiacStyle();
+  const isModernZodiac = zodiacStyle === "modern";
+  const baseZodiacWidth = isModernZodiac ? MODERN_RING.width : 40;
   const zodiacWidth = baseZodiacWidth * zodiacRingScale;
   const zodiacRingOuter = 505;
   const zodiacRingInner = zodiacRingOuter - zodiacWidth;
+  // Anel natal (bi-wheel): no vão de 30 logo abaixo do zodíaco
+  const natalRingOuter = zodiacRingInner - 3;
+  const natalRingInner = zodiacRingInner - 28;
 
   const baseSeasonsWidth = 30;
   const seasonsWidth = showSeasonsRing ? baseSeasonsWidth * seasonsRingScale : 0;
@@ -3796,6 +3803,7 @@ const horizonStrokePath = `
             colorMode={zodiacColorMode}
             highlightFilter={highlightFilter}
             isBrightSky={isBrightSky}
+            styleMode={zodiacStyle}
           />
         </g>
         {/* ── ANEL ZODIACAL NATAL (bi-wheel) ── */}
@@ -3810,8 +3818,8 @@ const horizonStrokePath = `
               <ZodiacRing
                 cx={cx}
                 cy={cy}
-                innerRadius={437}
-                outerRadius={462}
+                innerRadius={natalRingInner}
+                outerRadius={natalRingOuter}
                 rotation={
                   isZodiacFixed ? 0 : zodiacRotation + natalZodiacRotation
                 }
@@ -3835,8 +3843,8 @@ const horizonStrokePath = `
                 const wedge = describeAnnularSector(
                   cx,
                   cy,
-                  437,
-                  462,
+                  natalRingInner,
+                  natalRingOuter,
                   endAngle,
                   startAngle,
                 );
@@ -3856,8 +3864,8 @@ const horizonStrokePath = `
               {/* Traços divisores dos 12 signos */}
               {Array.from({ length: 12 }, (_, i) => {
                 const angle = 180 - i * 30;
-                const p1 = polarToCartesian(cx, cy, 437, angle);
-                const p2 = polarToCartesian(cx, cy, 462, angle);
+                const p1 = polarToCartesian(cx, cy, natalRingInner, angle);
+                const p2 = polarToCartesian(cx, cy, natalRingOuter, angle);
                 return (
                   <line
                     key={`natal-sign-tick-${i}`}
@@ -3876,7 +3884,7 @@ const horizonStrokePath = `
               <circle
                 cx={cx}
                 cy={cy}
-                r={462}
+                r={natalRingOuter}
                 fill="none"
                 stroke={(isBrightSky || theme === "light") ? "#1e293b" : "#FFE566"}
                 strokeWidth={0.8}
@@ -3885,7 +3893,7 @@ const horizonStrokePath = `
               <circle
                 cx={cx}
                 cy={cy}
-                r={437}
+                r={natalRingInner}
                 fill="none"
                 stroke={(isBrightSky || theme === "light") ? "#1e293b" : "#FFE566"}
                 strokeWidth={0.5}
@@ -4436,7 +4444,7 @@ const horizonStrokePath = `
           {/* Dia da semana — Sans-serif */}
           <text
             x={cx}
-            y={cy - 42}
+            y={isModernZodiac ? cy - 52 : cy - 42}
             textAnchor="middle"
             style={{
               fill: getCenterTextColor("muted"),
@@ -4452,6 +4460,34 @@ const horizonStrokePath = `
           </text>
 
           {/* Hora — Cormorant Infant (Serifa única do centro) */}
+          {isModernZodiac ? (() => {
+            // Cores modernas: a estrela do logo no lugar dos dois pontos
+            const fs = MODERN_RING.hourSize;
+            const half = MODERN_RING.starSize + MODERN_RING.starGap;
+            const hourStyle: React.CSSProperties = {
+              fill: getCenterTextColor("main"),
+              fontFamily: "'Cormorant Infant', 'Cormorant Garamond', Georgia, serif",
+              fontStyle: "normal",
+              fontWeight: 600,
+              fontSize: `${fs}px`,
+              letterSpacing: "0.02em",
+            };
+            return (
+              <g>
+                <defs>
+                  <filter id="center-star-glow" x="-200%" y="-200%" width="500%" height="500%">
+                    <feGaussianBlur stdDeviation={1 + MODERN_RING.starGlow * 6} result="b" />
+                    <feMerge><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+                  </filter>
+                </defs>
+                <text x={cx - half} y={cy - 8} textAnchor="end" dominantBaseline="central" style={hourStyle}>{hours}</text>
+                <text x={cx + half} y={cy - 8} textAnchor="start" dominantBaseline="central" style={hourStyle}>{minutes}</text>
+                <g transform={`translate(${cx}, ${cy - 8 + fs * 0.04}) scale(${MODERN_RING.starSize / 10})`}>
+                  <path d={STAR_PATH} fill={getCenterTextColor("main")} filter={isBrightSky || theme === "light" ? undefined : "url(#center-star-glow)"} />
+                </g>
+              </g>
+            );
+          })() : (
           <text
             x={cx}
             y={cy - 8}
@@ -4469,11 +4505,12 @@ const horizonStrokePath = `
           >
             {hours}:{minutes}
           </text>
+          )}
 
           {/* Data — Sans-serif com alto contraste e legibilidade com margem de 6px do relógio */}
           <text
             x={cx}
-            y={cy + 31}
+            y={isModernZodiac ? cy + 40 : cy + 31}
             textAnchor="middle"
             style={{
               fill: getCenterTextColor("date"),
@@ -4489,7 +4526,7 @@ const horizonStrokePath = `
           {/* Local — Sans-serif sutil e nítido */}
           <text
             x={cx}
-            y={cy + 51}
+            y={isModernZodiac ? cy + 60 : cy + 51}
             textAnchor="middle"
             style={{
               fill: getCenterTextColor("detail"),

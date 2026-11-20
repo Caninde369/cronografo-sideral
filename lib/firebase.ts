@@ -463,3 +463,32 @@ export {
   updateProfile,
   onAuthStateChanged
 };
+
+// ─── Aparência do relógio ────────────────────────────────────────────────────
+// Documento público config/appearance = { zodiacStyle, updatedAt }.
+// Leitura: qualquer pessoa. Escrita: só o admin (ver firestore.rules).
+export type ZodiacStyle = 'traditional' | 'modern';
+const APPEARANCE_DOC = () => doc(db, 'config', 'appearance');
+
+/** Estilo do anel do zodíaco escolhido no painel (null se não for possível ler). */
+export async function getZodiacStyle(): Promise<ZodiacStyle | null> {
+  try {
+    const snap = await getDoc(APPEARANCE_DOC());
+    if (!snap.exists()) return 'traditional';
+    return snap.data()?.zodiacStyle === 'modern' ? 'modern' : 'traditional';
+  } catch (error) {
+    console.warn('Não foi possível ler a aparência do relógio', error);
+    return null;
+  }
+}
+
+/** Grava o estilo para todo mundo. Só funciona para o admin. */
+export async function setZodiacStyleInFirestore(style: ZodiacStyle): Promise<boolean> {
+  try {
+    await setDoc(APPEARANCE_DOC(), { zodiacStyle: style, updatedAt: new Date().toISOString() });
+    return true;
+  } catch (error) {
+    console.warn('Não foi possível gravar a aparência do relógio', error);
+    return false;
+  }
+}
