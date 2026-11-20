@@ -247,7 +247,7 @@ const FreeCustomizationLockBanner: React.FC<{ onOpenPaymentPlans?: () => void; i
     <div className="flex items-center gap-1.5 min-w-0">
       <span className="text-amber-400 text-xs shrink-0">🔒</span>
       <span className="text-[10px] font-semibold text-amber-200 leading-tight">
-        Personalização exclusiva nos Planos Mensal e Vitalício.
+        Personalização exclusiva nos planos Pro e Fundador.
       </span>
     </div>
     <button

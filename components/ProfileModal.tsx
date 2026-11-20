@@ -506,7 +506,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                               ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40'
                               : 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
                         }`}>
-                          {isUserAdmin ? 'Vitalício (Admin)' : userPlan === 'lifetime' ? 'Acesso Vitalício' : userPlan === 'monthly' ? 'Plano Mensal' : 'Plano Gratuito (2026)'}
+                          {isUserAdmin ? 'Vitalício (Admin)' : userPlan === 'lifetime' ? 'Acesso Vitalício' : userPlan === 'monthly' ? 'Plano Pro' : 'Plano Grátis'}
                         </span>
                       </div>
                       <p className="font-manrope text-xs text-white/70">

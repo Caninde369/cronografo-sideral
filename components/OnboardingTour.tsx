@@ -269,8 +269,8 @@ export const TOUR_STEPS: TourStep[] = [
   // ══ Tutorial 2 · A Lua e o calendário (provisório) ══════════════════════════
   { chapter: 'lua', kind: 'mission', title: 'O card da Lua', text: 'A fase, o brilho, a hora em que a Lua nasce, a hora em que ela se esconde e o próximo eclipse.', icon: 'ti-moon', targets: ['lunar'], pad: 6, scene: 'restore',
     tasks: [{ label: 'Clique no card da Lua', wait: { dom: '[data-tour="calendar-panel"]' } }] },
-  { chapter: 'lua', kind: 'explore', title: 'Três leituras do tempo', text: 'Mensal, Anual e Ciclos. E também o calendário Solar.', icon: 'ti-calendar', targets: ['calendar-panel', 'lunar'], pad: 4, goal: 'Troque de aba, se quiser.', pro: 'Anual e Ciclos: planos Mensal e Vitalício.' },
-  { chapter: 'lua', kind: 'mission', title: 'Os ciclos lunares', text: 'Cada ciclo é um mês lunar com nome próprio e nasce na Lua Nova. Cada linha é uma fase.', icon: 'ti-moon-stars', targets: ['calendar-panel', 'lunar'], pad: 4, media: 'daycard', pro: 'Ciclos: planos Mensal e Vitalício.', hold: true, doneScene: 'close-overlays',
+  { chapter: 'lua', kind: 'explore', title: 'Três leituras do tempo', text: 'Mensal, Anual e Ciclos. E também o calendário Solar.', icon: 'ti-calendar', targets: ['calendar-panel', 'lunar'], pad: 4, goal: 'Troque de aba, se quiser.', pro: 'Anual e Ciclos: planos Pro e Fundador.' },
+  { chapter: 'lua', kind: 'mission', title: 'Os ciclos lunares', text: 'Cada ciclo é um mês lunar com nome próprio e nasce na Lua Nova. Cada linha é uma fase.', icon: 'ti-moon-stars', targets: ['calendar-panel', 'lunar'], pad: 4, media: 'daycard', pro: 'Ciclos: planos Pro e Fundador.', hold: true, doneScene: 'close-overlays',
     tasks: [
       { label: 'Desça para ver os outros meses lunares e seus nomes', wait: { event: 'wheel', within: '[data-tour="calendar-panel"]', count: 2 }, mouse: 'wheel-down' },
       { label: 'Clique num dia e veja o relógio ir até ele', wait: { timeMoved: true }, targets: ['calendar-panel', 'lunar'], also: ['clock'] },

@@ -729,7 +729,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                         }}
                                         className={`px-2 py-0.5 rounded-md text-[11px] font-bold font-manrope uppercase tracking-wider transition-colors shrink-0 whitespace-nowrap flex items-center gap-1
                                             ${view===t ? 'bg-brand-surface-highlight text-brand-text border border-brand-border/20 shadow-sm' : 'text-brand-text-muted hover:text-brand-text'}`}
-                                        title={isYearLocked ? "Visão anual completa disponível nos Planos Mensal e Vitalício" : undefined}
+                                        title={isYearLocked ? "Visão anual completa disponível nos planos Pro e Fundador" : undefined}
                                     >
                                         <span>{t==='year'?'Ano':t==='month'?'Mês':t==='lunar'?'Lunar':'Solar'}</span>
                                         {isYearLocked && <span className="text-[9px] text-[#D4AF37]">🔒</span>}
@@ -755,7 +755,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                                 }}
                                                 className={`px-1.5 py-0.5 rounded text-[10px] font-manrope transition-colors border shrink-0 whitespace-nowrap flex items-center gap-0.5
                                                     ${lunarView===v ? 'bg-brand-purple/20 text-brand-text border-brand-purple/40 font-semibold' : 'text-brand-text-muted border-transparent hover:text-brand-text'}`}
-                                                title={isSubLocked ? "Visão de todos os ciclos e anos disponível nos Planos Mensal e Vitalício" : undefined}
+                                                title={isSubLocked ? "Visão de todos os ciclos e anos disponível nos planos Pro e Fundador" : undefined}
                                             >
                                                 <span>{label}</span>
                                                 {isSubLocked && <span className="text-[8px] text-[#D4AF37]">🔒</span>}
@@ -781,7 +781,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                 setDisplayYear(y => Math.max(1, y - 1));
                             }}
                             className="px-1 py-0.5 text-[10px] text-brand-text-muted hover:text-brand-text hover:bg-white/5 rounded"
-                            title={isFreeTier ? "Navegação em outros anos disponível no Plano Mensal e Vitalício" : "Ano anterior"}
+                            title={isFreeTier ? "Navegação em outros anos disponível no planos Pro e Fundador" : "Ano anterior"}
                         >
                             ◀
                         </button>
@@ -818,7 +818,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                 setDisplayYear(y => Math.min(2200, y + 1));
                             }}
                             className="px-1 py-0.5 text-[10px] text-brand-text-muted hover:text-brand-text hover:bg-white/5 rounded"
-                            title={isFreeTier ? "Navegação em outros anos disponível no Plano Mensal e Vitalício" : "Próximo ano"}
+                            title={isFreeTier ? "Navegação em outros anos disponível no planos Pro e Fundador" : "Próximo ano"}
                         >
                             ▶
                         </button>
@@ -845,7 +845,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
             {showUpgradeBanner && isFreeTier && (
                 <div className="mx-3 my-2 p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shrink-0 animate-in fade-in duration-200">
                     <div className="flex items-center gap-2">
-                        <span className="text-amber-400 font-bold">🔒 Recurso dos Planos Mensal & Vitalício:</span>
+                        <span className="text-amber-400 font-bold">🔒 Recurso dos Planos Pro e Fundador:</span>
                         <span className="text-[11px]">
                             No Plano Gratuito, o <strong>mês vigente solar</strong> e <strong>mês vigente lunar</strong> estão liberados. A visão anual e ciclos de outros anos são exclusivos para assinantes.
                         </span>
@@ -904,7 +904,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                         setDisplayMonth(d.getMonth()); 
                                     }}
                                     className="px-3 py-1.5 rounded-lg border border-brand-border/10 text-brand-text-muted hover:bg-brand-surface-highlight hover:text-brand-text transition-colors text-sm"
-                                    title={isFreeTier ? "Navegação em outros meses disponível nos Planos Mensal e Vitalício" : "Mês anterior"}
+                                    title={isFreeTier ? "Navegação em outros meses disponível nos planos Pro e Fundador" : "Mês anterior"}
                                 >
                                     ◀
                                 </button>
@@ -928,7 +928,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                         setDisplayMonth(d.getMonth()); 
                                     }}
                                     className="px-3 py-1.5 rounded-lg border border-brand-border/10 text-brand-text-muted hover:bg-brand-surface-highlight hover:text-brand-text transition-colors text-sm"
-                                    title={isFreeTier ? "Navegação em outros meses disponível nos Planos Mensal e Vitalício" : "Próximo mês"}
+                                    title={isFreeTier ? "Navegação em outros meses disponível nos planos Pro e Fundador" : "Próximo mês"}
                                 >
                                     ▶
                                 </button>
@@ -1042,7 +1042,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                                         </span>
                                                     )}
                                                     {isRowLocked && (
-                                                        <span className="text-[10px] text-[#D4AF37] flex items-center gap-0.5 font-normal px-1 py-0.2 rounded bg-amber-500/10 border border-amber-500/20" title="Disponível nos Planos Mensal e Vitalício">
+                                                        <span className="text-[10px] text-[#D4AF37] flex items-center gap-0.5 font-normal px-1 py-0.2 rounded bg-amber-500/10 border border-amber-500/20" title="Disponível nos planos Pro e Fundador">
                                                             <i className="ti ti-lock text-[9px]" />
                                                             <span className="text-[8px] font-bold hidden sm:inline">PRO</span>
                                                         </span>
@@ -1117,7 +1117,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                                     </span>
                                                 )}
                                                 {isCycleLocked && (
-                                                    <span className="text-[10px] text-[#D4AF37] flex items-center gap-0.5 font-normal px-1.5 py-0.2 rounded bg-amber-500/10 border border-amber-500/20" title="Disponível nos Planos Mensal e Vitalício">
+                                                    <span className="text-[10px] text-[#D4AF37] flex items-center gap-0.5 font-normal px-1.5 py-0.2 rounded bg-amber-500/10 border border-amber-500/20" title="Disponível nos planos Pro e Fundador">
                                                         <i className="ti ti-lock text-[9px]" />
                                                         <span className="text-[8px] font-bold">PRO</span>
                                                     </span>
@@ -1301,7 +1301,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                                                 </span>
                                                             )}
                                                             {isCardLocked && (
-                                                                <span className="text-[11px] text-[#D4AF37] font-sans font-normal" title="Disponível nos Planos Mensal e Vitalício">
+                                                                <span className="text-[11px] text-[#D4AF37] font-sans font-normal" title="Disponível nos planos Pro e Fundador">
                                                                     🔒 Planos Pagos
                                                                 </span>
                                                             )}

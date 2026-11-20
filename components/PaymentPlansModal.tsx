@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { PAYMENT_CONFIG, whatsappLink } from '../lib/paymentConfig';
 import { getLifetimeSoldCount } from '../lib/firebase';
+import PlansPanel from '../src/plans/PlansPanel';
 
 /**
  * Janela de Planos + Catálogo de Atendimentos.
@@ -59,8 +60,6 @@ const SERVICES: ServiceItem[] = [
     description: 'Eventos energéticos adicionados à sua agenda e a rotina organizada em torno deles.' },
   { id: 'proximo-mes', name: 'Seu próximo mês', icon: 'ti-calendar-month', cta: 'Quero este',
     description: 'O que os próximos 30 dias trazem para você e como aproveitar cada fase.' },
-  { id: 'relogio-arcano', name: 'Relógio Arcano', icon: 'ti-hourglass', cta: 'Quero este',
-    description: 'Onde você está no tempo: sua jornada, ano, mês e dia arcanos e o ciclo que você vive agora.' },
   { id: 'outros', name: 'Outros', icon: 'ti-message-circle', cta: 'Entrar em contato', isOther: true,
     description: 'Tem outra necessidade? Me conte e eu monto o atendimento para você.' },
 ];
@@ -71,7 +70,6 @@ const formatBRL = (n: number) => n.toLocaleString('pt-BR');
 const LIFETIME_BENEFITS: string[] = [
   'Tudo do Mensal, para sempre',
   'Sem mensalidade e sem reajuste',
-  'Relógio Arcano de boas-vindas (leitura inclusa)',
   '20% de desconto nos atendimentos',
   'Grupo exclusivo de Fundadores',
   'Acesso antecipado a novos recursos',
@@ -215,7 +213,7 @@ export const PaymentPlansModal: React.FC<PaymentPlansModalProps> = ({
           <div className="ff-title w-14 h-14 rounded-full flex items-center justify-center shrink-0 text-[22px] text-[#F5D98A] bg-[#D4AF37]/10 border border-[#D4AF37]/50">RM</div>
           <div className="min-w-0">
             <h2 className="ff-title text-[26px] leading-tight text-[#F5F2EB]">Rafael Medeiros</h2>
-            <p className="text-[12px] text-white/70 font-light mt-0.5">Criador do Cronógrafo Sideral e do Calendário Arcano</p>
+            <p className="text-[12px] text-white/70 font-light mt-0.5">Criador do Cronógrafo Sideral</p>
             <div className="flex flex-wrap gap-1.5 mt-2">
               <span className="h-6 px-2.5 inline-flex items-center rounded-full border border-white/15 text-[10.5px] text-white/80 whitespace-nowrap">Astrólogo · Numerólogo · Oraculista</span>
               <span className="h-6 px-2.5 inline-flex items-center rounded-full border border-white/15 text-[10.5px] text-white/80 whitespace-nowrap">desde&nbsp;<span className="ff-num-sm font-medium">2012</span></span>
@@ -260,8 +258,8 @@ export const PaymentPlansModal: React.FC<PaymentPlansModalProps> = ({
   // ── Planos ─────────────────────────────────────────────────────────────────
   const plansView = (
     <>
-      <div className="w-full p-[1.5px] rounded-[22px]" style={{ background: SUPERNOVA, boxShadow: '0 25px 60px -12px rgba(0,0,0,0.85)' }}>
-        <div className="w-full bg-[#08060c] rounded-[20.5px] p-4 sm:p-6">
+      <div className="w-full rounded-[22px] border border-[#221d27] bg-[#040004]" style={{ boxShadow: '0 25px 60px -12px rgba(0,0,0,0.85)' }}>
+        <div className="w-full rounded-[22px] p-4 sm:p-6">
 
           {/* Sessão + fechar */}
           <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/10 gap-2">
@@ -307,253 +305,12 @@ export const PaymentPlansModal: React.FC<PaymentPlansModalProps> = ({
             </div>
           </div>
 
-          {/* Cabeçalho */}
-          <div className="text-center mb-5">
-            <div className="text-[10.5px] tracking-[0.22em] uppercase text-white/50">Cronógrafo Sideral</div>
-            <h2 className="ff-title text-[28px] sm:text-[32px] leading-tight text-[#F5F2EB] mt-1">
-              {reason === 'trial_expired' ? 'Continue com acesso completo' : 'Escolha seu acesso'}
-            </h2>
-            <p className="text-[12.5px] text-white/60 font-light mt-1">O céu sideral ao vivo, em qualquer data da história.</p>
-          </div>
-
-          {/* Cards — hierarquia: Mensal em foco (centro), Vitalício alternativa, Gratuito discreto.
-              No celular o Mensal vem primeiro. */}
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_1.18fr_1fr] gap-3 md:gap-3.5 items-center pt-3">
-
-            {/* Gratuito (menor ênfase) */}
-            <div className="order-3 md:order-none rounded-2xl p-4 flex flex-col border border-white/[0.08]">
-              <div className="h-7 flex items-center">
-                <span className="ff-title text-[20px] leading-none text-[#F5F2EB]/85 whitespace-nowrap">Gratuito</span>
-              </div>
-              <div className="h-[18px] text-[11.5px] text-white/50 font-light truncate">Para conhecer</div>
-              <div className="mt-2.5 h-10 flex items-end gap-1 whitespace-nowrap">
-                <span className="text-[12px] text-white/45 mb-1">R$</span>
-                <span className="ff-num text-[28px] leading-none text-[#F5F2EB]/85">0</span>
-              </div>
-              <div className="mt-2.5 h-[30px] px-2.5 rounded-lg flex items-center gap-1.5 text-[11px] whitespace-nowrap overflow-hidden border border-orange-400/30 text-orange-200">
-                <i className="ti ti-hourglass-high text-[13px] shrink-0" aria-hidden="true" />
-                <span className="truncate">Limitado até <span className="ff-num-sm">{PAYMENT_CONFIG.freeLaunchUntil.slice(0, 5)}</span></span>
-              </div>
-              <div className="mt-2 text-white/70">
-                {feature('Relógio sideral ao vivo', 'rgba(245,242,235,.55)')}
-                {feature('Termos e decanatos', 'rgba(245,242,235,.55)')}
-                {feature('Navegação em 2026', 'rgba(245,242,235,.55)')}
-                {feature('Personalização e PDF sem marca', '', true)}
-              </div>
-              <button
-                type="button"
-                onClick={() => handleProceedAction('free')}
-                className="mt-3 h-11 w-full rounded-[10px] border border-white/[0.18] text-[12.5px] text-[#F5F2EB]/80 hover:bg-white/5 whitespace-nowrap transition-colors cursor-pointer"
-              >
-                Continuar no gratuito
-              </button>
-            </div>
-
-            {/* Mensal (foco) */}
-            <div className="order-1 md:order-none relative rounded-[18px] p-[1.5px] md:-translate-y-1.5" style={{ background: SUPERNOVA, boxShadow: '0 18px 50px rgba(99,102,241,.22)' }}>
-              <div className="relative rounded-[16.5px] px-4 sm:px-5 pt-6 pb-4 flex flex-col" style={{ background: 'linear-gradient(180deg, #141127, #0b0914 60%)' }}>
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 h-6 px-3 rounded-full bg-[#F5F2EB] text-[#040004] text-[10.5px] font-semibold tracking-[0.06em] uppercase inline-flex items-center gap-1.5 whitespace-nowrap shadow-lg">
-                  <i className="ti ti-star text-[12px]" aria-hidden="true" /> Recomendado
-                </div>
-                <div className="h-8 flex items-center justify-between gap-2">
-                  <span className="ff-title text-[26px] leading-none text-[#F5F2EB] whitespace-nowrap">Mensal</span>
-                  <span className="h-6 px-2.5 inline-flex items-center rounded-full border border-white/25 text-[10px] tracking-[0.08em] uppercase text-slate-200 whitespace-nowrap">Profissional</span>
-                </div>
-                <div className="h-[18px] text-[12px] text-white/70 font-light truncate">Para atendimentos e estudo diário</div>
-                <div className="mt-3 h-14 flex items-end gap-1.5 whitespace-nowrap">
-                  <span className="text-[13px] text-white/75 mb-2">R$</span>
-                  <span className="ff-num text-[48px] leading-none text-white">{formatBRL(PAYMENT_CONFIG.monthlyPrice)}</span>
-                  <span className="text-[12.5px] text-white/65 mb-2">/ mês</span>
-                </div>
-                <div className="mt-1 h-5 text-[11.5px] text-indigo-300 whitespace-nowrap truncate">
-                  promoção de pré-lançamento · no lançamento, R$ {formatBRL(PAYMENT_CONFIG.monthlyLaunchPrice)}
-                </div>
-                <div className="mt-3 text-[12.5px]">
-                  {feature(<b className="font-medium">Qualquer ano e século, sem limites</b>, '#A5B4FC')}
-                  {feature("PDF ilimitado, sem marca d'água", '#A5B4FC')}
-                  {feature('Calendários lunar e solar completos', '#A5B4FC')}
-                  {feature('Mapas salvos na nuvem', '#A5B4FC')}
-                  {feature('Personalização completa e orbes', '#A5B4FC')}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleProceedAction('monthly')}
-                  className="mt-4 h-12 w-full rounded-[10px] bg-[#F5F2EB] hover:bg-white text-[#040004] text-[13.5px] font-semibold whitespace-nowrap transition-colors cursor-pointer"
-                  style={{ boxShadow: '0 0 0 1px rgba(255,255,255,.4), 0 8px 24px rgba(165,180,252,.25)' }}
-                >
-                  Assinar o Mensal
-                </button>
-                {pixLink('monthly')}
-                <div className="mt-2 h-4 flex items-center justify-center gap-3 text-[10.5px] text-white/55 whitespace-nowrap">
-                  <span className="inline-flex items-center gap-1"><i className="ti ti-user-check text-[12px]" aria-hidden="true" />Liberado em até {PAYMENT_CONFIG.activationDeadline}</span>
-                  <span className="inline-flex items-center gap-1"><i className="ti ti-shield-check text-[12px]" aria-hidden="true" />Nubank</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Vitalício (alternativa) */}
-            <div className="order-2 md:order-none rounded-2xl p-4 flex flex-col border border-[#D4AF37]/40" style={{ background: 'linear-gradient(180deg, rgba(212,175,55,.05), transparent)' }}>
-              <div className="h-7 flex items-center justify-between gap-2">
-                <span className="ff-title text-[20px] leading-none text-[#F5D98A] whitespace-nowrap">Vitalício</span>
-                <span className="h-[22px] px-2 inline-flex items-center rounded-full border border-[#D4AF37]/50 text-[9.5px] tracking-[0.08em] uppercase text-[#F5D98A] whitespace-nowrap">Fundador</span>
-              </div>
-              <div className="h-[18px] text-[11.5px] text-[#F5D98A]/60 font-light truncate">Pague uma vez, use para sempre</div>
-              <div className="mt-2.5 h-10 flex items-end gap-1 whitespace-nowrap">
-                <span className="text-[12px] text-[#F5D98A]/65 mb-1">R$</span>
-                <span className="ff-num text-[30px] leading-none text-[#F5D98A]">{formatBRL(PAYMENT_CONFIG.lifetimePrice)}</span>
-                <span className="text-[11px] text-[#F5D98A]/55 mb-1">pagamento único</span>
-              </div>
-              <div className="mt-2.5 h-[30px] px-2.5 rounded-lg border border-[#D4AF37]/35 flex items-center justify-between gap-2 text-[11px] text-[#F5D98A] whitespace-nowrap overflow-hidden">
-                <span className="inline-flex items-center gap-1.5"><i className="ti ti-flame text-[13px]" aria-hidden="true" />{soldOut ? 'Esgotado' : 'Vagas limitadas'}</span>
-                <span className="ff-num-sm">
-                  {soldOut ? `0 de ${total}` : `restam ${remaining} de ${total}`}
-                </span>
-              </div>
-              <div className="mt-2 text-white/75">
-                {(showAllLifetime ? LIFETIME_BENEFITS : LIFETIME_BENEFITS.slice(0, LIFETIME_VISIBLE)).map((b, i) => (
-                  <React.Fragment key={b}>
-                    {feature(i === 0 ? <b className="font-medium text-white/90">{b}</b> : b, '#D4AF37')}
-                  </React.Fragment>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setShowAllLifetime(v => !v)}
-                  className="mt-1 h-6 inline-flex items-center gap-1 text-[11.5px] text-[#F5D98A] hover:text-[#fde9b0] whitespace-nowrap cursor-pointer"
-                  aria-expanded={showAllLifetime}
-                >
-                  <i className={`ti ${showAllLifetime ? 'ti-minus' : 'ti-plus'} text-[12px]`} aria-hidden="true" />
-                  {showAllLifetime ? 'Mostrar menos' : `${LIFETIME_BENEFITS.length - LIFETIME_VISIBLE} benefícios de Fundador`}
-                </button>
-              </div>
-              {soldOut ? (
-                <button
-                  type="button"
-                  onClick={() => openWhatsApp(`Olá! Quero entrar na lista de espera do plano Vitalício do Cronógrafo Sideral.${emailLine}`)}
-                  className="mt-3 h-11 w-full rounded-[10px] border border-[#D4AF37]/60 text-[#F5D98A] text-[12.5px] font-medium whitespace-nowrap hover:bg-[#D4AF37]/10 transition-colors cursor-pointer"
-                >
-                  Entrar na lista de espera
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => handleProceedAction('lifetime')}
-                  className="mt-3 h-11 w-full rounded-[10px] border border-[#D4AF37]/60 text-[#F5D98A] text-[12.5px] font-medium whitespace-nowrap hover:bg-[#D4AF37]/10 transition-colors cursor-pointer"
-                >
-                  Garantir minha vaga
-                </button>
-              )}
-              {soldOut ? null : pixLink('lifetime')}
-            </div>
-          </div>
-
-          {/* Status do checkout */}
-          {(checkoutOpened || checkoutUnavailable) && selectedPlan !== 'free' && (
-            <div className={`mt-3 px-3.5 py-2.5 rounded-xl text-[12px] font-light border ${checkoutUnavailable ? 'border-amber-400/40 bg-amber-400/10 text-amber-200' : 'border-[#D4AF37]/40 bg-[#D4AF37]/10 text-[#F5D98A]'}`}>
-              {checkoutUnavailable ? (
-                <>Checkout indisponível no momento. Fale com a gente pelo WhatsApp abaixo para concluir sua assinatura.</>
-              ) : (
-                <>Abrimos o pagamento em uma nova aba. Após a confirmação, seu plano é liberado
-                  {userEmail ? <> na conta <strong className="font-medium">{userEmail}</strong></> : null} em até {PAYMENT_CONFIG.activationDeadline}.</>
-              )}
-            </div>
-          )}
-
-          {/* Pix */}
-          <AnimatePresence>
-            {showPixDetails && selectedPlan !== 'free' && PAYMENT_CONFIG.pixKey && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mt-3 p-4 rounded-2xl bg-black/70 border border-white/15 space-y-3 overflow-hidden"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-medium text-white inline-flex items-center gap-2 whitespace-nowrap">
-                    <QrCode className="w-4 h-4 text-[#D4AF37]" />
-                    Pix · {selectedPlan === 'monthly' ? `Mensal R$ ${formatBRL(PAYMENT_CONFIG.monthlyPrice)},00` : `Vitalício R$ ${formatBRL(PAYMENT_CONFIG.lifetimePrice)},00`}
-                  </span>
-                  <span className="text-[11px] text-white/50">Liberação em até {PAYMENT_CONFIG.activationDeadline} após a confirmação</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input type="text" readOnly value={PAYMENT_CONFIG.pixKey}
-                    className="w-full bg-black/80 border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white/80 font-mono outline-none select-all" />
-                  <button onClick={handleCopyPix}
-                    className="h-9 px-4 rounded-xl bg-white/15 hover:bg-white/20 border border-white/20 text-white font-medium text-xs inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap transition-colors cursor-pointer">
-                    {copiedPix ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-[#F5D98A]" />}
-                    {copiedPix ? 'Copiado' : 'Copiar'}
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Problemas no pagamento */}
-          <div className="mt-4 px-3.5 py-2.5 rounded-xl border border-[#25D366]/35 bg-[#25D366]/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <i className="ti ti-brand-whatsapp text-[22px] text-[#25D366] shrink-0" aria-hidden="true" />
-              <div className="min-w-0">
-                <div className="text-[13px] font-medium text-[#F5F2EB]">Problemas com o pagamento?</div>
-                <div className="text-[11.5px] text-white/60 font-light">Envie o comprovante e o e-mail da sua conta.</div>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => openWhatsApp(`Olá! Tive um problema no pagamento do Cronógrafo Sideral.${emailLine}`)}
-              className="h-10 px-4 rounded-[10px] bg-[#25D366] hover:bg-[#2be070] text-[#052e14] text-[12.5px] font-medium inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 transition-colors cursor-pointer"
-            >
-              <i className="ti ti-brand-whatsapp text-[16px]" aria-hidden="true" /> Chamar no WhatsApp
-            </button>
-          </div>
-
-          {/* Garantias + comparativo */}
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11.5px] text-white/55">
-            <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><i className="ti ti-shield-check text-[14px]" aria-hidden="true" />Pagamento pelo Nubank</span>
-            <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><i className="ti ti-user-check text-[14px]" aria-hidden="true" />Liberado em até {PAYMENT_CONFIG.activationDeadline} na sua conta</span>
-            <button
-              type="button"
-              onClick={() => setShowComparisonTable(v => !v)}
-              className="inline-flex items-center gap-1 underline underline-offset-[3px] hover:text-white whitespace-nowrap cursor-pointer"
-            >
-              {showComparisonTable ? 'Ocultar comparativo' : 'Ver comparativo completo'}
-              {showComparisonTable ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-
-          {showComparisonTable && (
-            <div className="mt-3 overflow-x-auto custom-scrollbar rounded-xl border border-white/10">
-              <table className="w-full text-left text-[11.5px] border-collapse min-w-[560px]">
-                <thead>
-                  <tr className="border-b border-white/10 text-[10.5px] uppercase tracking-wider text-white/50">
-                    <th className="py-2 px-3 font-medium">Recurso</th>
-                    <th className="py-2 px-3 font-medium">Gratuito</th>
-                    <th className="py-2 px-3 font-medium text-slate-200">Mensal</th>
-                    <th className="py-2 px-3 font-medium text-[#F5D98A]">Vitalício</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5 text-white/80 font-light">
-                  {([
-                    ['Relógio sideral e roda viva', 'Liberado', 'Liberado', 'Liberado', false],
-                    ['Navegação no tempo', 'Só 2026 e início de 2027', 'Qualquer ano e século', 'Qualquer ano e século', true],
-                    ['Pontos lunares (liga/desliga)', 'Bloqueado', 'Controle total', 'Controle total', true],
-                    ['Opções e personalização', 'Bloqueado', 'Livre', 'Livre', true],
-                    ['Edição de orbes nos painéis', 'Bloqueado', 'Completa', 'Completa', true],
-                    ['Calendário lunar e ciclos', 'Só o mês vigente', 'Todos os meses', 'Todos os meses e ciclos', true],
-                    ['Mapas natais salvos', 'Até 2', 'Ilimitados', 'Ilimitados na nuvem', true],
-                    ['Exportação em PDF', '1 com marca d\'água', 'Ilimitada', 'Ilimitada em 300 DPI', true],
-                  ] as const).map(([label, free, monthly, lifetime, freeLocked]) => (
-                    <tr key={label}>
-                      <td className="py-2.5 px-3 font-normal text-white">{label}</td>
-                      <td className={`py-2.5 px-3 ${freeLocked ? 'text-orange-200/90' : 'text-white/80'}`}>
-                        <i className={`ti ${freeLocked ? 'ti-lock' : 'ti-check'} text-[12px] mr-1`} aria-hidden="true" />{free}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-200"><i className="ti ti-check text-[12px] mr-1" aria-hidden="true" />{monthly}</td>
-                      <td className="py-2.5 px-3 text-[#F5D98A]"><i className="ti ti-check text-[12px] mr-1" aria-hidden="true" />{lifetime}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {/* Planos e checkout: o mesmo painel da landing (src/plans), com preços da fonte única */}
+          <PlansPanel
+            onFree={() => { onSelectPlan?.('free'); onClose(); }}
+            freeLabel={isAuthenticated ? 'Continuar no Grátis' : 'Começar grátis'}
+            title={reason === 'trial_expired' ? 'Continue com acesso completo' : 'Escolha seu acesso'}
+          />
         </div>
       </div>
 

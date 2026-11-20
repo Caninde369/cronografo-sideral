@@ -1,5 +1,8 @@
+import { PLANOS, vendidasManual } from '../plans/plans';
+
 /**
- * Landing do Cronógrafo · valores que mudam ficam SÓ aqui.
+ * Landing do Cronógrafo · contatos e mensagens.
+ * Preços, vagas e datas vêm de src/plans/plans.ts (fonte única do site e do app).
  * Preço, vaga e número nunca aparecem soltos nos componentes.
  *
  * Os preços também aparecem no app (lib/paymentConfig.ts): ao mudar aqui, mude lá.
@@ -8,29 +11,20 @@ export const LANDING = {
   // Só números, com 55 e DDD. Pode ser trocado no Vercel (VITE_WHATSAPP_NUMBER), como no app.
   whatsapp: ((import.meta.env.VITE_WHATSAPP_NUMBER as string | undefined) || '5511988791539').replace(/\D/g, ''),
   msgFundador: 'Olá! Quero saber sobre a vaga de Fundador do Cronógrafo Sideral.',
-  msgPro: 'Olá! Quero ser avisado quando o Pro do Cronógrafo Sideral abrir.',
-  msgMensal: 'Olá! Quero assinar o plano Mensal do Cronógrafo Sideral pagando por Pix.',
-  msgAnual: 'Olá! Quero assinar o plano Anual do Cronógrafo Sideral.',
+  msgPro: 'Olá! Quero ser avisado quando o Plano Pro do Cronógrafo Sideral abrir.',
   msgGeral: 'Olá! Vim pelo site do Cronógrafo Sideral e tenho uma dúvida.',
   appUrl: '/app',
   instagram: 'https://www.instagram.com/cronografosideral/',
   youtube: 'https://www.youtube.com/@Cronografosideral',
   tiktok: 'https://www.tiktok.com/@cronografo_astrologia',
   email: 'contato@cronografosideral.com',
-  precoMensal: 110,
-  precoMensalLancamento: 350, // valor do Mensal depois do lançamento
-  gratuitoAte: '03/12',
-  // Cartão do Vitalício: true abre o link do Nubank (VITE_CHECKOUT_URL_LIFETIME).
-  // Fica false até o link no Nubank cobrar o valor novo (R$1.457); enquanto isso o cartão vai pelo WhatsApp.
-  cartaoPeloLink: false,
-  precoAnual: 990, // Rafa 17/11/2026: 3 meses grátis (R$82,50 por mês)
-  precoFundador: 1457,
-  parcelasFundador: 12,
-  vagasFundador: 21,
-  // Atualizar à mão a cada venda real (ou no Vercel: VITE_LIFETIME_SOLD, o mesmo número do app)
-  vagasVendidas: Math.max(0, parseInt((import.meta.env.VITE_LIFETIME_SOLD as string | undefined) || '0', 10) || 0),
-  aberturaFundador: '03/12',
-  aberturaPro: 'janeiro',
+  precoMensal: PLANOS.proMensal,
+  precoAnual: PLANOS.proAnual,
+  precoFundador: PLANOS.fundador.preco,
+  parcelasFundador: PLANOS.fundador.parcelas,
+  vagasFundador: PLANOS.fundador.vagas,
+  vagasVendidas: vendidasManual,
+  fimFundador: '14/01',
 } as const;
 
 export const waLink = (msg: string) =>

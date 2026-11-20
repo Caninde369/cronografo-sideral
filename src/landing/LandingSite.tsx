@@ -494,7 +494,7 @@ const Questions: React.FC = () => (
 const FinalCta: React.FC<{ innerRef: React.RefObject<HTMLElement> }> = ({ innerRef }) => (
   <section ref={innerRef} className="lp-wrap lp-sec lp-final">
     <Reveal>
-      <h2 className="lp-h2">{LANDING.vagasFundador} vagas. Abertura em {LANDING.aberturaFundador}.</h2>
+      <h2 className="lp-h2">{LANDING.vagasFundador} vagas, até {LANDING.fimFundador}.</h2>
       <p className="lp-p">Fale direto comigo e garanta a sua.</p>
       <a className="lp-btn lp-btn-gold lp-btn-lg" href={waLink(LANDING.msgFundador)} target="_blank" rel="noopener noreferrer">
         <i className="ti ti-brand-whatsapp" aria-hidden="true" />Falar com o Rafael no WhatsApp

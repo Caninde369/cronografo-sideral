@@ -3577,7 +3577,7 @@ const handlePlanetClick = useCallback((id: string) => {
                     isFreeTier={isFreeTier}
                     onOpenAccount={() => setShowProfileModal(true)}
                     onOpenEclipses={() => setShowEclipseModal(true)}
-                    onOpenArcaneCalendar={() => setShowArcaneCalendar(true)}
+                    // Calendário Arcano fora do acesso (relatório Planos v2, 20/11/2026): o código continua, só o botão sai
                     isAdmin={isAdmin}
                     onOpenAdminDashboard={() => setShowAdminDashboard(true)}
                     onSave={isMobile ? () => setShowSaveMapModal(true) : undefined}

@@ -449,7 +449,7 @@ const CelestialBodyCard: React.FC<{
                 >
                     <span className="truncate">{settings.planets.namesAbbr ? (PLANET_NAMES_ABBR[body.id] || body.name.substring(0, 3).toUpperCase()) : body.name}</span>
                     {isLocked && (
-                        <i className="ti ti-lock text-[9px] text-[#D4AF37] shrink-0" title="Disponível nos Planos Mensal e Vitalício" />
+                        <i className="ti ti-lock text-[9px] text-[#D4AF37] shrink-0" title="Disponível nos planos Pro e Fundador" />
                     )}
                 </span>
             )}
@@ -1011,7 +1011,7 @@ return (
                         {isFree && (
                             <div className="po-lock">
                                 <i className="ti ti-lock" aria-hidden="true" />
-                                <span>Ajustes liberados nos planos Mensal e Vitalício.</span>
+                                <span>Ajustes liberados nos planos Pro e Fundador.</span>
                                 <button type="button" onClick={() => { onOpenPaymentPlans?.(); setActiveMenu(null); }}>Ver planos</button>
                             </div>
                         )}
@@ -1118,7 +1118,7 @@ return (
                                             onOpenPaymentPlans?.();
                                         }}
                                         className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-[#D4AF37] text-[8.5px] font-bold cursor-pointer transition-colors shadow-xs active:scale-95"
-                                        title={`Controle de ligar e desligar ${sec.label.toLowerCase()} disponível no Plano Mensal e Vitalício. Clique para desbloquear.`}
+                                        title={`Controle de ligar e desligar ${sec.label.toLowerCase()} disponível no planos Pro e Fundador. Clique para desbloquear.`}
                                     >
                                         <i className="ti ti-lock text-[9px]" />
                                         <span>Bloqueado</span>

@@ -895,7 +895,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
                     ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
                     : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 shadow-xs'
                 }`}
-                title="Plano Gratuito: linha do tempo fixada no ano de 2026. Clique para desbloquear todos os anos nos Planos Mensal e Vitalício."
+                title="Plano Gratuito: linha do tempo fixada no ano de 2026. Clique para desbloquear todos os anos nos planos Pro e Fundador."
               >
                 <span>2026</span>
                 <span className="text-[9px] opacity-75 font-normal">(Free)</span>

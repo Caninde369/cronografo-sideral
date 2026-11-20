@@ -6,6 +6,8 @@
  * (em vez de mostrar um link ou chave Pix falsos para o comprador).
  */
 
+import { PLANOS } from '../src/plans/plans';
+
 /** Número do WhatsApp de atendimento/suporte (só dígitos, com DDI). Pode ser trocado no Vercel. */
 const WHATSAPP_NUMBER = ((import.meta.env.VITE_WHATSAPP_NUMBER as string | undefined) || '5511988791539').replace(/\D/g, '');
 
@@ -29,18 +31,12 @@ export const PAYMENT_CONFIG = {
   // Prazo informado ao comprador para liberação manual do plano
   activationDeadline: '24 horas',
 
-  // Preços exibidos (o valor cobrado é o do link de checkout no Nubank — manter iguais)
-  // Iguais à landing (src/landing/config.ts): Pro mensal e Fundador (Vitalício)
-  monthlyPrice: 110,
-  // Valor do Mensal depois do lançamento (o de hoje é promoção de pré-lançamento)
-  monthlyLaunchPrice: 350,
-  lifetimePrice: 1457,
+  // Preços: fonte única em src/plans/plans.ts (o valor cobrado é o do link de pagamento — manter iguais)
+  monthlyPrice: PLANOS.proMensal,
+  lifetimePrice: PLANOS.fundador.preco,
 
-  // Plano Gratuito: acesso limitado até esta data; depois segue gratuito com menos recursos
-  freeLaunchUntil: '03/12/2026',
-
-  // Plano Vitalício: total de vagas
-  lifetimeTotalSpots: 21,
+  // Plano Fundador (vitalício): total de vagas
+  lifetimeTotalSpots: PLANOS.fundador.vagas,
 
   // Vagas do Vitalício JÁ VENDIDAS — atualizado manualmente pelo Rafa no Vercel
   // (variável VITE_LIFETIME_SOLD + Redeploy). Se o Firestore (config/lifetime)
