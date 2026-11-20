@@ -21,6 +21,7 @@ import {
   type UserSession,
 } from '../lib/firebase';
 import { PAYMENT_CONFIG } from '../lib/paymentConfig';
+import { AdminUsage } from './AdminUsage';
 
 interface AdminDashboardProps {
   isOpen: boolean;
@@ -56,7 +57,7 @@ const HISTORY_START = '17/11/2026';
 const EASE = [0.32, 0.72, 0, 1] as const;
 
 type PlanView = 'free' | 'monthly' | 'annual' | 'lifetime';
-type Filter = 'all' | PlanView | 'blocked' | 'expiring';
+type Filter = 'all' | PlanView | 'blocked' | 'expiring' | 'usage';
 type SortKey = 'name' | 'plan' | 'created' | 'last' | 'count' | 'time';
 type SortDir = 0 | 1 | 2; // 0 original · 1 decrescente · 2 crescente
 
@@ -346,6 +347,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
   const FILTERS: { id: Filter; label: string; count?: number }[] = [
     { id: 'all', label: 'Todos' },
     { id: 'free', label: 'Grátis' },
+    { id: 'usage', label: 'Uso' },
     { id: 'monthly', label: 'Mensal' },
     { id: 'annual', label: 'Anual' },
     { id: 'lifetime', label: 'Fundador' },
@@ -406,6 +408,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {error && <div className="pnl-error"><i className="ti ti-alert-circle" aria-hidden="true" /> {error}</div>}
 
+          {filter === 'usage' ? <AdminUsage users={users} /> : (<>
           <div className="pnl-table-wrap">
             <table className="pnl-table">
               <thead>
@@ -454,6 +457,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
             </table>
           </div>
           <p className="pnl-foot">{rows.length} de {users.length} contas · Clique no título da coluna para ordenar: 1º clique do maior/mais recente, 2º do menor/mais antigo, 3º volta à ordem original.</p>
+          </>)}
         </main>
       )}
 

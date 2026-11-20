@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 
+import { TrialPill } from './TrialPill';
+import type { TrialUsage } from '../hooks/useTrialUsage';
+
 export interface TopBarProps {
+  /** Teste de 7 horas: com teste ativo, a pílula mostra as horas restantes */
+  trial?: TrialUsage;
   exportData?: any;
   showConstellations?: boolean;
   setShowConstellations?: (v: boolean) => void;
@@ -254,6 +259,11 @@ export const TopBar: React.FC<TopBarProps> = (props) => {
         className="fixed top-2.5 sm:top-3.5 z-[9990] flex items-center justify-end gap-2 pointer-events-auto select-none max-w-[calc(100vw-380px)] overflow-x-auto no-scrollbar transition-[right] duration-300 ease-out py-0.5"
         style={{ right: `${rightOffset}px` }}
       >
+        {/* Teste de 7 horas em andamento */}
+        {props.trial?.state === 'active' && (
+            <TrialPill trial={props.trial} isLight={isLight} onUpgrade={() => props.onOpenPaymentPlans?.()} />
+        )}
+
         {/* Pílula do Plano (apenas no plano gratuito) */}
         {props.isFreeTier && (
             <div className={`px-2.5 py-1 sm:px-3 sm:py-1 rounded-full ${isLight ? 'bg-white/95 border-[#8b8370]/35 text-[#231714] shadow-[0_3px_10px_-1px_rgba(110,98,75,0.16)]' : 'bg-[#06060a]/95 border border-white/15 text-white/90 shadow-[0_4px_16px_rgba(0,0,0,0.5)]'} backdrop-blur-xl flex items-center gap-2 shrink-0 select-none`}>

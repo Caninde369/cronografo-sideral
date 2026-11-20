@@ -25,7 +25,10 @@ import {
   increment,
   where,
   orderBy,
-  limit
+  limit,
+  updateDoc,
+  serverTimestamp,
+  Timestamp
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -463,3 +466,78 @@ export {
   updateProfile,
   onAuthStateChanged
 };
+
+// ─── Teste grátis de 7 horas ─────────────────────────────────────────────────
+// trials/{uid} = { startedAt, lastBeat, usedSeconds, day, daySeconds, extraSeconds }
+// Quem conta é o servidor (firestore.rules): cada batida soma 60s, no máximo uma por minuto.
+export interface TrialDoc {
+  uid: string;
+  startedAt: Date | null;
+  lastBeat: Date | null;
+  usedSeconds: number;
+  day: string;
+  daySeconds: number;
+  extraSeconds: number;
+}
+const TRIAL_DOC = (uid: string) => doc(db, 'trials', uid);
+const toDate = (v: any): Date | null => (v instanceof Timestamp ? v.toDate() : v && typeof v.toDate === 'function' ? v.toDate() : null);
+const parseTrial = (uid: string, d: any): TrialDoc => ({
+  uid,
+  startedAt: toDate(d?.startedAt),
+  lastBeat: toDate(d?.lastBeat),
+  usedSeconds: Number(d?.usedSeconds) || 0,
+  day: typeof d?.day === 'string' ? d.day : '',
+  daySeconds: Number(d?.daySeconds) || 0,
+  extraSeconds: Number(d?.extraSeconds) || 0,
+});
+/** Dia local no formato AAAA-MM-DD (para o "hoje" do teste). */
+export const localDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** Acompanha o teste da conta. null = ainda não existe. */
+export function subscribeTrial(uid: string, onUpdate: (t: TrialDoc | null) => void, onError?: (e: any) => void): () => void {
+  try {
+    return onSnapshot(TRIAL_DOC(uid), snap => onUpdate(snap.exists() ? parseTrial(uid, snap.data()) : null), e => { console.warn('Teste: leitura falhou', e); onError?.(e); });
+  } catch (e) { onError?.(e); return () => {}; }
+}
+
+/** Começa o teste (uma vez por conta). */
+export async function startTrialInFirestore(uid: string): Promise<boolean> {
+  try {
+    await setDoc(TRIAL_DOC(uid), { startedAt: serverTimestamp(), lastBeat: serverTimestamp(), usedSeconds: 0, day: localDay(), daySeconds: 0, extraSeconds: 0 });
+    return true;
+  } catch (e) { console.warn('Teste: não foi possível começar', e); return false; }
+}
+
+/** Soma 1 minuto de uso. O servidor recusa se ainda não passou 1 minuto da batida anterior. */
+export async function trialBeat(uid: string, previousDay: string): Promise<boolean> {
+  const day = localDay();
+  try {
+    await updateDoc(TRIAL_DOC(uid), {
+      usedSeconds: increment(60),
+      lastBeat: serverTimestamp(),
+      day,
+      daySeconds: day === previousDay ? increment(60) : 60,
+    });
+    return true;
+  } catch { return false; }
+}
+
+/** Admin: todos os testes, ao vivo. */
+export function subscribeAllTrialsForAdmin(onUpdate: (t: TrialDoc[]) => void, onError?: (e: any) => void): () => void {
+  try {
+    return onSnapshot(collection(db, 'trials'), snap => onUpdate(snap.docs.map(d => parseTrial(d.id, d.data()))), e => { console.warn('Testes: leitura falhou', e); onError?.(e); });
+  } catch (e) { onError?.(e); return () => {}; }
+}
+
+/** Admin: +1 hora no teste. */
+export async function adminTrialAddHour(uid: string): Promise<boolean> {
+  try { await updateDoc(TRIAL_DOC(uid), { extraSeconds: increment(3600) }); return true; } catch (e) { console.warn(e); return false; }
+}
+
+/** Admin: zera o teste (7 horas e 30 dias de novo, a partir de agora). */
+export async function adminTrialReset(uid: string): Promise<boolean> {
+  try {
+    await updateDoc(TRIAL_DOC(uid), { usedSeconds: 0, daySeconds: 0, extraSeconds: 0, startedAt: serverTimestamp(), lastBeat: serverTimestamp(), day: localDay() });
+    return true;
+  } catch (e) { console.warn(e); return false; }
+}

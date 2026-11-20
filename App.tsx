@@ -35,6 +35,8 @@ import { ExportPDFButton } from './components/ExportPDFButton';
 import { TopBar } from './components/TopBar';
 import { QuickToolsSidebar } from './components/QuickToolsSidebar';
 import { useTrialTimer } from './hooks/useTrialTimer';
+import { useTrialUsage } from './hooks/useTrialUsage';
+import { TrialEndModal } from './components/TrialPill';
 import StarfieldBackground from './components/StarfieldBackground';
 import { GlobalSvgDefs } from './components/GlobalSvgDefs';
 import { ProfileModal } from './components/ProfileModal';
@@ -904,8 +906,6 @@ useEffect(() => {
         } catch {}
         return 'free';
     });
-    const isFreeTier = !isAdmin && userPlan === 'free';
-    const isFreeTrial = isFreeTier;
     const [isAuthChecking, setIsAuthChecking] = useState(true);
     const [showDashboard, setShowDashboard] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
@@ -913,6 +913,17 @@ useEffect(() => {
     // Conta (uid) e bloqueio vindos do Firestore. Bloqueado = sem acesso ao app até o admin liberar.
     const [userUid, setUserUid] = useState<string | null>(null);
     const [isBlocked, setIsBlocked] = useState(false);
+    // Teste grátis de 7 horas (fase Fundadores): enquanto ativo, tudo liberado
+    const trial = useTrialUsage(userUid, isAuthenticated && !isAdmin && userPlan === 'free');
+    const isFreeTier = !isAdmin && userPlan === 'free' && trial.state !== 'active';
+    const isFreeTrial = isFreeTier;
+    const [showTrialEnd, setShowTrialEnd] = useState(false);
+    useEffect(() => {
+        if (trial.state !== 'ended' || !userUid) return;
+        const k = `cronografo:trialEndSeen:${userUid}`;
+        try { if (localStorage.getItem(k)) return; localStorage.setItem(k, '1'); } catch { /* sem armazenamento */ }
+        setShowTrialEnd(true);
+    }, [trial.state, userUid]);
     const [showPaymentPlansModal, setShowPaymentPlansModal] = useState(false);
     const [allowedFreeTier, setAllowedFreeTier] = useState(true);
     const [showLoginModal, setShowLoginModal] = useState(false);
@@ -2058,6 +2069,15 @@ const handlePlanetClick = useCallback((id: string) => {
                             setShowLoginModal(false);
                             setShowPaymentPlansModal(false);
                         }}
+                    />
+                )}
+
+                {/* Fim do teste de 7 horas (aparece uma vez por conta) */}
+                {showTrialEnd && !showPaymentPlansModal && (
+                    <TrialEndModal
+                        endedByDate={trial.endedByDate}
+                        onUpgrade={() => setShowPaymentPlansModal(true)}
+                        onClose={() => setShowTrialEnd(false)}
                     />
                 )}
 
@@ -3484,6 +3504,7 @@ const handlePlanetClick = useCallback((id: string) => {
                     isQuickToolsSidebarOpen={isQuickToolsSidebarOpen}
                     onToggleQuickToolsSidebar={() => setIsQuickToolsSidebarOpen(prev => !prev)}
                     isFreeTier={isFreeTier}
+                    trial={trial}
                     userPlan={userPlan}
                     isAdmin={isAdmin}
                     isAuthenticated={isAuthenticated}

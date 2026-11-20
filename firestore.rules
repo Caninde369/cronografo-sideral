@@ -99,6 +99,42 @@ service cloud.firestore {
 
     // Vagas do plano Vitalício (contador público exibido na janela de planos).
     // Qualquer pessoa lê; só o admin grava, e só números válidos.
+    // ── Teste grátis de 7 horas (fase Fundadores) ─────────────────────────
+    // O servidor é quem conta: cada batida soma exatamente 60s e só passa se
+    // tiverem passado 55s desde a anterior (request.time), dentro de 30 dias.
+    // Duas abas abertas não contam em dobro. Um teste por conta: só o admin apaga.
+    function trialKeys(d) {
+      return d.keys().hasOnly(['startedAt', 'lastBeat', 'usedSeconds', 'day', 'daySeconds', 'extraSeconds']);
+    }
+    function trialBeatOk() {
+      let d = request.resource.data;
+      let o = resource.data;
+      return trialKeys(d)
+        && d.startedAt == o.startedAt
+        && d.extraSeconds == o.extraSeconds
+        && d.lastBeat == request.time
+        && request.time >= o.lastBeat + duration.value(55, 's')
+        && request.time <= o.startedAt + duration.value(30, 'd')
+        && o.usedSeconds < 25200 + o.extraSeconds
+        && d.usedSeconds == o.usedSeconds + 60
+        && d.day is string && d.day.size() == 10
+        && ((d.day == o.day && d.daySeconds == o.daySeconds + 60) || (d.day != o.day && d.daySeconds == 60));
+    }
+    match /trials/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidId(userId)
+        && trialKeys(request.resource.data)
+        && request.resource.data.startedAt == request.time
+        && request.resource.data.lastBeat == request.time
+        && request.resource.data.usedSeconds == 0
+        && request.resource.data.daySeconds == 0
+        && request.resource.data.extraSeconds == 0
+        && request.resource.data.day is string && request.resource.data.day.size() == 10;
+      allow update: if isAdmin() || (isOwner(userId) && trialBeatOk());
+      allow delete: if isAdmin();
+    }
+
     match /config/lifetime {
       allow get: if true;
       allow write: if isAdmin()
