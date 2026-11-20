@@ -21,7 +21,6 @@ import {
   type UserSession,
 } from '../lib/firebase';
 import { PAYMENT_CONFIG } from '../lib/paymentConfig';
-import { AdminAppearance } from './AdminAppearance';
 
 interface AdminDashboardProps {
   isOpen: boolean;
@@ -57,7 +56,7 @@ const HISTORY_START = '17/11/2026';
 const EASE = [0.32, 0.72, 0, 1] as const;
 
 type PlanView = 'free' | 'monthly' | 'annual' | 'lifetime';
-type Filter = 'all' | PlanView | 'blocked' | 'expiring' | 'appearance';
+type Filter = 'all' | PlanView | 'blocked' | 'expiring';
 type SortKey = 'name' | 'plan' | 'created' | 'last' | 'count' | 'time';
 type SortDir = 0 | 1 | 2; // 0 original · 1 decrescente · 2 crescente
 
@@ -352,7 +351,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
     { id: 'lifetime', label: 'Fundador' },
     { id: 'expiring', label: 'Vencendo', count: stats.expiring },
     { id: 'blocked', label: 'Bloqueados', count: stats.blocked },
-    { id: 'appearance', label: 'Aparência' },
   ];
 
   const sessionList = sessions ? (showAllSessions ? sessions : sessions.slice(0, 8)) : [];
@@ -408,7 +406,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {error && <div className="pnl-error"><i className="ti ti-alert-circle" aria-hidden="true" /> {error}</div>}
 
-          {filter === 'appearance' ? <AdminAppearance /> : (
           <div className="pnl-table-wrap">
             <table className="pnl-table">
               <thead>
@@ -456,8 +453,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               </tbody>
             </table>
           </div>
-          )}
-          {filter !== 'appearance' && <p className="pnl-foot">{rows.length} de {users.length} contas · Clique no título da coluna para ordenar: 1º clique do maior/mais recente, 2º do menor/mais antigo, 3º volta à ordem original.</p>}
+          <p className="pnl-foot">{rows.length} de {users.length} contas · Clique no título da coluna para ordenar: 1º clique do maior/mais recente, 2º do menor/mais antigo, 3º volta à ordem original.</p>
         </main>
       )}
 

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SizeControlContent } from './SizeControlPopover';
 import { ExportPDFButton } from './ExportPDFButton';
+import { useZodiacStyle, setZodiacStyle, type ZodiacStyle } from '../lib/appearance';
 
 export type PointerHeadTail = 'arrow' | 'circle' | 'square' | 'none';
 
@@ -422,6 +423,7 @@ const SDivider: React.FC<{ isLight?: boolean }> = ({ isLight }) => (
 );
 
 export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
+  const zodiacStyle = useZodiacStyle();
   const isLight = props.theme === 'light';
   const isFreeTier = !!props.isFreeTier;
   const [openPopover, setOpenPopover] = useState<string | null>(null);
@@ -1764,6 +1766,17 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                   {/* 5. Personalização da Borda de Graduação e Zodíaco */}
                   <SubSec icon="ti-border-radius" color="text-indigo-400" isLight={isLight}>Graduação e Zodíaco</SubSec>
                   <OptionCard isLight={isLight}>
+                    <CtrlRow label="Cores do anel" icon="ti-palette" iconColor="text-indigo-300" isLight={isLight}>
+                      <SegSel
+                        options={[
+                          { label: 'Tradicional', value: 'traditional' },
+                          { label: 'Modernas', value: 'modern' },
+                        ]}
+                        value={zodiacStyle}
+                        onChange={(v) => setZodiacStyle(v as ZodiacStyle)}
+                        isLight={isLight}
+                      />
+                    </CtrlRow>
                     {props.graduationRingWidth !== undefined && (
                       <CtrlRow label="Espessura Borda" icon="ti-border-width" iconColor="text-indigo-300" isLight={isLight}>
                         <Stepper value={props.graduationRingWidth} onChange={v => props.setGraduationRingWidth?.(v)} min={10} max={120} step={2} format={v => `${v}px`} isLight={isLight} />

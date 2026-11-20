@@ -99,13 +99,6 @@ service cloud.firestore {
 
     // Vagas do plano Vitalício (contador público exibido na janela de planos).
     // Qualquer pessoa lê; só o admin grava, e só números válidos.
-    match /config/appearance {
-      allow get: if true;
-      allow write: if isAdmin()
-        && request.resource.data.keys().hasOnly(['zodiacStyle', 'updatedAt'])
-        && request.resource.data.zodiacStyle in ['traditional', 'modern'];
-    }
-
     match /config/lifetime {
       allow get: if true;
       allow write: if isAdmin()

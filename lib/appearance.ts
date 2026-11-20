@@ -1,42 +1,32 @@
 /**
- * Aparência do relógio: "Sistema tradicional" (cores dos elementos) ou "Cores modernas"
+ * Aparência do relógio: "Tradicional" (cores dos elementos) ou "Modernas"
  * (zodíaco na linha espectral da marca + estrela do logo no lugar dos dois pontos da hora).
- * A escolha é do admin e vale para todos (Firestore config/appearance).
- * Fica guardada no navegador para o relógio já abrir no estilo certo, sem piscar.
+ * Opção visual de cada pessoa, na sidebar (Anéis › Graduação e Zodíaco). Fica guardada no navegador.
  */
 import { useEffect, useState } from 'react';
-import { getZodiacStyle, setZodiacStyleInFirestore, type ZodiacStyle } from './firebase';
 
-export type { ZodiacStyle };
+export type ZodiacStyle = 'traditional' | 'modern';
 
 const KEY = 'cronografo:zodiacStyle';
 let current: ZodiacStyle = (() => {
   try { return localStorage.getItem(KEY) === 'modern' ? 'modern' : 'traditional'; } catch { return 'traditional'; }
 })();
 const subs = new Set<(s: ZodiacStyle) => void>();
-let loaded = false;
 
-const apply = (s: ZodiacStyle) => {
+export function setZodiacStyle(s: ZodiacStyle) {
   current = s;
   try { localStorage.setItem(KEY, s); } catch { /* sem armazenamento */ }
   subs.forEach(f => f(s));
-};
+}
 
 export function useZodiacStyle(): ZodiacStyle {
   const [s, setS] = useState<ZodiacStyle>(current);
   useEffect(() => {
     subs.add(setS);
-    if (!loaded) { loaded = true; getZodiacStyle().then(v => { if (v && v !== current) apply(v); }); }
     if (s !== current) setS(current);
     return () => { subs.delete(setS); };
   }, []);
   return s;
-}
-
-export async function saveZodiacStyle(s: ZodiacStyle): Promise<boolean> {
-  const ok = await setZodiacStyleInFirestore(s);
-  if (ok) apply(s);
-  return ok;
 }
 
 // ── Cores modernas: ajustes aprovados no teste do anel espectral (20/11/2026) ──
