@@ -641,7 +641,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                         context: pillar.label,
                         value: pillar.val
                       })}
-                      className="arc-desc shrink-0 mt-1 bg-black/60 border border-zinc-900 rounded-xl p-2.5 space-y-2 cursor-pointer"
+                      className="arc-desc mt-1 bg-black/60 border border-zinc-900 rounded-xl p-2.5 space-y-2 cursor-pointer"
                     >
                       <div className="flex flex-wrap gap-x-2 gap-y-1 font-sans text-[11px] font-medium text-white tracking-tight">
                         {pillar.arcano.keywords.map((kw, kidx) => (

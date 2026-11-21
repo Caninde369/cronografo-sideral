@@ -96,31 +96,28 @@ const Particles: React.FC = () => {
   return <canvas ref={ref} className="awv-parts" aria-hidden="true" />;
 };
 
-export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight, onSelectCard }) => {
-  const [on, setOn] = useState<Record<Mark, boolean>>({ dia: true, mes: true, ano: true, jornada: true });
-
-  // Dia da semana de cada coluna: a coluna do arcano do dia recebe o dia da semana da data lida
-  const ref = readDate ? new Date(`${readDate}T12:00:00`) : new Date();
-  const weekday = isNaN(ref.getTime()) ? new Date().getDay() : ref.getDay();
-  const diaN = highlight?.dia ?? 1;
-  const diaCol = diaN === 0 ? -1 : (diaN - 1) % 7; // 0 fica antes da primeira coluna
-  const dayOfCol = (c: number) => WEEK[(((weekday + c - diaCol) % 7) + 7) % 7];
-
-  const marksFor = (n: number) => MARKS.filter(m => on[m.id] && highlight && highlight[m.id] === n);
-
-  const Card: React.FC<{ n: number; zero?: boolean }> = ({ n, zero }) => {
-    const a = getArcano(n);
-    const ms = marksFor(n);
+/**
+ * Carta da semana. Fica fora do componente principal para não ser recriada a cada atualização
+ * (recriar a carta reiniciava a animação da borda no meio do giro).
+ * O giro usa um atraso negativo ligado ao relógio, então mesmo se a carta for montada de novo
+ * a borda continua do ponto em que estava.
+ */
+const SPIN_MS = 6000;
+const WeekCard = React.memo<{ n: number; arcano: Arcanum; marks: { id: string; label: string; color: string }[]; onSelect: (a: Arcanum) => void; zero?: boolean }>(
+  ({ n, arcano: a, marks: ms, onSelect, zero }) => {
+    // fase do giro fixada na montagem (não muda a cada atualização, para não reiniciar a animação)
+    const [delay] = useState(() => `-${Date.now() % SPIN_MS}ms`);
     const u = ms.length; // 0 a 4: nível da união
     const style: React.CSSProperties = {};
     if (u === 1) (style as any)['--mk'] = ms[0].color;
     if (u >= 2) {
       const seg = 360 / u;
       (style as any)['--stops'] = ms.map((m, i) => `${m.color} ${i * seg}deg ${(i + 1) * seg}deg`).join(',');
+      (style as any)['--awv-delay'] = delay;
     }
     const label = `${a.fullName}${u ? ` · ${ms.map(m => m.label).join(', ')}` : ''}${u >= 3 ? ` · ${u === 4 ? 'Grande portal' : 'Portal'}` : ''}`;
     return (
-      <button type="button" className={`awv-card u${u} ${zero ? 'is-zero' : ''}`} style={style} onClick={() => onSelectCard(a)} title={label} aria-label={label}>
+      <button type="button" className={`awv-card u${u} ${zero ? 'is-zero' : ''}`} style={style} onClick={() => onSelect(a)} title={label} aria-label={label}>
         {u >= 2 && <span className="awv-glow" aria-hidden="true" />}
         <span className="awv-face">
           <img src={a.image} alt="" referrerPolicy="no-referrer" crossOrigin="anonymous" decoding="async" loading="lazy"
@@ -138,7 +135,24 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
         {u >= 3 && <span className="awv-portal">{u === 4 ? 'Grande portal' : 'Portal'}</span>}
       </button>
     );
-  };
+  },
+  (p, q) => p.n === q.n && p.arcano === q.arcano && p.zero === q.zero && p.onSelect === q.onSelect &&
+    p.marks.map(m => m.id).join() === q.marks.map(m => m.id).join(),
+);
+
+export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight, onSelectCard }) => {
+  const [on, setOn] = useState<Record<Mark, boolean>>({ dia: true, mes: true, ano: true, jornada: true });
+
+  // Dia da semana de cada coluna: a coluna do arcano do dia recebe o dia da semana da data lida
+  const ref = readDate ? new Date(`${readDate}T12:00:00`) : new Date();
+  const weekday = isNaN(ref.getTime()) ? new Date().getDay() : ref.getDay();
+  const diaN = highlight?.dia ?? 1;
+  const diaCol = diaN === 0 ? -1 : (diaN - 1) % 7; // 0 fica antes da primeira coluna
+  const dayOfCol = (c: number) => WEEK[(((weekday + c - diaCol) % 7) + 7) % 7];
+
+  const marksFor = (n: number) => MARKS.filter(m => on[m.id] && highlight && highlight[m.id] === n);
+
+  const cardProps = (n: number) => ({ n, arcano: getArcano(n), marks: marksFor(n), onSelect: onSelectCard });
 
   // linhas contínuas: antes da 5ª coluna (Lei) e antes da 7ª (Efeito)
   const cuts = [6, 8];
@@ -168,7 +182,7 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
         {/* O 0, à parte */}
         {/* O 0 numa linha acima do Mago (1), com o mesmo tamanho das outras cartas */}
         <div className="awv-cell" style={{ gridColumn: 1, gridRow: 1 }} title="0 · Recomeço, Alteração, Decisão">
-          <Card n={0} />
+          <WeekCard {...cardProps(0)} />
         </div>
 
         {/* Dias da semana (móveis) */}
@@ -188,7 +202,7 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
             <div className="awv-sym" style={{ gridColumn: 1, gridRow: ri + 2 }}>{r.sym}</div>
             {Array.from({ length: 7 }, (_, i) => (
               <div key={i} className="awv-cell" style={{ gridColumn: i + 2, gridRow: ri + 2 }}>
-                <Card n={r.start + i} />
+                <WeekCard {...cardProps(r.start + i)} />
               </div>
             ))}
             <div className="awv-legend" style={{ gridColumn: 9, gridRow: ri + 2 }}>
@@ -249,12 +263,12 @@ const CSS = `
 .awv-card.u1 .awv-face{border:2px solid var(--mk);box-shadow:0 0 12px -2px color-mix(in srgb,var(--mk) 70%,transparent)}
 /* Dias de Portal: borda com as cores de cada marca, girando; brilho por nível de união */
 @property --awv-spin{syntax:'<angle>';inherits:false;initial-value:0deg}
-.awv-ring,.awv-glow{position:absolute;inset:-2px;border-radius:12px;pointer-events:none;background:conic-gradient(from var(--awv-spin),var(--stops));animation:awv-spin 6s linear infinite}
+.awv-ring,.awv-glow{position:absolute;inset:-2px;border-radius:12px;pointer-events:none;background:conic-gradient(from var(--awv-spin),var(--stops));animation:awv-spin 6s linear infinite;animation-delay:var(--awv-delay,0ms);will-change:background}
 .awv-ring{z-index:2;padding:2px;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
 .awv-glow{z-index:0;filter:blur(12px)}
 .u2 .awv-face,.u3 .awv-face,.u4 .awv-face{border-color:transparent}
 .u2 .awv-glow{opacity:.5}
-.u3 .awv-glow{opacity:1;filter:blur(16px);animation:awv-spin 4s linear infinite,awv-pulse 2.4s ease-in-out infinite}
+.u3 .awv-glow{opacity:1;filter:blur(16px);animation:awv-spin 6s linear infinite,awv-pulse 2.4s ease-in-out infinite;animation-delay:var(--awv-delay,0ms),0ms}
 .u4 .awv-ring{background:conic-gradient(from var(--awv-spin),#fff,#F5F2EB,#fff,#d9d4ff,#fff)}
 .u4 .awv-glow{background:#fff;filter:blur(18px);animation:awv-pulse4 2.2s ease-in-out infinite}
 .u4 .awv-face{box-shadow:inset 0 0 24px rgba(255,255,255,.25)}

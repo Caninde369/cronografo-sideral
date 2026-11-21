@@ -75,7 +75,9 @@ export const ARCANE_SKIN = `
 .arc-skin button:focus-visible,.arc-skin input:focus-visible,.arc-skin select:focus-visible{outline:2px solid var(--a-fg);outline-offset:2px}
 
 /* Cartas ocupando o bloco inteiro, sem tremer */
-.arc-skin .arc-cardfill{position:relative;flex:1 1 auto;min-height:240px;contain:layout paint}
+/* tamanho fixo pela largura da coluna: as quatro cartas sempre iguais, sem pular ao trocar a data */
+.arc-skin .arc-cardfill{position:relative;flex:none;width:100%;aspect-ratio:2/3.3;max-height:62vh;contain:layout paint}
+.arc-skin .arc-desc{flex:1 1 0;min-height:0;overflow-y:auto;scrollbar-width:thin}
 .arc-skin .arc-cardfill img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;transform:none!important;transition:none!important;backface-visibility:hidden}
 .arc-skin .arc-novo{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 14px;border-radius:999px;border:1px solid var(--a-fg);background:var(--a-fg);color:var(--a-bg);font:600 11px 'DM Sans',sans-serif;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;cursor:pointer}
 .arc-skin .arc-novo:hover{background:#fff}
