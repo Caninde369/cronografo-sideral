@@ -5,6 +5,7 @@ import { toRoman } from './TarotCard';
 import { TarotModal } from './TarotModal';
 import { SlimPersonManager, Person } from './SlimPersonManager';
 import { TarotCodex } from './TarotCodex';
+import { ArcaneWeekView } from './ArcaneWeekView';
 import { 
   Users, 
   House as Home, 
@@ -329,18 +330,8 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
               <span><span className="arc-title">Calendário Arcano</span><span className="arc-sub">Cronógrafo Sideral</span></span>
             </h1>
 
-            {/* Mobile-only Consulente Switcher */}
+            {/* Mobile: só o fechar (o consulente fica na linha do consulente) */}
             <div className="sm:hidden flex items-center gap-2">
-              <SlimPersonManager
-                persons={persons}
-                selectedPersonId={selectedPersonId}
-                onSelectPerson={setSelectedPersonId}
-                onAddPerson={handleAddPerson}
-              showAddButton={false}
-              addSignal={addSignal}
-                onRemovePerson={handleRemovePerson}
-                onEditPerson={handleEditPerson}
-              />
               {onClose && (
                 <button onClick={onClose} aria-label="Fechar Calendário Arcano" title="Fechar"
                   className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-700 transition-all shrink-0">
@@ -355,7 +346,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
               { id: 'calculadora', label: 'INÍCIO', icon: Home },
               { id: 'calendario', label: 'CALENDÁRIO', icon: CalendarIcon, mobileOnly: true },
               { id: 'mesa', label: 'MESA', icon: Users },
-              { id: 'baralho', label: 'BARALHO', icon: Layers }
+              { id: 'baralho', label: 'VISÃO DE CALENDÁRIO', icon: Layers }
             ].map(tab => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -379,18 +370,8 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
             })}
           </nav>
 
-          {/* Desktop-only Consulente Switcher */}
-          <div className="hidden sm:flex items-center gap-2">
-            <SlimPersonManager
-              persons={persons}
-              selectedPersonId={selectedPersonId}
-              onSelectPerson={setSelectedPersonId}
-              onAddPerson={handleAddPerson}
-              showAddButton={false}
-              addSignal={addSignal}
-              onRemovePerson={handleRemovePerson}
-              onEditPerson={handleEditPerson}
-            />
+          {/* Desktop: só o fechar (o consulente fica na linha do consulente) */}
+          <div className="hidden sm:flex items-center justify-end gap-2 sm:min-w-[120px]">
             {onClose && (
               <button onClick={onClose} aria-label="Fechar Calendário Arcano" title="Fechar (Esc)"
                 className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-700 transition-all shrink-0">
@@ -409,9 +390,22 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
             <Sparkles size={22} className="text-amber-400 mx-auto mb-3" />
             <h2 className="font-playfair text-lg font-bold text-white mb-2">Cadastre o primeiro consulente</h2>
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Use o botão <strong className="text-amber-300">+ Novo</strong> ao lado do consulente, com nome e data de nascimento,
+              Use o botão <strong className="text-amber-300">Novo</strong>, com nome e data de nascimento,
               para calcular a jornada, o ano, o mês e o dia arcanos.
             </p>
+            <div className="mt-4 flex justify-center">
+              <SlimPersonManager
+                persons={persons}
+                selectedPersonId={selectedPersonId}
+                onSelectPerson={setSelectedPersonId}
+                onAddPerson={handleAddPerson}
+                showAddButton={false}
+                addSignal={addSignal}
+                onRemovePerson={handleRemovePerson}
+                onEditPerson={handleEditPerson}
+              />
+              <button type="button" className="arc-novo ml-2" onClick={() => setAddSignal(n => n + 1)}><UserPlus size={13} aria-hidden="true" /> Novo</button>
+            </div>
             <p className="text-[10px] text-zinc-500 mt-3">Os consulentes ficam salvos só neste navegador.</p>
           </div>
         </main>
@@ -446,21 +440,17 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                   />
                 </div>
 
-                <div className="relative shrink-0">
-                  <select
-                    value={selectedPersonId}
-                    onChange={(e) => setSelectedPersonId(e.target.value)}
-                    className="bg-zinc-900 text-white font-sans text-xs font-bold border border-zinc-700 hover:border-amber-400 rounded-lg px-2.5 py-1 pr-6 outline-none appearance-none cursor-pointer transition-colors max-w-[130px] sm:max-w-[180px] truncate"
-                    title="Selecionar Consulente Ativo"
-                  >
-                    {persons.map((p) => (
-                      <option key={p.id} value={p.id} className="bg-zinc-900 text-white">
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
-                </div>
+                {/* Consulente: lista com trocar, editar, excluir e cadastrar */}
+                <SlimPersonManager
+                  persons={persons}
+                  selectedPersonId={selectedPersonId}
+                  onSelectPerson={setSelectedPersonId}
+                  onAddPerson={handleAddPerson}
+                  showAddButton={false}
+                  addSignal={addSignal}
+                  onRemovePerson={handleRemovePerson}
+                  onEditPerson={handleEditPerson}
+                />
 
                 <span className="text-[10px] font-sans bg-zinc-900 text-zinc-300 px-2 py-1 rounded-lg border border-zinc-800 font-bold whitespace-nowrap shrink-0">
                   Arcano <span className="font-playfair text-amber-300">{toRoman(personalArcaneId)}</span> <span className="hidden xs:inline sm:inline">({personalArcanoObj.name})</span>
@@ -562,7 +552,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                 {arcanePillars.map((pillar, idx) => (
                   <div
                     key={idx}
-                    className="bg-zinc-950 border border-zinc-800 hover:border-amber-500/60 rounded-2xl p-3 flex flex-col transition-colors group overflow-y-auto min-h-[440px]"
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-3 flex flex-col group overflow-y-auto min-h-[440px]"
                     style={{ scrollbarGutter: 'stable' }}
                   >
                     {/* Pillar Header */}
@@ -576,7 +566,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                         </span>
                       </div>
                       <div className="flex items-baseline gap-1 shrink-0">
-                        <span className="font-playfair text-2xl sm:text-3xl font-black text-amber-400 leading-none group-hover:text-amber-300 transition-colors">
+                        <span className="font-playfair text-2xl sm:text-3xl font-black text-amber-400 leading-none">
                           {toRoman(pillar.val % 22)}
                         </span>
                         <span className="font-sans text-[10px] text-zinc-400 font-bold">
@@ -618,11 +608,11 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                         context: pillar.label,
                         value: pillar.val
                       })}
-                      className="mt-1 bg-black/60 border border-zinc-900 hover:border-amber-500/40 rounded-xl p-2.5 space-y-2 cursor-pointer transition-all"
+                      className="arc-desc shrink-0 mt-1 bg-black/60 border border-zinc-900 rounded-xl p-2.5 space-y-2 cursor-pointer"
                     >
                       <div className="flex flex-wrap gap-x-2 gap-y-1 font-sans text-[11px] font-medium text-white tracking-tight">
                         {pillar.arcano.keywords.map((kw, kidx) => (
-                          <span key={kidx} className="hover:text-amber-300 transition-colors">
+                          <span key={kidx}>
                             #{kw}
                           </span>
                         ))}
@@ -795,7 +785,11 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
             )}
 
             {activeTab === 'baralho' && (
-              <TarotCodex onSelectCard={(arcano) => setSelectedModalCard({ arcano })} />
+              <ArcaneWeekView
+                getArcano={getArcanoSafe}
+                highlight={{ dia: res.dia % 22, mes: res.mes % 22, ano: res.ano % 22, jornada: res.jornada % 22 }}
+                onSelectCard={(arcano) => setSelectedModalCard({ arcano })}
+              />
             )}
           </div>
 

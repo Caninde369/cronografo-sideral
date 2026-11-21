@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { calculatePersonalArcane } from './arcaneCalendar';
 import { MAJOR_ARCANA } from './tarot';
 import { toRoman } from './TarotCard';
-import { Users, UserPlus, Check, X, Trash2, ChevronDown, Pencil } from 'lucide-react';
+import { Users, UserPlus, Check, X, Trash2, ChevronDown, Pencil, Search } from 'lucide-react';
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
@@ -52,6 +52,20 @@ export const SlimPersonManager: React.FC<SlimPersonManagerProps> = ({
   const [editName, setEditName] = useState('');
   const [editBirth, setEditBirth] = useState('');
   const [editErrorMsg, setEditErrorMsg] = useState('');
+
+  // Busca, ordem e exclusão com confirmação
+  const [query, setQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'recent' | 'az'>('recent');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const visiblePersons = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = persons.filter(p => !q || p.name.toLowerCase().includes(q));
+    // id = momento do cadastro (Date.now); ids antigos e fixos ficam por último
+    const when = (p: Person) => { const n = Number(p.id); return isFinite(n) ? n : 0; };
+    return [...list].sort((a, b) => sortBy === 'az'
+      ? a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
+      : when(b) - when(a));
+  }, [persons, query, sortBy]);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -178,6 +192,7 @@ export const SlimPersonManager: React.FC<SlimPersonManagerProps> = ({
       {isOpenList && (
         <div className="absolute top-full right-0 sm:right-auto sm:left-0 mt-2 w-[calc(100vw-1.5rem)] max-w-sm sm:w-96 bg-zinc-950 border border-amber-500/40 rounded-xl p-3 shadow-2xl shadow-black/90 animate-in fade-in slide-in-from-top-2 duration-150 z-50">
           
+          <style>{SPM_CSS}</style>
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800">
             <span className="text-[10px] font-sans uppercase tracking-widest text-zinc-400 font-bold flex items-center gap-1.5">
               <Users size={13} /> Consulentes Registrados ({persons.length})
@@ -229,9 +244,23 @@ export const SlimPersonManager: React.FC<SlimPersonManagerProps> = ({
             </form>
           )}
 
+          {/* Busca e ordem */}
+          <div className="spm-tools">
+            <label className="spm-lbl" htmlFor="spm-q">Buscar consulente</label>
+            <div className="spm-search">
+              <Search size={13} aria-hidden="true" />
+              <input id="spm-q" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Nome" autoComplete="off" />
+            </div>
+            <div className="spm-sort" role="radiogroup" aria-label="Ordenar consulentes">
+              <button type="button" role="radio" aria-checked={sortBy === 'recent'} className={sortBy === 'recent' ? 'on' : ''} onClick={() => setSortBy('recent')}>Mais recentes</button>
+              <button type="button" role="radio" aria-checked={sortBy === 'az'} className={sortBy === 'az' ? 'on' : ''} onClick={() => setSortBy('az')}>A–Z</button>
+            </div>
+          </div>
+
           {/* List of Persons */}
           <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
-            {persons.map((p) => {
+            {visiblePersons.length === 0 && <p className="text-[11px] text-zinc-500 px-1 py-2">Nenhum consulente com “{query}”.</p>}
+            {visiblePersons.map((p) => {
               const isSelected = p.id === selectedPersonId;
               const isEditing = editingId === p.id;
               const pArcane = calculatePersonalArcane(p.birthDate);
@@ -295,6 +324,16 @@ export const SlimPersonManager: React.FC<SlimPersonManagerProps> = ({
                 );
               }
 
+              if (deletingId === p.id) {
+                return (
+                  <div key={p.id} className="spm-del" onClick={e => e.stopPropagation()}>
+                    <span>Excluir <b>{p.name}</b>?</span>
+                    <button type="button" className="spm-yes" onClick={() => { onRemovePerson(p.id); setDeletingId(null); }}>Excluir</button>
+                    <button type="button" className="spm-no" onClick={() => setDeletingId(null)}>Cancelar</button>
+                  </div>
+                );
+              }
+
               return (
                 <div
                   key={p.id}
@@ -333,7 +372,8 @@ export const SlimPersonManager: React.FC<SlimPersonManagerProps> = ({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onRemovePerson(p.id);
+                          setEditingId(null);
+                          setDeletingId(p.id);
                         }}
                         className="p-1 text-zinc-500 hover:text-red-400 hover:bg-black rounded transition-colors"
                         title={`Excluir ${p.name}`}
@@ -353,3 +393,19 @@ export const SlimPersonManager: React.FC<SlimPersonManagerProps> = ({
     </div>
   );
 };
+
+const SPM_CSS = `
+.spm-tools{display:flex;flex-direction:column;gap:6px;margin:0 0 10px}
+.spm-lbl{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:#8a8590;font-weight:600}
+.spm-search{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border:1px solid #2a2430;border-radius:999px;color:#8a8590}
+.spm-search:focus-within{border-color:#EDE9E3}
+.spm-search input{flex:1;min-width:0;background:none;border:0;outline:0;color:#EDE9E3;font:inherit;font-size:12px}
+.spm-search input::placeholder{color:#6f6a76}
+.spm-sort{display:flex;gap:4px}
+.spm-sort button{flex:1;height:28px;border-radius:999px;border:1px solid #2a2430;background:none;color:#B9B4BE;font-size:11px;cursor:pointer}
+.spm-sort button.on{background:#EDE9E3;color:#040004;border-color:#EDE9E3}
+.spm-del{display:flex;align-items:center;gap:6px;padding:8px 8px 8px 10px;border-radius:10px;border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.08);font-size:12px;color:#EDE9E3}
+.spm-del>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spm-del button{height:26px;padding:0 10px;border-radius:999px;font-size:11px;border:1px solid #2a2430;background:none;color:#B9B4BE;cursor:pointer}
+.spm-del .spm-yes{border-color:rgba(239,68,68,.6);color:#fca5a5}
+`;

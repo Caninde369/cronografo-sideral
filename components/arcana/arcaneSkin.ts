@@ -80,6 +80,9 @@ export const ARCANE_SKIN = `
 .arc-skin .arc-novo{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 14px;border-radius:999px;border:1px solid var(--a-fg);background:var(--a-fg);color:var(--a-bg);font:600 11px 'DM Sans',sans-serif;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;cursor:pointer}
 .arc-skin .arc-novo:hover{background:#fff}
 
+/* Painel de palavras-chave estável */
+.arc-skin .arc-desc,.arc-skin .arc-desc *{transition:none!important;animation:none!important}
+
 /* Sem brilho âmbar */
 .arc-skin [class*="shadow-[0_0_"]{box-shadow:none!important}
 
