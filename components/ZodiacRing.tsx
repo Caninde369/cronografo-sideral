@@ -4,7 +4,7 @@ import { ZODIAC_DATA, ELEMENT_COLORS, MODALITY_COLORS, POLARITY_COLORS, getZodia
 import { ZODIAC_ICONS } from './icons';
 import { normalizeAngle, polarToCartesian } from '../lib/astrology/utils';
 import { HighlightFilter } from './ChartStatisticsPanel';
-import { MODERN_RING, spectralAt } from '../lib/appearance';
+import { useRingColors, spectralAt, mixHex } from '../lib/appearance';
 
 interface ZodiacRingProps {
     cx: number;
@@ -26,6 +26,7 @@ export const ZodiacRing: React.FC<ZodiacRingProps> = ({
     cx, cy, innerRadius, outerRadius, rotation, onHover, onLeave, iconSize = 24, colorMode = 'element', highlightFilter, isBrightSky = false, styleMode = 'traditional'
 }) => {
     const uid = React.useId().replace(/:/g, '');
+    const ringColors = useRingColors();
     
     const getAngle = (longitude: number) => {
         // Base angle calculation (rotation = 0)
@@ -68,14 +69,14 @@ export const ZodiacRing: React.FC<ZodiacRingProps> = ({
 
     // ── Cores modernas: faixa contínua na linha espectral, signos brancos ──
     if (styleMode === 'modern') {
-        const M = MODERN_RING;
+        const M = ringColors;
         const glyphSize = Math.round(iconSize * M.glyphScale);
         const ink = isBrightSky ? '#0f172a' : '#F5F2EB';
         const sepColor = isBrightSky ? '#0f172a' : '#ffffff';
         const slices: React.ReactNode[] = [];
         const edges: React.ReactNode[] = [];
         for (let l = 0; l < 360; l += 2) {
-            const c = spectralAt(l + 1);
+            const c = spectralAt(l + 1, M);
             const dim = dimmedSign(ZODIAC_DATA[Math.floor(l / 30)]) ? 0.15 : 1;
             slices.push(<path key={l} d={describeSector(cx, cy, innerRadius, outerRadius, getAngle(l), getAngle(Math.min(360, l + 2.6)))} fill={c} opacity={dim} />);
             [outerRadius, innerRadius].forEach(r => {
@@ -101,7 +102,8 @@ export const ZodiacRing: React.FC<ZodiacRingProps> = ({
                     const p2 = polarToCartesian(cx, cy, outerRadius, a);
                     const pos = polarToCartesian(cx, cy, (innerRadius + outerRadius) / 2, getAngle(startLon + 15));
                     const SignIcon = ZODIAC_ICONS[sign.id as keyof typeof ZODIAC_ICONS];
-                    return (
+                    const signInk = M.glyph === 'color' ? mixHex(spectralAt(startLon + 15, M), isBrightSky ? '#000000' : '#ffffff', isBrightSky ? 0.3 : M.glyphLight) : ink;
+                        return (
                         <g key={sign.id} data-sign={i} className="group" onMouseEnter={() => onHover(sign.id)} onMouseLeave={onLeave}
                            style={{ opacity: dimmedSign(sign) ? 0.15 : 1, transition: 'opacity 0.2s ease-in-out' }}>
                             <path d={describeSector(cx, cy, innerRadius, outerRadius, getAngle(startLon), getAngle(startLon + 30))}
@@ -109,7 +111,7 @@ export const ZodiacRing: React.FC<ZodiacRingProps> = ({
                             <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={sepColor} strokeOpacity={M.sep} strokeWidth="0.8" strokeLinecap="round" />
                             <g transform={`translate(${pos.x}, ${pos.y}) rotate(${-rotation})`} style={{ pointerEvents: 'none' }}>
                                 <g style={{ opacity: 0.88 }} filter={isBrightSky ? undefined : `url(#zg-${uid})`}>
-                                    <SignIcon width={glyphSize} height={glyphSize} x={-glyphSize / 2} y={-glyphSize / 2} fill={ink} shapeRendering="geometricPrecision" />
+                                    <SignIcon width={glyphSize} height={glyphSize} x={-glyphSize / 2} y={-glyphSize / 2} fill={signInk} shapeRendering="geometricPrecision" />
                                 </g>
                             </g>
                         </g>

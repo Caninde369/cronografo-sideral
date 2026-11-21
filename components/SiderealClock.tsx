@@ -31,7 +31,7 @@ import { getMoonAge, getCelticMoonCycle } from "../lib/astrology/calendars";
 import { getEclipseOnLocalDate } from "../lib/astrology/eclipses";
 import { MoonPhaseDisk } from "./CalendarPanel";
 import { CelestialGlyphSvg } from "./chart/CelestialGlyphSvg";
-import { useZodiacStyle, MODERN_RING, STAR_PATH } from "../lib/appearance";
+import { useZodiacStyle, useRingColors, STAR_PATH } from "../lib/appearance";
 
 interface SiderealClockProps {
   celestialData: CelestialData;
@@ -898,6 +898,7 @@ export const SiderealClock: React.FC<SiderealClockProps> = ({
 
   // Aparência escolhida no painel admin: "modern" = anel espectral mais largo e estrela no relógio
   const zodiacStyle = useZodiacStyle();
+  const MODERN_RING = useRingColors();
   const isModernZodiac = zodiacStyle === "modern";
   const baseZodiacWidth = isModernZodiac ? MODERN_RING.width : 40;
   const zodiacWidth = baseZodiacWidth * zodiacRingScale;
@@ -4483,7 +4484,9 @@ const horizonStrokePath = `
                 <text x={cx - half} y={cy - 8} textAnchor="end" dominantBaseline="central" style={hourStyle}>{hours}</text>
                 <text x={cx + half} y={cy - 8} textAnchor="start" dominantBaseline="central" style={hourStyle}>{minutes}</text>
                 <g transform={`translate(${cx}, ${cy - 8 + fs * 0.04}) scale(${MODERN_RING.starSize / 10})`}>
-                  <path d={STAR_PATH} fill={getCenterTextColor("main")} filter={isBrightSky || theme === "light" ? undefined : "url(#center-star-glow)"} />
+                  <path d={STAR_PATH} fill={getCenterTextColor("main")} filter={isBrightSky || theme === "light" ? undefined : "url(#center-star-glow)"}>
+                    {MODERN_RING.pulse && <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" />}
+                  </path>
                 </g>
               </g>
             );

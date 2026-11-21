@@ -11,6 +11,7 @@ import { findRetrogradePeriod, findDirectPeriod, findStationWindow, RETRO_CAPABL
 import { Tooltip } from './Tooltip';
 import { OPT_CSS, OptHeader, OptGroup, OptToggle, OptSegment, OptSlider } from './panel/PanelOptions';
 import { PLANET_DESCRIPTIONS } from './astro-descriptions';
+import { useRingColors, elementColor } from '../lib/appearance';
 
 export type CelestialSettings = {
     planets: {
@@ -341,6 +342,7 @@ const CelestialBodyCard: React.FC<{
     isLocked?: boolean;
     onRetroClick?: (id: string, kind: 'retro' | 'station' | 'direct', anchor: DOMRect) => void;
 }> = ({ body, housePlacements, retrogradeStatus, stationaryStatus, onHover, isSelected, isSecondarySelected, isVisible, onClick, onRightClick, itemSize, zodiacSignSize, scale = 1, settings, houseFormat, zodiacColorMode, anyHovered, isHovered, anySelected, moonPhase, className, onTooltip, onTooltipLeave, theme = 'dark', isLocked = false, onRetroClick }) => {
+    const ringColors = useRingColors();
     
     const safeLongitude = body.longitude || 0;
     const signIndex = Math.floor(safeLongitude / 30);
@@ -374,6 +376,11 @@ const CelestialBodyCard: React.FC<{
             ? { fire: '#b91c1c', earth: '#15803d', air: '#0369a1', water: '#4338ca', cardinal: '#b91c1c', fixed: '#15803d', mutable: '#1d4ed8', masculine: '#b91c1c', feminine: '#1d4ed8' }
             : { fire: '#F87171', earth: '#4ADE80', air: '#38BDF8', water: '#818CF8', cardinal: '#F87171', fixed: '#4ADE80', mutable: '#60A5FA', masculine: '#F87171', feminine: '#60A5FA' };
         const key = zodiacColorMode === 'modality' ? sg.modality : zodiacColorMode === 'polarity' ? sg.polarity : sg.element;
+        // Cores dos elementos editadas pela pessoa (Anéis › Editar cores)
+        if (zodiacColorMode !== 'modality' && zodiacColorMode !== 'polarity') {
+            const custom = elementColor(key, isLight, ringColors);
+            if (custom) return custom;
+        }
         return (D as Record<string, string>)[key] || neutral;
     })();
     const cardPaddingY = Math.max(2, Math.round(4 * scale));

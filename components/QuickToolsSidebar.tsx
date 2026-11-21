@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SizeControlContent } from './SizeControlPopover';
 import { ExportPDFButton } from './ExportPDFButton';
-import { useZodiacStyle, setZodiacStyle, type ZodiacStyle } from '../lib/appearance';
+import { useZodiacStyle, setZodiacStyle, setColorEditorOpen, type ZodiacStyle } from '../lib/appearance';
 
 export type PointerHeadTail = 'arrow' | 'circle' | 'square' | 'none';
 
@@ -1776,6 +1776,15 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                         onChange={(v) => setZodiacStyle(v as ZodiacStyle)}
                         isLight={isLight}
                       />
+                    </CtrlRow>
+                    <CtrlRow label="Editar cores" icon="ti-adjustments-horizontal" iconColor="text-indigo-300" isLight={isLight}>
+                      <button
+                        type="button"
+                        onClick={() => setColorEditorOpen(true)}
+                        className={`h-7 px-3 rounded-full border text-[11.5px] font-medium whitespace-nowrap transition-colors ${isLight ? 'border-black/15 text-[#231714] hover:bg-black/[0.05]' : 'border-white/15 text-white/85 hover:bg-white/[0.06]'}`}
+                      >
+                        Abrir editor
+                      </button>
                     </CtrlRow>
                     {props.graduationRingWidth !== undefined && (
                       <CtrlRow label="Espessura Borda" icon="ti-border-width" iconColor="text-indigo-300" isLight={isLight}>

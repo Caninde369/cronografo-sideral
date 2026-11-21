@@ -37,6 +37,7 @@ import { QuickToolsSidebar } from './components/QuickToolsSidebar';
 import { useTrialTimer } from './hooks/useTrialTimer';
 import { useTrialUsage } from './hooks/useTrialUsage';
 import { TrialEndModal } from './components/TrialPill';
+import { RingColorEditor } from './components/RingColorEditor';
 import StarfieldBackground from './components/StarfieldBackground';
 import { GlobalSvgDefs } from './components/GlobalSvgDefs';
 import { ProfileModal } from './components/ProfileModal';
@@ -2071,6 +2072,9 @@ const handlePlanetClick = useCallback((id: string) => {
                         }}
                     />
                 )}
+
+                {/* Editor de cores do anel e dos elementos (Anéis › Editar cores) */}
+                <RingColorEditor isLight={theme === 'light'} />
 
                 {/* Fim do teste de 7 horas (aparece uma vez por conta) */}
                 {showTrialEnd && !showPaymentPlansModal && (
