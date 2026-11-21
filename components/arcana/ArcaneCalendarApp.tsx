@@ -421,10 +421,10 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
 
           {/* ROW 2: Consulente Details Row */}
           <section className="shrink-0 bg-zinc-950 border border-zinc-800 rounded-2xl p-2 sm:px-3 sm:py-1.5 shadow-lg">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-start gap-2">
+            <div className="flex flex-wrap items-center justify-start gap-2 min-w-0">
               
               {/* Consulente Selector + Arcano Badge */}
-              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
                 <div className="w-6 h-8 rounded overflow-hidden border border-zinc-700 shrink-0 bg-black">
                   <img
                     src={personalArcanoObj.image}
@@ -458,7 +458,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
               </div>
 
               {/* Stats pill inline */}
-              <div className="flex items-center justify-between sm:justify-start gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] font-sans text-zinc-300 bg-zinc-900/80 border border-zinc-800 px-2.5 py-1 rounded-lg shrink-0">
+              <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-sans text-zinc-300 bg-zinc-900/80 border border-zinc-800 px-2.5 py-1 rounded-lg shrink-0 whitespace-nowrap">
                 <span>Nasc: <strong className="text-white font-semibold">{formatDate(activePerson.birthDate)}</strong></span>
                 <span className="text-zinc-700">•</span>
                 <span>Dias: <strong className="text-amber-400 font-bold">{res.totalDays}d</strong></span>
@@ -466,7 +466,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                 <span>Idade: <strong className="text-white font-semibold">{(res.totalDays/365.25).toFixed(1)}a</strong></span>
               </div>
 
-              <button type="button" className="arc-novo sm:ml-auto self-start sm:self-auto" onClick={() => setAddSignal(n => n + 1)} title="Cadastrar nova pessoa">
+              <button type="button" className="arc-novo ml-auto" onClick={() => setAddSignal(n => n + 1)} title="Cadastrar nova pessoa">
                 <UserPlus size={13} aria-hidden="true" /> Novo
               </button>
 
@@ -787,6 +787,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
             {activeTab === 'baralho' && (
               <ArcaneWeekView
                 getArcano={getArcanoSafe}
+                readDate={readDate}
                 highlight={{ dia: res.dia % 22, mes: res.mes % 22, ano: res.ano % 22, jornada: res.jornada % 22 }}
                 onSelectCard={(arcano) => setSelectedModalCard({ arcano })}
               />

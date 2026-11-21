@@ -153,21 +153,14 @@ export const SlimPersonManager: React.FC<SlimPersonManagerProps> = ({
           setEditingId(null);
         }}
         className="flex items-center gap-1.5 sm:gap-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-amber-500/50 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all text-left group"
-        title="Ver lista de consulentes registrados"
+        title="Trocar, editar ou excluir consulente" aria-label={`Consulente: ${activePerson?.name || 'nenhum'}`}
       >
-        <div className="flex items-center gap-1 text-zinc-400 group-hover:text-amber-400">
-          <Users size={14} className="shrink-0" />
-          <span className="text-[10px] font-sans uppercase tracking-wider font-bold hidden sm:inline">Consulente:</span>
-        </div>
+        <Users size={14} className="shrink-0 text-zinc-400" aria-hidden="true" />
 
         <span className="font-sans font-bold text-white max-w-[100px] sm:max-w-[160px] truncate">
           {activePerson?.name || 'Nenhum'}
         </span>
 
-        {/* Mini Personal Arcane Tag with Strategic Gold Accent */}
-        <span className="px-1.5 py-0.5 rounded bg-black border border-amber-500/40 text-amber-300 font-sans text-[9px] font-bold shrink-0">
-          {toRoman(activePersonalArcane)}
-        </span>
 
         <ChevronDown size={14} className={`text-zinc-400 shrink-0 transition-transform ${isOpenList ? 'rotate-180' : ''}`} />
       </button>
