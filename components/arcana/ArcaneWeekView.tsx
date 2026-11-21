@@ -152,14 +152,61 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
 
   const marksFor = (n: number) => MARKS.filter(m => on[m.id] && highlight && highlight[m.id] === n);
 
-  const cardProps = (n: number) => ({ n, arcano: getArcano(n), marks: marksFor(n), onSelect: onSelectCard });
+  // Popup da carta (texto provisório)
+  const [openN, setOpenN] = useState<number | null>(null);
+  const openCard = React.useCallback((a: Arcanum) => setOpenN(a.id), []);
+  useEffect(() => {
+    if (openN === null) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setOpenN(null); } };
+    window.addEventListener('keydown', esc, true);
+    return () => window.removeEventListener('keydown', esc, true);
+  }, [openN]);
+
+  const cardProps = (n: number) => ({ n, arcano: getArcano(n), marks: marksFor(n), onSelect: openCard });
 
   // linhas contínuas: antes da 5ª coluna (Lei) e antes da 7ª (Efeito)
   const cuts = [6, 8];
 
+  const pop = (() => {
+    if (openN === null) return null;
+    const a = getArcano(openN);
+    const ms = marksFor(openN);
+    const col = openN === 0 ? -1 : (openN - 1) % 7;
+    const row = openN === 0 ? null : ROWS[Math.floor((openN - 1) / 7)];
+    const colInfo = col >= 0 ? COLUMNS[col] : null;
+    const day = dayOfCol(col);
+    const group = col < 0 ? 'Antes da semana' : col < 4 ? 'Causa · Trabalho' : col < 6 ? 'Lei · Sagrado' : 'Efeito · Realização';
+    return (
+      <div className="awv-pop-scrim" onClick={() => setOpenN(null)}>
+        <div className="awv-pop" role="dialog" aria-modal="true" aria-labelledby="awv-pop-t" onClick={e => e.stopPropagation()}>
+          <button type="button" className="awv-pop-x" onClick={() => setOpenN(null)} aria-label="Fechar">×</button>
+          <div className="awv-pop-img">
+            <img src={a.image} alt={a.name} referrerPolicy="no-referrer" crossOrigin="anonymous"
+              onError={e => { if (a.backupImage && e.currentTarget.src !== a.backupImage) e.currentTarget.src = a.backupImage; }} />
+          </div>
+          <div className="awv-pop-body">
+            <p className="awv-pop-eye">{KEYWORD[openN]}{row && <> · linha <span className="sym">{row.sym}</span></>}</p>
+            <h3 id="awv-pop-t"><i>{openN}</i> {a.name}</h3>
+            {ms.length > 0 && <div className="awv-pop-tags">{ms.map(m => <span key={m.id} style={{ background: m.color }}>{m.label}</span>)}{ms.length >= 3 && <span className="pt">{ms.length === 4 ? 'Grande portal' : 'Portal'}</span>}</div>}
+            <dl>
+              <div><dt>Dia da semana</dt><dd>{day.glyph} {day.day}</dd></div>
+              <div><dt>Semana</dt><dd>{group}</dd></div>
+              {colInfo && <div><dt>Coluna</dt><dd>{colInfo.name} {colInfo.glyph} · {colInfo.words.join(', ')}</dd></div>}
+              {row && <div><dt>Linha</dt><dd>{row.sym} · {row.words.join(', ')}</dd></div>}
+            </dl>
+            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer posuere erat a ante venenatis dapibus, posuere velit aliquet. Donec ullamcorper nulla non metus auctor fringilla.</p>
+            <p>Vestibulum id ligula porta felis euismod semper. Cras mattis consectetur purus sit amet fermentum. Maecenas faucibus mollis interdum.</p>
+            <button type="button" className="awv-pop-more" onClick={() => { setOpenN(null); onSelectCard(a); }}>Ver a carta completa</button>
+          </div>
+        </div>
+      </div>
+    );
+  })();
+
   return (
     <div className="awv">
       <style>{CSS}</style>
+      {pop}
       <div className="awv-grid" role="grid" aria-label="Os 22 arcanos numa semana: Causa, Lei e Efeito">
         {cuts.map(c => <span key={c} className="awv-line" style={{ gridColumn: c, gridRow: '1 / -1' }} aria-hidden="true" />)}
 
@@ -278,6 +325,28 @@ const CSS = `
 .awv-parts{position:absolute;inset:-14px;width:calc(100% + 28px);height:calc(100% + 28px);z-index:3;pointer-events:none}
 .awv-portal{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);z-index:4;padding:2px 7px;border-radius:999px;background:var(--a-hi,#FAF6EE);color:#040004;font-size:7.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
 @media (prefers-reduced-motion:reduce){.awv-ring,.awv-glow{animation:none!important}}
+.awv-pop-scrim{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,0,4,.72);backdrop-filter:blur(4px)}
+.awv-pop{position:relative;display:grid;grid-template-columns:200px 1fr;gap:22px;width:min(680px,100%);max-height:calc(100% - 32px);overflow:auto;padding:22px;border-radius:20px;border:1px solid var(--a-line2,#2a2430);background:#0a070c;color:var(--a-fg,#EDE9E3);box-shadow:0 30px 80px -20px rgba(0,0,0,.9)}
+.awv-pop-x{position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;border:0;background:none;color:var(--a-dim,#8a8590);font-size:20px;cursor:pointer}
+.awv-pop-x:hover{color:var(--a-hi,#FAF6EE);background:rgba(255,255,255,.06)}
+.awv-pop-img{position:relative;aspect-ratio:2/3.3;border-radius:14px;overflow:hidden;border:1px solid var(--a-line2,#2a2430);background:#000;align-self:start}
+.awv-pop-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.awv-pop-eye .sym{text-transform:none;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:13px;letter-spacing:0}
+.awv-pop-eye{margin:2px 0 4px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--a-dim,#8a8590);font-weight:600}
+.awv-pop h3{margin:0 0 10px;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:32px;line-height:1.05;color:var(--a-hi,#FAF6EE)}
+.awv-pop h3 i{margin-right:4px}
+.awv-pop-tags{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 12px}
+.awv-pop-tags span{padding:2px 8px;border-radius:999px;color:#040004;font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.awv-pop-tags .pt{background:var(--a-hi,#FAF6EE)}
+.awv-pop dl{margin:0 0 14px;display:grid;gap:6px;font-size:12.5px}
+.awv-pop dl div{display:grid;grid-template-columns:104px 1fr;gap:8px}
+.awv-pop dt{color:var(--a-dim,#8a8590)}
+.awv-pop dd{margin:0;color:var(--a-fg,#EDE9E3)}
+.awv-pop-body>p:not(.awv-pop-eye){margin:0 0 10px;font-size:13.5px;line-height:1.6;color:var(--a-mut,#B9B4BE)}
+.awv-pop-more{margin-top:6px;height:36px;padding:0 16px;border-radius:999px;border:1px solid var(--a-fg,#EDE9E3);background:none;color:var(--a-hi,#FAF6EE);font:500 12px 'DM Sans',sans-serif;cursor:pointer}
+.awv-pop-more:hover{background:rgba(237,233,227,.08)}
+.awv-pop button:focus-visible{outline:2px solid var(--a-fg,#EDE9E3);outline-offset:2px}
+@media (max-width:640px){.awv-pop{grid-template-columns:1fr}.awv-pop-img{width:140px;justify-self:center}}
 .awv-tags{position:absolute;left:0;right:0;top:15px;display:flex;flex-wrap:wrap;justify-content:center;gap:2px;padding:0 3px}
 .awv-tag{padding:1px 5px;border-radius:999px;color:#040004;font-size:7px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
 .awv-legend{display:flex;align-items:center;gap:7px;padding-left:2px}

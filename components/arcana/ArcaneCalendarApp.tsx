@@ -7,6 +7,7 @@ import { SlimPersonManager, Person } from './SlimPersonManager';
 import { TarotCodex } from './TarotCodex';
 import { ArcaneWeekView } from './ArcaneWeekView';
 import { ArcaneMobileHome } from './ArcaneMobileHome';
+import { ArcaneTable } from './ArcaneTable';
 import { 
   Users, 
   House as Home, 
@@ -235,6 +236,9 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
     }
     return monthsList;
   }, [readDate, activePerson]);
+
+  // Mesa: arcanos de cada pessoa na data lida
+  const tableDetail = React.useCallback((birthDate: string) => calculateDetailedArcane(birthDate, readDate), [readDate]);
 
   const arcanePillars = [
     { label: 'JORNADA (CICLO)', val: res.jornada, arcano: getArcanoSafe(res.jornada) },
@@ -668,153 +672,17 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
             )}
 
             {activeTab === 'mesa' && (
-              <div className="h-full flex flex-col space-y-3 overflow-hidden animate-in fade-in duration-200">
-                <div className="shrink-0 bg-zinc-950 border border-zinc-800 rounded-xl p-3 sm:px-4 sm:py-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 shadow">
-                  <div className="flex items-center gap-2.5">
-                    <Users size={18} className="text-amber-400 shrink-0" />
-                    <div>
-                      <h3 className="font-sans text-xs sm:text-sm font-bold text-white">Mesa de Sincronia Comparativa</h3>
-                      <p className="text-[10px] text-zinc-400 font-sans">Comparando arcanos para a data: <span className="text-amber-300 font-bold">{formatDate(readDate)}</span></p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-                    <span className="text-[10px] text-zinc-400 font-sans mr-1 shrink-0">Exibir:</span>
-                    {persons.map(p => {
-                      const isChecked = comparisonIds.includes(p.id);
-                      return (
-                        <button
-                          key={p.id}
-                          onClick={() => toggleComparisonPerson(p.id)}
-                          className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-sans font-bold transition-all flex items-center gap-1.5 border shrink-0 ${
-                            isChecked
-                              ? 'bg-gradient-to-r from-amber-500 to-yellow-600 border-amber-400 text-black shadow-[0_0_10px_rgba(245,158,11,0.25)]'
-                              : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
-                          }`}
-                        >
-                          {isChecked ? <UserCheck size={13}/> : <Plus size={13}/>}
-                          <span>{p.name.split(' ')[0]}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1 -webkit-overflow-scrolling-touch">
-                  {comparisonIds.map(id => {
-                    const p = persons.find(per => per.id === id);
-                    if (!p) return null;
-                    const dres = calculateDetailedArcane(p.birthDate, readDate);
-                    const pArcId = calculatePersonalArcane(p.birthDate);
-                    const pArcObj = MAJOR_ARCANA[((pArcId % 22) + 22) % 22];
-
-                    return (
-                      <div
-                        key={id}
-                        className="bg-zinc-950 border border-zinc-800 hover:border-amber-500/40 rounded-2xl p-3 sm:p-3.5 flex flex-col md:flex-row items-center gap-3 transition-all shadow-xl"
-                      >
-                        {/* Left: Consulente Summary Box */}
-                        <div className="w-full md:w-52 shrink-0 flex items-center justify-between md:justify-start gap-3 border-b md:border-b-0 md:border-r border-zinc-800/80 pb-2.5 md:pb-0 md:pr-4">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div 
-                              onClick={() => setSelectedModalCard({ arcano: pArcObj, context: `${p.name} - Arcano Pessoal`, value: pArcId })}
-                              className="w-12 sm:w-14 h-18 sm:h-22 rounded-lg overflow-hidden border-2 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.35)] ring-1 ring-amber-300/40 shrink-0 bg-black cursor-pointer hover:scale-105 transition-transform"
-                              title={`Arcano Pessoal: ${pArcObj.name}`}
-                            >
-                              <img
-                                src={pArcObj.image}
-                                alt={pArcObj.name}
-                                referrerPolicy="no-referrer"
-                                crossOrigin="anonymous"
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  if (pArcObj.backupImage && e.currentTarget.src !== pArcObj.backupImage) {
-                                    e.currentTarget.src = pArcObj.backupImage;
-                                  }
-                                }}
-                              />
-                            </div>
-                            <div className="min-w-0">
-                              <h4 className="font-sans text-xs sm:text-sm font-bold text-white leading-tight truncate">{p.name}</h4>
-                              <span className="text-[10px] sm:text-[11px] text-amber-400 font-sans block mt-1 font-bold leading-tight">
-                                Pessoal: <span className="font-playfair text-amber-300">{toRoman(pArcId)}</span>
-                              </span>
-                              <span className="text-[10px] text-zinc-300 font-sans font-medium block truncate mt-0.5">
-                                {pArcObj.name}
-                              </span>
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={() => toggleComparisonPerson(id)}
-                            className="md:hidden p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0"
-                            title="Remover da Mesa"
-                          >
-                            <Trash2 size={15}/>
-                          </button>
-                        </div>
-
-                        {/* Right: 4 Pillars Cards */}
-                        <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2 w-full min-w-0">
-                          {[
-                            { label: 'JORNADA', val: dres.jornada },
-                            { label: 'ANO', val: dres.ano },
-                            { label: 'MÊS', val: dres.mes },
-                            { label: 'DIA', val: dres.dia }
-                          ].map((item, i) => {
-                            const arc = getArcanoSafe(item.val);
-                            return (
-                              <div
-                                key={i}
-                                onClick={() => setSelectedModalCard({ arcano: arc, context: `${p.name} - ${item.label}`, value: item.val })}
-                                className="bg-zinc-900/90 border border-zinc-800 hover:border-amber-400 rounded-xl p-2 flex flex-col items-center justify-between cursor-pointer group/item transition-all shadow-md hover:shadow-amber-500/10 hover:bg-zinc-900 text-center relative overflow-hidden"
-                              >
-                                <span className="text-[9px] font-sans font-bold text-amber-400 uppercase tracking-wider mb-0.5 block">
-                                  {item.label}
-                                </span>
-
-                                <div className="w-12 sm:w-16 h-18 sm:h-24 rounded-md overflow-hidden border border-zinc-700 group-hover/item:border-amber-400 shrink-0 bg-black shadow my-1">
-                                  <img
-                                    src={arc.image}
-                                    alt={arc.name}
-                                    referrerPolicy="no-referrer"
-                                    crossOrigin="anonymous"
-                                    className="w-full h-full object-cover group-hover/item:scale-105 transition-transform duration-300"
-                                    onError={(e) => {
-                                      if (arc.backupImage && e.currentTarget.src !== arc.backupImage) {
-                                        e.currentTarget.src = arc.backupImage;
-                                      }
-                                    }}
-                                  />
-                                </div>
-
-                                <div className="flex items-baseline justify-center gap-1">
-                                  <span className="font-playfair text-sm sm:text-lg font-black text-amber-300 leading-none">
-                                    {toRoman(item.val % 22)}
-                                  </span>
-                                  <span className="font-sans text-[10px] text-zinc-400 font-bold">({item.val})</span>
-                                </div>
-
-                                <span className="text-[10px] sm:text-xs font-sans font-bold text-white truncate w-full mt-0.5 leading-tight" title={arc.name}>
-                                  {arc.name}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        <button
-                          onClick={() => toggleComparisonPerson(id)}
-                          className="hidden md:block p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0"
-                          title="Remover da Mesa"
-                        >
-                          <Trash2 size={16}/>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <ArcaneTable
+                persons={persons}
+                selectedIds={comparisonIds}
+                onToggle={toggleComparisonPerson}
+                readDateLabel={formatDate(readDate)}
+                getArcano={getArcanoSafe}
+                detail={tableDetail}
+                personal={calculatePersonalArcane}
+                toRoman={toRoman}
+                onOpenCard={(arcano, context, value) => setSelectedModalCard({ arcano, context, value })}
+              />
             )}
 
             {activeTab === 'baralho' && (
