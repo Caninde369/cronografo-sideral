@@ -6,7 +6,7 @@
  * Marcas de Jornada, Ano, Mês e Dia ligam e desligam, com cores de raridade (como itens de jogo).
  * Desenho técnico enviado pelo Rafa em 21/11/2026.
  */
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Arcanum } from './tarot';
 
 type Mark = 'dia' | 'mes' | 'ano' | 'jornada';
@@ -60,6 +60,42 @@ const MARKS: { id: Mark; label: string; tier: string; color: string }[] = [
   { id: 'jornada', label: 'Jornada', tier: 'Épico', color: '#A855F7' },
 ];
 
+/** Partículas brancas subindo pelas bordas (união quádrupla). Desliga com "reduzir movimento". */
+const Particles: React.FC = () => {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const cv = ref.current; if (!cv) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const g = cv.getContext('2d'); if (!g) return;
+    const dpr = window.devicePixelRatio || 1;
+    let W = 0, H = 0, raf = 0;
+    const size = () => { const r = cv.getBoundingClientRect(); W = cv.width = Math.max(1, r.width * dpr); H = cv.height = Math.max(1, r.height * dpr); };
+    size();
+    const m = 14 * dpr;
+    const spawn = (init = false) => {
+      const side = Math.random();
+      const x = side < 0.5 ? m + Math.random() * (W - 2 * m) : (Math.random() < 0.5 ? m : W - m);
+      const y = side < 0.5 ? H - m - (init ? Math.random() * (H - 2 * m) : 0) : m + Math.random() * (H - 2 * m);
+      return { x, y, r: (Math.random() * 1.2 + 0.4) * dpr, v: (Math.random() * 0.45 + 0.2) * dpr, a: Math.random() * 0.6 + 0.4, t: Math.random() * 6 };
+    };
+    const P = Array.from({ length: 26 }, () => spawn(true));
+    const tick = () => {
+      g.clearRect(0, 0, W, H);
+      for (const p of P) {
+        p.y -= p.v; p.x += Math.sin((p.t += 0.03)) * 0.25 * dpr; p.a -= 0.004;
+        if (p.a <= 0 || p.y < 0) Object.assign(p, spawn());
+        g.globalAlpha = Math.max(0, p.a); g.fillStyle = '#fff'; g.shadowColor = '#fff'; g.shadowBlur = 5 * dpr;
+        g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.fill();
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    tick();
+    const ro = new ResizeObserver(size); ro.observe(cv);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+  }, []);
+  return <canvas ref={ref} className="awv-parts" aria-hidden="true" />;
+};
+
 export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight, onSelectCard }) => {
   const [on, setOn] = useState<Record<Mark, boolean>>({ dia: true, mes: true, ano: true, jornada: true });
 
@@ -75,20 +111,31 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
   const Card: React.FC<{ n: number; zero?: boolean }> = ({ n, zero }) => {
     const a = getArcano(n);
     const ms = marksFor(n);
-    const top = ms[0];
-    const style = top ? ({ '--mk': top.color } as React.CSSProperties) : undefined;
+    const u = ms.length; // 0 a 4: nível da união
+    const style: React.CSSProperties = {};
+    if (u === 1) (style as any)['--mk'] = ms[0].color;
+    if (u >= 2) {
+      const seg = 360 / u;
+      (style as any)['--stops'] = ms.map((m, i) => `${m.color} ${i * seg}deg ${(i + 1) * seg}deg`).join(',');
+    }
+    const label = `${a.fullName}${u ? ` · ${ms.map(m => m.label).join(', ')}` : ''}${u >= 3 ? ` · ${u === 4 ? 'Grande portal' : 'Portal'}` : ''}`;
     return (
-      <button type="button" className={`awv-card ${top ? 'is-on' : ''} ${zero ? 'is-zero' : ''}`} style={style} onClick={() => onSelectCard(a)}
-        title={`${a.fullName}${ms.length ? ` · ${ms.map(m => m.label).join(', ')}` : ''}`} aria-label={`${a.fullName}${ms.length ? `, ${ms.map(m => m.label).join(', ')}` : ''}`}>
-        <img src={a.image} alt="" referrerPolicy="no-referrer" crossOrigin="anonymous" decoding="async" loading="lazy"
-          onError={e => { if (a.backupImage && e.currentTarget.src !== a.backupImage) e.currentTarget.src = a.backupImage; }} />
-        <span className="awv-shade" aria-hidden="true" />
-        {!zero && <span className="awv-kw">{KEYWORD[n]}</span>}
-        <span className="awv-num">{n}</span>
-        {EXTRA[n] && <span className="awv-extra">{EXTRA[n]}</span>}
-        {ms.length > 0 && (
-          <span className="awv-tags">{ms.map(m => <span key={m.id} className="awv-tag" style={{ background: m.color }}>{m.label}</span>)}</span>
-        )}
+      <button type="button" className={`awv-card u${u} ${zero ? 'is-zero' : ''}`} style={style} onClick={() => onSelectCard(a)} title={label} aria-label={label}>
+        {u >= 2 && <span className="awv-glow" aria-hidden="true" />}
+        <span className="awv-face">
+          <img src={a.image} alt="" referrerPolicy="no-referrer" crossOrigin="anonymous" decoding="async" loading="lazy"
+            onError={e => { if (a.backupImage && e.currentTarget.src !== a.backupImage) e.currentTarget.src = a.backupImage; }} />
+          <span className="awv-shade" aria-hidden="true" />
+          {!zero && <span className="awv-kw">{KEYWORD[n]}</span>}
+          <span className="awv-num">{n}</span>
+          {EXTRA[n] && <span className="awv-extra">{EXTRA[n]}</span>}
+          {u > 0 && (
+            <span className="awv-tags">{ms.map(m => <span key={m.id} className="awv-tag" style={{ background: m.color }}>{m.label}</span>)}</span>
+          )}
+        </span>
+        {u >= 2 && <span className="awv-ring" aria-hidden="true" />}
+        {u === 4 && <Particles />}
+        {u >= 3 && <span className="awv-portal">{u === 4 ? 'Grande portal' : 'Portal'}</span>}
       </button>
     );
   };
@@ -189,16 +236,34 @@ const CSS = `
 .awv-zero .awv-card{height:52px;width:auto}
 .awv-zero-words{align-self:end;justify-self:center;text-align:center;font-size:8.5px;line-height:1.3;color:var(--a-dim,#8a8590)}
 .awv-cell{height:100%;min-height:0;min-width:0;display:flex;align-items:center;justify-content:center}
-.awv-card{position:relative;display:block;height:100%;width:auto;max-width:100%;aspect-ratio:2/3.15;padding:0;border-radius:10px;overflow:hidden;border:1px solid var(--a-line2,#2a2430);background:#000;cursor:pointer;contain:layout paint}
-.awv-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.awv-card{position:relative;display:block;height:100%;width:auto;max-width:100%;aspect-ratio:2/3.15;padding:0;border:0;border-radius:10px;background:none;cursor:pointer;isolation:isolate}
+.awv-face{position:absolute;inset:0;border-radius:inherit;overflow:hidden;border:1px solid var(--a-line2,#2a2430);background:#000;z-index:1}
+.awv-face img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .awv-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,0,4,.82) 0%,rgba(4,0,4,0) 24%,rgba(4,0,4,0) 60%,rgba(4,0,4,.88) 100%)}
 .awv-kw{position:absolute;left:0;right:0;top:4px;text-align:center;font-size:7px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--a-fg,#EDE9E3);padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .awv-num{position:absolute;left:0;right:0;bottom:3px;text-align:center;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:22px;line-height:1;color:var(--a-hi,#FAF6EE);text-shadow:0 1px 8px rgba(0,0,0,.7)}
 .awv-zero .awv-num{font-size:16px}
 .awv-extra{position:absolute;right:4px;bottom:4px;font-family:'DM Mono',monospace;font-size:8.5px;color:var(--a-dim,#8a8590)}
-.awv-card:hover{border-color:var(--a-fg,#EDE9E3)}
+.awv-card:hover .awv-face{border-color:var(--a-fg,#EDE9E3)}
 .awv-card:focus-visible{outline:2px solid var(--a-fg,#EDE9E3);outline-offset:2px}
-.awv-card.is-on{border:2px solid var(--mk);box-shadow:0 0 12px -2px color-mix(in srgb,var(--mk) 70%,transparent)}
+.awv-card.u1 .awv-face{border:2px solid var(--mk);box-shadow:0 0 12px -2px color-mix(in srgb,var(--mk) 70%,transparent)}
+/* Dias de Portal: borda com as cores de cada marca, girando; brilho por nível de união */
+@property --awv-spin{syntax:'<angle>';inherits:false;initial-value:0deg}
+.awv-ring,.awv-glow{position:absolute;inset:-2px;border-radius:12px;pointer-events:none;background:conic-gradient(from var(--awv-spin),var(--stops));animation:awv-spin 6s linear infinite}
+.awv-ring{z-index:2;padding:2px;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.awv-glow{z-index:0;filter:blur(12px)}
+.u2 .awv-face,.u3 .awv-face,.u4 .awv-face{border-color:transparent}
+.u2 .awv-glow{opacity:.5}
+.u3 .awv-glow{opacity:1;filter:blur(16px);animation:awv-spin 4s linear infinite,awv-pulse 2.4s ease-in-out infinite}
+.u4 .awv-ring{background:conic-gradient(from var(--awv-spin),#fff,#F5F2EB,#fff,#d9d4ff,#fff)}
+.u4 .awv-glow{background:#fff;filter:blur(18px);animation:awv-pulse4 2.2s ease-in-out infinite}
+.u4 .awv-face{box-shadow:inset 0 0 24px rgba(255,255,255,.25)}
+@keyframes awv-spin{to{--awv-spin:360deg}}
+@keyframes awv-pulse{50%{filter:blur(22px);opacity:.75}}
+@keyframes awv-pulse4{0%,100%{opacity:.95}50%{opacity:.55}}
+.awv-parts{position:absolute;inset:-14px;width:calc(100% + 28px);height:calc(100% + 28px);z-index:3;pointer-events:none}
+.awv-portal{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);z-index:4;padding:2px 7px;border-radius:999px;background:var(--a-hi,#FAF6EE);color:#040004;font-size:7.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.awv-ring,.awv-glow{animation:none!important}}
 .awv-tags{position:absolute;left:0;right:0;top:15px;display:flex;flex-wrap:wrap;justify-content:center;gap:2px;padding:0 3px}
 .awv-tag{padding:1px 5px;border-radius:999px;color:#040004;font-size:7px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
 .awv-legend{display:flex;align-items:center;gap:7px;padding-left:2px}
