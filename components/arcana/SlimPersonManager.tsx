@@ -23,6 +23,10 @@ interface SlimPersonManagerProps {
   selectedPersonId: string;
   onSelectPerson: (id: string) => void;
   onAddPerson: (name: string, birthDate: string) => void;
+  /** false = o botão + Novo fica fora (na linha do consulente) */
+  showAddButton?: boolean;
+  /** muda de valor = abre o cadastro de nova pessoa */
+  addSignal?: number;
   onRemovePerson: (id: string) => void;
   onEditPerson?: (id: string, name: string, birthDate: string) => void;
 }
@@ -32,6 +36,8 @@ export const SlimPersonManager: React.FC<SlimPersonManagerProps> = ({
   selectedPersonId,
   onSelectPerson,
   onAddPerson,
+  showAddButton = true,
+  addSignal = 0,
   onRemovePerson,
   onEditPerson,
 }) => {
@@ -113,6 +119,14 @@ export const SlimPersonManager: React.FC<SlimPersonManagerProps> = ({
     setEditErrorMsg('');
   };
 
+  // Botão + Novo de fora (linha do consulente) abre o cadastro aqui
+  React.useEffect(() => {
+    if (!addSignal) return;
+    setIsAdding(true);
+    setIsOpenList(true);
+    setEditingId(null);
+  }, [addSignal]);
+
   return (
     <div className="relative z-30 flex items-center gap-2" ref={dropdownRef}>
       
@@ -145,7 +159,7 @@ export const SlimPersonManager: React.FC<SlimPersonManagerProps> = ({
       </button>
 
       {/* Slim + NOVO Button with Gold Accent (UX/UI Primary Action Focal Point) */}
-      <button
+      {showAddButton && <button
         id="btn-slim-add-person"
         onClick={() => {
           setIsAdding(true);
@@ -158,7 +172,7 @@ export const SlimPersonManager: React.FC<SlimPersonManagerProps> = ({
         <UserPlus size={13} />
         <span className="hidden xs:inline sm:inline">+ NOVO</span>
         <span className="inline xs:hidden sm:hidden">+</span>
-      </button>
+      </button>}
 
       {/* Dropdown / Popover List */}
       {isOpenList && (

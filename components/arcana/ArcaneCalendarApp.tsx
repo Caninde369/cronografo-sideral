@@ -20,7 +20,8 @@ import {
   Sparkles,
   Quote,
   ChevronDown,
-  X
+  X,
+  UserPlus
 } from 'lucide-react';
 
 // Chaves próprias do Calendário Arcano. O "Resetar Dados" apaga SÓ estas
@@ -57,6 +58,8 @@ export interface ArcaneCalendarAppProps {
 const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onClose }) => {
   const [activeTab, setActiveTab] = useState<'calculadora' | 'calendario' | 'mesa' | 'baralho'>('calculadora');
   
+  // + Novo fica na linha do consulente e abre o cadastro no seletor do topo
+  const [addSignal, setAddSignal] = useState(0);
   const [persons, setPersons] = useState<Person[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.PERSONS);
@@ -333,6 +336,8 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                 selectedPersonId={selectedPersonId}
                 onSelectPerson={setSelectedPersonId}
                 onAddPerson={handleAddPerson}
+              showAddButton={false}
+              addSignal={addSignal}
                 onRemovePerson={handleRemovePerson}
                 onEditPerson={handleEditPerson}
               />
@@ -381,6 +386,8 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
               selectedPersonId={selectedPersonId}
               onSelectPerson={setSelectedPersonId}
               onAddPerson={handleAddPerson}
+              showAddButton={false}
+              addSignal={addSignal}
               onRemovePerson={handleRemovePerson}
               onEditPerson={handleEditPerson}
             />
@@ -402,7 +409,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
             <Sparkles size={22} className="text-amber-400 mx-auto mb-3" />
             <h2 className="font-playfair text-lg font-bold text-white mb-2">Cadastre o primeiro consulente</h2>
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Use o botão <strong className="text-amber-300">+ Novo</strong> no topo, com nome e data de nascimento,
+              Use o botão <strong className="text-amber-300">+ Novo</strong> ao lado do consulente, com nome e data de nascimento,
               para calcular a jornada, o ano, o mês e o dia arcanos.
             </p>
             <p className="text-[10px] text-zinc-500 mt-3">Os consulentes ficam salvos só neste navegador.</p>
@@ -420,7 +427,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
 
           {/* ROW 2: Consulente Details Row */}
           <section className="shrink-0 bg-zinc-950 border border-zinc-800 rounded-2xl p-2 sm:px-3 sm:py-1.5 shadow-lg">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-start gap-2">
               
               {/* Consulente Selector + Arcano Badge */}
               <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
@@ -468,6 +475,10 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                 <span className="text-zinc-700">•</span>
                 <span>Idade: <strong className="text-white font-semibold">{(res.totalDays/365.25).toFixed(1)}a</strong></span>
               </div>
+
+              <button type="button" className="arc-novo sm:ml-auto self-start sm:self-auto" onClick={() => setAddSignal(n => n + 1)} title="Cadastrar nova pessoa">
+                <UserPlus size={13} aria-hidden="true" /> Novo
+              </button>
 
             </div>
           </section>
@@ -551,7 +562,8 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                 {arcanePillars.map((pillar, idx) => (
                   <div
                     key={idx}
-                    className="bg-zinc-950 border border-zinc-800 hover:border-amber-500/60 rounded-2xl p-3 flex flex-col justify-between transition-all group overflow-y-auto"
+                    className="bg-zinc-950 border border-zinc-800 hover:border-amber-500/60 rounded-2xl p-3 flex flex-col transition-colors group overflow-y-auto min-h-[440px]"
+                    style={{ scrollbarGutter: 'stable' }}
                   >
                     {/* Pillar Header */}
                     <div className="shrink-0 pb-1.5 mb-1.5 border-b border-zinc-800 flex items-start justify-between">
@@ -580,15 +592,16 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                         context: pillar.label,
                         value: pillar.val
                       })}
-                      className="w-full my-1.5 cursor-pointer shrink-0 rounded-xl overflow-hidden border border-zinc-800/80 hover:border-amber-500/50 transition-all shadow-xl group/card max-w-[200px] sm:max-w-none mx-auto"
+                      className="arc-cardfill w-full my-1.5 cursor-pointer rounded-xl overflow-hidden border border-zinc-800/80 hover:border-amber-500/50 shadow-xl"
                     >
-                      <div className="w-full aspect-[2/3.2] overflow-hidden bg-black flex items-center justify-center">
+                      <div className="absolute inset-0 overflow-hidden bg-black">
                         <img
                           src={pillar.arcano.image}
                           alt={pillar.arcano.name}
                           referrerPolicy="no-referrer"
                           crossOrigin="anonymous"
-                          className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
+                          className="w-full h-full object-cover"
+                          decoding="async"
                           onError={(e) => {
                             if (pillar.arcano.backupImage && e.currentTarget.src !== pillar.arcano.backupImage) {
                               e.currentTarget.src = pillar.arcano.backupImage;

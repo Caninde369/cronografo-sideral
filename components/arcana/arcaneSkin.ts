@@ -8,7 +8,7 @@ export const ARCANE_SKIN = `
 .arc-skin{
   --a-bg:#040004; --a-card:#0a070c; --a-card2:#0f0b12; --a-line:#221d27; --a-line2:#2a2430; --a-line3:#3a3340;
   --a-fg:#EDE9E3; --a-hi:#FAF6EE; --a-mut:#B9B4BE; --a-dim:#8a8590; --a-faint:#6f6a76;
-  --a-spec:linear-gradient(90deg,#4870FF,#22D3EE 22%,#4ADE80 40%,#FACC15 58%,#FB923C 74%,#EF4444 88%,#B0215A);
+  --a-spec:linear-gradient(90deg,#B0215A,#EF4444 12%,#FB923C 26%,#FACC15 42%,#4ADE80 60%,#22D3EE 78%,#4870FF);
   background:var(--a-bg); color:var(--a-fg);
   font-family:'DM Sans',system-ui,sans-serif;
 }
@@ -73,6 +73,12 @@ export const ARCANE_SKIN = `
 .arc-skin .rounded-xl,.arc-skin .rounded-2xl{border-radius:18px}
 .arc-skin .rounded-lg{border-radius:12px}
 .arc-skin button:focus-visible,.arc-skin input:focus-visible,.arc-skin select:focus-visible{outline:2px solid var(--a-fg);outline-offset:2px}
+
+/* Cartas ocupando o bloco inteiro, sem tremer */
+.arc-skin .arc-cardfill{position:relative;flex:1 1 auto;min-height:240px;contain:layout paint}
+.arc-skin .arc-cardfill img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;transform:none!important;transition:none!important;backface-visibility:hidden}
+.arc-skin .arc-novo{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 14px;border-radius:999px;border:1px solid var(--a-fg);background:var(--a-fg);color:var(--a-bg);font:600 11px 'DM Sans',sans-serif;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;cursor:pointer}
+.arc-skin .arc-novo:hover{background:#fff}
 
 /* Sem brilho âmbar */
 .arc-skin [class*="shadow-[0_0_"]{box-shadow:none!important}
