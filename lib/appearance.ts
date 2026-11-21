@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 
 export type ZodiacStyle = 'traditional' | 'modern';
 
-const KEY = 'cronografo:zodiacStyle';
+const KEY = 'cronografo:zodiacStyle:v2'; // v2: todo mundo volta a abrir no Sistema tradicional (21/11)
 let current: ZodiacStyle = (() => {
   try { return localStorage.getItem(KEY) === 'modern' ? 'modern' : 'traditional'; } catch { return 'traditional'; }
 })();

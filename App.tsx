@@ -3593,6 +3593,7 @@ const handlePlanetClick = useCallback((id: string) => {
                 )}
 
                 <QuickToolsSidebar 
+                    onOpenArcaneCalendar={() => setShowArcaneCalendar(true)}
                     mobile={isMobile}
                     openRequest={mNatalReq}
                     isOpen={isQuickToolsSidebarOpen}

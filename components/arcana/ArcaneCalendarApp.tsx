@@ -321,8 +321,9 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-3">
           
           <div className="flex items-center justify-between">
-            <h1 className="font-playfair text-base sm:text-lg font-bold tracking-tight text-white">
-              Calendário Arcano
+            <h1 className="arc-brand">
+              <img src="/logo-mark.png" alt="" aria-hidden="true" />
+              <span><span className="arc-title">Calendário Arcano</span><span className="arc-sub">Cronógrafo Sideral</span></span>
             </h1>
 
             {/* Mobile-only Consulente Switcher */}
@@ -482,7 +483,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                 </div>
                 <div className="w-full bg-zinc-950 rounded-full h-1.5 overflow-hidden border border-zinc-800">
                   <div 
-                    className="bg-gradient-to-r from-amber-500 to-yellow-400 h-full rounded-full transition-all duration-500" 
+                    className="arc-progress bg-gradient-to-r from-amber-500 to-yellow-400 h-full rounded-full transition-all duration-500" 
                     style={{ width: `${journeyProgress}%` }}
                   />
                 </div>

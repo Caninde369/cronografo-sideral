@@ -8,6 +8,7 @@
  */
 import React, { Suspense, lazy, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { ARCANE_SKIN } from './arcana/arcaneSkin';
 
 const ArcaneCalendarApp = lazy(() => import('./arcana/ArcaneCalendarApp'));
 
@@ -35,7 +36,7 @@ export const ArcaneCalendarModal: React.FC<ArcaneCalendarModalProps> = ({ isOpen
 
     return createPortal(
         <div
-            className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm sm:p-3"
+            className="fixed inset-0 z-[10000] flex items-center justify-center bg-[#040004]/80 backdrop-blur-sm sm:p-3"
             onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
             role="dialog"
             aria-modal="true"
@@ -43,12 +44,12 @@ export const ArcaneCalendarModal: React.FC<ArcaneCalendarModalProps> = ({ isOpen
         >
             <div
                 data-tour="arcane-panel"
-                className="relative w-full h-full sm:max-w-[1400px] sm:h-[calc(100vh-24px)] sm:rounded-2xl overflow-hidden border-0 sm:border sm:border-amber-500/30 shadow-[0_24px_80px_rgba(0,0,0,0.85)] bg-black"
+                className="arc-skin relative w-full h-full sm:max-w-[1400px] sm:h-[calc(100vh-24px)] sm:rounded-[22px] overflow-hidden border-0 sm:border sm:border-[#2a2430] shadow-[0_24px_80px_rgba(0,0,0,0.85)]"
                 style={{ animation: 'arcane-modal-in 160ms ease-out' }}
             >
                 <Suspense
                     fallback={
-                        <div className="h-full w-full flex items-center justify-center text-xs text-zinc-400 font-sans">
+                        <div className="h-full w-full flex items-center justify-center text-xs font-sans" style={{ color: '#8a8590' }}>
                             Carregando o Calendário Arcano…
                         </div>
                     }
@@ -56,7 +57,7 @@ export const ArcaneCalendarModal: React.FC<ArcaneCalendarModalProps> = ({ isOpen
                     <ArcaneCalendarApp initialDate={referenceDate} onClose={onClose} />
                 </Suspense>
             </div>
-            <style>{`@keyframes arcane-modal-in { from { opacity: 0; } to { opacity: 1; } }`}</style>
+            <style>{`@keyframes arcane-modal-in { from { opacity: 0; } to { opacity: 1; } }${ARCANE_SKIN}`}</style>
         </div>,
         document.body
     );
