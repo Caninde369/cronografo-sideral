@@ -16,6 +16,10 @@ const SPHERE = { type: 'Sphere' } as const;
 const clampLat = (v: number) => Math.max(-70, Math.min(70, v));
 
 /** onPick: duplo clique no globo marca esse ponto (latitude e longitude do lugar clicado). */
+// Cursor de alfinete: a ponta (embaixo, no centro) é o ponto que o duplo clique marca.
+const PIN_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='32' viewBox='0 0 24 32'><path d='M12 31 C12 31 3 19.5 3 11.5 a9 9 0 0 1 18 0 C21 19.5 12 31 12 31 Z' fill='%23EDE9E3' stroke='%23040004' stroke-width='1.5'/><circle cx='12' cy='11.5' r='3.4' fill='%23040004'/></svg>`;
+const PIN_CURSOR = `url("data:image/svg+xml;utf8,${PIN_SVG.replace(/"/g, "'").replace(/#/g, '%23').replace(/</g, '%3C').replace(/>/g, '%3E')}") 12 31, crosshair`;
+
 const LocationGlobe: React.FC<{ lat: number; lon: number; timeMs: number; size?: number; onPick?: (lat: number, lon: number) => void }> = ({ lat, lon, timeMs, size = 190, onPick }) => {
     const [rotate, setRotate] = useState<[number, number]>([-lon, -clampLat(lat)]);
     const rotRef = useRef(rotate);
@@ -69,7 +73,7 @@ const LocationGlobe: React.FC<{ lat: number; lon: number; timeMs: number; size?:
             viewBox={`0 0 ${size} ${size}`}
             role="img"
             aria-label="Globo com o local escolhido"
-            style={{ cursor: 'grab', touchAction: 'none', maxWidth: '100%', height: 'auto', display: 'block', margin: '0 auto' }}
+            style={{ cursor: onPick ? PIN_CURSOR : 'grab', touchAction: 'none', maxWidth: '100%', height: 'auto', display: 'block', margin: '0 auto' }}
             onPointerDown={e => { (e.currentTarget as Element).setPointerCapture?.(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, r: rotate }; }}
             onPointerMove={e => { if (!drag.current) return; const k = 180 / size; const { x, y, r } = drag.current; setRotate([r[0] + (e.clientX - x) * k, clampLat(r[1] - (e.clientY - y) * k)]); }}
             onPointerUp={() => { drag.current = null; }}

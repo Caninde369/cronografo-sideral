@@ -39,8 +39,15 @@ export const DateTimePicker: React.FC<{
   anchorRect?: DOMRect | null;
   /** Mapas salvos: escolher um preenche data, hora e local (o Confirmar aplica) */
   savedMaps?: any[];
-}> = ({ open, value, location, focusLocation, rightOffset = 0, onClose, onConfirm, onLocationPick, anchorRect, savedMaps = [] }) => {
+  onDeleteMap?: (id: string) => void;
+  onRenameMap?: (id: string, name: string) => void;
+}> = ({ open, value, location, focusLocation, rightOffset = 0, onClose, onConfirm, onLocationPick, anchorRect, savedMaps = [], onDeleteMap, onRenameMap }) => {
   const [showMaps, setShowMaps] = useState(false);
+  const [mapQuery, setMapQuery] = useState('');
+  const [mapSort, setMapSort] = useState<'recent' | 'az'>('recent');
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [delId, setDelId] = useState<string | null>(null);
   const [y, setY] = useState(value.getFullYear());
   const [m, setM] = useState(value.getMonth());
   const [d, setD] = useState(value.getDate());
@@ -73,8 +80,8 @@ export const DateTimePicker: React.FC<{
   // roda do mouse sobre Mês / Ano troca o valor
   useEffect(() => {
     if (!open) return;
-    const onWheelM = (e: WheelEvent) => { e.preventDefault(); const { m: cm, y: cy } = stateRef.current; const d = e.deltaY < 0 ? -1 : 1; const nm = cm + d; if (nm < 0) { setM(11); setY(cy - 1); } else if (nm > 11) { setM(0); setY(cy + 1); } else setM(nm); };
-    const onWheelY = (e: WheelEvent) => { e.preventDefault(); setY(stateRef.current.y + (e.deltaY < 0 ? -1 : 1)); };
+    const onWheelM = (e: WheelEvent) => { e.preventDefault(); const { m: cm, y: cy } = stateRef.current; const d = e.deltaY < 0 ? 1 : -1; const nm = cm + d; if (nm < 0) { setM(11); setY(cy - 1); } else if (nm > 11) { setM(0); setY(cy + 1); } else setM(nm); };
+    const onWheelY = (e: WheelEvent) => { e.preventDefault(); setY(stateRef.current.y + (e.deltaY < 0 ? 1 : -1)); };
     const mb = mBtnRef.current, yb = yBtnRef.current;
     mb?.addEventListener('wheel', onWheelM, { passive: false });
     yb?.addEventListener('wheel', onWheelY, { passive: false });
@@ -330,31 +337,80 @@ export const DateTimePicker: React.FC<{
 
         <div className="dtp-foot" data-tour="date-foot">
           <div className="dtp-mapsw">
-            <button className={`dtp-btn ${showMaps ? 'on' : ''}`} onClick={() => setShowMaps(v => !v)} aria-expanded={showMaps} title="Escolher um mapa salvo">
+            <button className={`dtp-btn dtp-btn-gold ${showMaps ? 'on' : ''}`} onClick={() => setShowMaps(v => !v)} aria-expanded={showMaps} title="Escolher um mapa salvo">
               <i className="ti ti-bookmarks" /> Mapas salvos
             </button>
-            {showMaps && (
-              <div className="dtp-maps" role="listbox" aria-label="Mapas salvos">
+            {showMaps && (() => {
+              const savedAt = (mp: any) => {
+                const v = mp.dateSaved ?? mp.updatedAt ?? mp.createdAt;
+                const t = typeof v === 'number' ? v : v ? new Date(v).getTime() : 0;
+                return isNaN(t) ? 0 : t;
+              };
+              const q = mapQuery.trim().toLowerCase();
+              const list = savedMaps
+                .filter((mp: any) => !q || `${mp.name || ''} ${mp.description || ''} ${mp.location?.displayName || ''}`.toLowerCase().includes(q))
+                .sort((x: any, z: any) => mapSort === 'az'
+                  ? String(x.name || '').localeCompare(String(z.name || ''), 'pt-BR', { sensitivity: 'base' })
+                  : savedAt(z) - savedAt(x));
+              const saveEdit = () => { if (editId && editName.trim()) onRenameMap?.(editId, editName.trim()); setEditId(null); };
+              return (
+              <div className="dtp-maps" role="dialog" aria-label="Mapas salvos">
+                <div className="dtp-maps-head">
+                  <label className="dtp-maps-lbl" htmlFor="dtp-maps-q">Buscar mapa</label>
+                  <div className="dtp-maps-search">
+                    <i className="ti ti-search" aria-hidden="true" />
+                    <input id="dtp-maps-q" type="search" value={mapQuery} onChange={e => setMapQuery(e.target.value)} placeholder="Nome, descrição ou cidade" autoComplete="off" />
+                  </div>
+                  <div className="dtp-maps-sort" role="radiogroup" aria-label="Ordenar">
+                    <button type="button" role="radio" aria-checked={mapSort === 'recent'} className={mapSort === 'recent' ? 'on' : ''} onClick={() => setMapSort('recent')}><i className="ti ti-clock" aria-hidden="true" /> Mais recentes</button>
+                    <button type="button" role="radio" aria-checked={mapSort === 'az'} className={mapSort === 'az' ? 'on' : ''} onClick={() => setMapSort('az')}><i className="ti ti-sort-ascending-letters" aria-hidden="true" /> A–Z</button>
+                  </div>
+                </div>
+                <div className="dtp-maps-list">
                 {savedMaps.length === 0 ? (
                   <div className="dtp-maps-empty">Nenhum mapa salvo ainda. Use o menu ⋯ ao lado do + para salvar.</div>
-                ) : savedMaps.map((mp: any) => {
+                ) : list.length === 0 ? (
+                  <div className="dtp-maps-empty">Nenhum mapa com "{mapQuery}".</div>
+                ) : list.map((mp: any) => {
                   const raw = mp.targetDate || mp.date;
                   const dt = raw ? new Date(raw) : null;
                   const ok = !!dt && !isNaN(dt.getTime());
+                  const id = mp.id || mp.name;
+                  if (editId === id) return (
+                    <div key={id} className="dtp-map-row is-edit">
+                      <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} aria-label="Novo nome do mapa"
+                        onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') { e.stopPropagation(); setEditId(null); } }} />
+                      <button type="button" className="dtp-map-act" onClick={saveEdit} title="Salvar nome" aria-label="Salvar nome"><i className="ti ti-check" /></button>
+                      <button type="button" className="dtp-map-act" onClick={() => setEditId(null)} title="Cancelar" aria-label="Cancelar"><i className="ti ti-x" /></button>
+                    </div>
+                  );
+                  if (delId === id) return (
+                    <div key={id} className="dtp-map-row is-del">
+                      <span className="nm">Excluir “{mp.name || 'Mapa sem nome'}”?</span>
+                      <button type="button" className="dtp-map-yes" onClick={() => { onDeleteMap?.(mp.id); setDelId(null); }}>Excluir</button>
+                      <button type="button" className="dtp-map-no" onClick={() => setDelId(null)}>Cancelar</button>
+                    </div>
+                  );
                   return (
-                    <button key={mp.id || mp.name} disabled={!ok} onClick={() => {
-                      if (!ok || !dt) return;
-                      setY(dt.getFullYear()); setM(dt.getMonth()); setD(dt.getDate()); setH(dt.getHours()); setMi(dt.getMinutes()); setView('dias');
-                      if (mp.location && typeof mp.location.latitude === 'number') chooseLoc(mp.location);
-                      setShowMaps(false);
-                    }}>
-                      <span className="nm">{mp.name || 'Mapa sem nome'}</span>
-                      <span className="dt">{ok && dt ? `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()} · ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}` : '—'}{mp.location?.displayName ? ` · ${String(mp.location.displayName).split(',')[0]}` : ''}</span>
-                    </button>
+                    <div key={id} className="dtp-map-row">
+                      <button type="button" className="dtp-map-pick" disabled={!ok} onClick={() => {
+                        if (!ok || !dt) return;
+                        setY(dt.getFullYear()); setM(dt.getMonth()); setD(dt.getDate()); setH(dt.getHours()); setMi(dt.getMinutes()); setView('dias');
+                        if (mp.location && typeof mp.location.latitude === 'number') chooseLoc(mp.location);
+                        setShowMaps(false);
+                      }}>
+                        <span className="nm">{mp.name || 'Mapa sem nome'}</span>
+                        <span className="dt">{ok && dt ? `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()} · ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}` : '—'}{mp.location?.displayName ? ` · ${String(mp.location.displayName).split(',')[0]}` : ''}</span>
+                      </button>
+                      {onRenameMap && mp.id && <button type="button" className="dtp-map-act" onClick={() => { setDelId(null); setEditId(id); setEditName(mp.name || ''); }} title="Editar nome" aria-label={`Editar ${mp.name || 'mapa'}`}><i className="ti ti-pencil" /></button>}
+                      {onDeleteMap && mp.id && <button type="button" className="dtp-map-act is-danger" onClick={() => { setEditId(null); setDelId(id); }} title="Excluir" aria-label={`Excluir ${mp.name || 'mapa'}`}><i className="ti ti-trash" /></button>}
+                    </div>
                   );
                 })}
+                </div>
               </div>
-            )}
+              );
+            })()}
           </div>
           <button className="dtp-btn" onClick={() => { const n = new Date(); setY(n.getFullYear()); setM(n.getMonth()); setD(n.getDate()); setH(n.getHours()); setMi(n.getMinutes()); setView('dias'); }}><span className="dtp-live" aria-hidden="true" />Agora</button>
           <button data-tour="date-confirm" className="dtp-btn dtp-ok" onClick={() => onConfirm(new Date(y, m, dd, h, mi, 0), loc)}><i className="ti ti-check" /> Confirmar</button>
@@ -445,15 +501,41 @@ const CSS = `
 .dtp.dtp-in{animation:dtp-zoom .42s cubic-bezier(.16,1,.3,1)}
 @keyframes dtp-zoom{from{opacity:0;transform:scale(.18)}60%{opacity:1}to{opacity:1;transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){.dtp.dtp-in{animation:none}}
-.dtp-foot{padding:12px 16px 14px;border-top:1px solid rgba(255,255,255,.1);display:flex;gap:8px;justify-content:flex-end}
-@media (min-width:901px){.dtp-foot .dtp-btn{flex:0 0 150px}.dtp-foot .dtp-ok{flex:0 0 220px}.dtp-foot .dtp-mapsw{flex:0 0 170px}.dtp-foot .dtp-mapsw .dtp-btn{width:100%}}
-.dtp-mapsw{position:relative;flex:1;display:flex}
-.dtp-mapsw .dtp-btn{flex:1}
+.dtp-foot{padding:12px 16px 14px;border-top:1px solid rgba(255,255,255,.1);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.dtp-foot>.dtp-mapsw{justify-self:start}
+.dtp-foot>.dtp-btn:not(.dtp-ok){justify-self:center}
+.dtp-foot>.dtp-ok{justify-self:end}
+.dtp-foot .dtp-btn{flex:none;width:150px}.dtp-foot .dtp-ok{width:220px}.dtp-foot .dtp-mapsw .dtp-btn{width:170px}
+@media (max-width:900px){.dtp-foot .dtp-btn,.dtp-foot .dtp-ok,.dtp-foot .dtp-mapsw .dtp-btn{width:100%;padding:0 10px}.dtp-foot>.dtp-mapsw,.dtp-foot>.dtp-btn{justify-self:stretch}.dtp-foot{grid-template-columns:1fr 1fr 1.3fr}}
+.dtp-mapsw{position:relative;display:flex}
+.dtp-btn.dtp-btn-gold{border-color:rgba(212,175,55,.75);color:#F5D98A}
+.dtp-btn.dtp-btn-gold:hover,.dtp-btn.dtp-btn-gold.on{border-color:#D4AF37;background:rgba(212,175,55,.1)}
 .dtp-btn.on{border-color:#EDE9E3;background:rgba(237,233,227,.08)}
-.dtp-maps{position:absolute;bottom:calc(100% + 8px);left:0;width:300px;max-width:calc(100vw - 40px);max-height:260px;overflow-y:auto;background:#0a070c;border:1px solid #2a2430;border-radius:14px;padding:6px;display:flex;flex-direction:column;gap:2px;box-shadow:0 20px 50px -12px rgba(0,0,0,.85);z-index:5;scrollbar-width:thin}
-.dtp-maps button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;padding:8px 10px;border-radius:9px;border:0;background:transparent;cursor:pointer;min-width:0}
-.dtp-maps button:hover{background:rgba(255,255,255,.06)}
-.dtp-maps button:disabled{opacity:.4;cursor:default}
+.dtp-maps{position:absolute;bottom:calc(100% + 8px);left:0;width:340px;max-width:calc(100vw - 40px);max-height:360px;background:#0a070c;border:1px solid #2a2430;border-radius:14px;display:flex;flex-direction:column;box-shadow:0 20px 50px -12px rgba(0,0,0,.85);z-index:5;overflow:hidden}
+.dtp-maps-head{padding:10px 10px 8px;border-bottom:1px solid #221d27;display:flex;flex-direction:column;gap:6px}
+.dtp-maps-lbl{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#8a8590}
+.dtp-maps-search{display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;border:1px solid #2a2430;border-radius:999px}
+.dtp-maps-search:focus-within{border-color:#EDE9E3}
+.dtp-maps-search i{color:#8a8590;font-size:14px}
+.dtp-maps-search input{flex:1;min-width:0;background:none;border:0;outline:0;color:#EDE9E3;font:inherit;font-size:12.5px}
+.dtp-maps-search input::placeholder{color:#6f6a76}
+.dtp-maps-sort{display:flex;gap:4px}
+.dtp-maps-sort button{flex:1;height:28px;border-radius:999px;border:1px solid #2a2430;background:none;font-size:11px;display:inline-flex;align-items:center;justify-content:center;gap:5px;opacity:.75}
+.dtp-maps-sort button.on{opacity:1;background:#EDE9E3;color:#040004;border-color:#EDE9E3}
+.dtp-maps-list{overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:2px;scrollbar-width:thin}
+.dtp-map-row{display:flex;align-items:center;gap:2px;border-radius:9px}
+.dtp-map-row:hover{background:rgba(255,255,255,.05)}
+.dtp-map-pick{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;padding:8px 10px;border-radius:9px;border:0;background:transparent}
+.dtp-map-pick:disabled{opacity:.4;cursor:default}
+.dtp-map-act{flex:none;width:30px;height:30px;border-radius:50%;border:0;background:none;display:inline-flex;align-items:center;justify-content:center;font-size:15px;opacity:.6}
+.dtp-map-act:hover{opacity:1;background:rgba(255,255,255,.08)}
+.dtp-map-act.is-danger:hover{color:#fca5a5}
+.dtp-map-row.is-edit{padding:4px 4px 4px 6px;background:rgba(255,255,255,.05)}
+.dtp-map-row.is-edit input{flex:1;min-width:0;height:30px;padding:0 10px;border-radius:8px;border:1px solid #EDE9E3;background:#040004;color:#EDE9E3;font:inherit;font-size:12.5px;outline:0}
+.dtp-map-row.is-del{padding:6px 6px 6px 10px;background:rgba(239,68,68,.08)}
+.dtp-map-row.is-del .nm{flex:1}
+.dtp-map-yes,.dtp-map-no{height:28px;padding:0 10px;border-radius:999px;font-size:11px;border:1px solid #2a2430;background:none}
+.dtp-map-yes{border-color:rgba(239,68,68,.6);color:#fca5a5}
 .dtp-maps .nm{font-size:12.5px;font-weight:500;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dtp-maps .dt{font-family:'DM Mono',monospace;font-size:10.5px;color:#B9B4BE;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dtp-maps-empty{padding:12px 10px;font-size:11.5px;color:#8a8590;line-height:1.5}

@@ -1095,6 +1095,16 @@ useEffect(() => {
         }
     };
 
+    const handleRenameMap = (id: string, name: string) => {
+        const updated = savedMaps.map((m: any) => m.id === id ? { ...m, name } : m);
+        setSavedMaps(updated);
+        localStorage.setItem('savedMaps', JSON.stringify(updated));
+        const mp = updated.find((m: any) => m.id === id);
+        if (auth.currentUser && mp) {
+            saveMapToFirestore(auth.currentUser.uid, mp).catch(console.error);
+        }
+    };
+
     const handleDeleteLayout = (id: string) => {
         const updated = savedLayouts.filter((l: any) => l.id !== id);
         setSavedLayouts(updated);
@@ -2388,6 +2398,8 @@ const handlePlanetClick = useCallback((id: string) => {
                                     onSaveMap={isMobile ? undefined : () => setShowSaveMapModal(true)}
                                     exportData={isMobile ? undefined : exportData}
                                     savedMaps={savedMaps}
+                                    onDeleteMap={handleDeleteMap}
+                                    onRenameMap={handleRenameMap}
                                 />
                             )}
 
