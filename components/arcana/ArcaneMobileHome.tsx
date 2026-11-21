@@ -60,8 +60,8 @@ export const ArcaneMobileHome: React.FC<Props> = (p) => {
             <button type="button" onClick={p.onToday}>Hoje</button>
           </span>
         </label>
-        <div className="amh-kpi"><span className="amh-lbl">Dias para concluir a jornada</span><b>{p.daysRemaining}</b></div>
-        <div className="amh-kpi"><span className="amh-lbl">Jornadas completas</span><b>{p.journeys}</b></div>
+        <div className="amh-kpi"><span className="amh-lbl">Dias para<br />concluir a jornada</span><b>{p.daysRemaining}</b></div>
+        <div className="amh-kpi"><span className="amh-lbl">Jornadas<br />completas</span><b>{p.journeys}</b></div>
       </div>
 
       <div className="amh-cards">
@@ -102,7 +102,8 @@ const CSS = `
 .amh-lbl{display:block;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--a-faint,#6f6a76);font-weight:600}
 .amh-name .amh-lbl{margin:0 0 5px 2px}
 .amh-pick{display:flex;align-items:center;gap:8px}
-.amh-pick>div:first-child{flex:1;min-width:0}
+.amh-pick>div:first-child{flex:1 1 0;min-width:0}
+.amh-pick .arc-novo{flex:none;padding:0 14px}
 .amh-pick #btn-consulentes-list-toggle{width:100%;justify-content:flex-start;height:38px;border-radius:999px;padding:0 14px}
 .amh-pick #btn-consulentes-list-toggle span{max-width:none!important}
 .amh-pick .arc-novo{height:38px}
@@ -112,13 +113,16 @@ const CSS = `
 .amh-stats dd.hi{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:20px;line-height:.9}
 .amh-bar{height:5px;border-radius:3px;background:var(--a-line,#221d27);overflow:hidden}
 .amh-bar i{display:block;height:100%;border-radius:3px;background:var(--a-spec)}
-.amh-read{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:8px;align-items:stretch}
+.amh-read{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:stretch}
+.amh-read .amh-date{grid-column:1/-1;flex-direction:row;align-items:center}
+.amh-read .amh-date .amh-lbl{flex:1}
 .amh-date,.amh-kpi{display:flex;flex-direction:column;justify-content:space-between;gap:6px;padding:9px 10px;border:1px solid var(--a-line,#221d27);border-radius:14px;background:var(--a-card,#0a070c)}
 .amh-date-row{display:flex;align-items:center;gap:6px}
 .amh-date input{flex:1;min-width:0;height:30px;padding:0 6px;border-radius:8px;border:1px solid var(--a-line2,#2a2430);background:var(--a-bg,#040004);color:var(--a-hi,#FAF6EE);font:12px 'DM Mono',monospace}
 .amh-date button{height:30px;padding:0 9px;border-radius:999px;border:1px solid var(--a-line2,#2a2430);background:none;color:var(--a-fg,#EDE9E3);font:600 10px 'DM Sans',sans-serif;letter-spacing:.1em;text-transform:uppercase}
 .amh-kpi b{font-family:'DM Mono',monospace;font-weight:500;font-size:20px;color:var(--a-hi,#FAF6EE);line-height:1}
-.amh-kpi .amh-lbl{font-size:8.5px;letter-spacing:.08em;line-height:1.3}
+.amh-kpi{flex-direction:row;align-items:center}
+.amh-kpi .amh-lbl{font-size:8.5px;letter-spacing:.1em;line-height:1.35}
 .amh-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .amh-card{display:flex;flex-direction:column;gap:6px;padding:0;border:0;background:none;color:inherit;text-align:left;cursor:pointer;min-width:0}
 .amh-card-head{display:flex;align-items:baseline;justify-content:space-between;padding:0 2px}
