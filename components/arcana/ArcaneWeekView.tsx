@@ -96,7 +96,7 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
   const cuts = [6, 8];
 
   return (
-    <div className="awv h-full overflow-auto">
+    <div className="awv">
       <style>{CSS}</style>
       <div className="awv-grid" role="grid" aria-label="Os 22 arcanos numa semana: Causa, Lei e Efeito">
         {cuts.map(c => <span key={c} className="awv-line" style={{ gridColumn: c, gridRow: '1 / -1' }} aria-hidden="true" />)}
@@ -118,9 +118,9 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
         </div>
 
         {/* O 0, à parte */}
-        <div className="awv-zero" style={{ gridColumn: 1, gridRow: 2 }}>
+        <div className="awv-zero" style={{ gridColumn: 1, gridRow: '1 / span 2' }} title="0 · Recomeço, Alteração, Decisão">
           <Card n={0} zero />
-          <span className="awv-zero-words">Recomeço<br />Alteração<br />Decisão</span>
+          <span className="awv-zero-words">Recomeço · Alteração · Decisão</span>
         </div>
 
         {/* Dias da semana (móveis) */}
@@ -153,8 +153,7 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
         {/* Qualidades de cada coluna */}
         {COLUMNS.map((c, i) => (
           <div key={c.name} className="awv-col" style={{ gridColumn: i + 2, gridRow: 6 }}>
-            <b>{c.name}</b>
-            <span className="g" aria-hidden="true">{c.glyph}</span>
+            <b>{c.name} <span className="g" aria-hidden="true">{c.glyph}</span></b>
             {c.words.map(w => <span key={w} className="w">{w}</span>)}
           </div>
         ))}
@@ -164,50 +163,50 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
 };
 
 const CSS = `
-.awv{padding:4px 2px 8px}
-.awv-grid{position:relative;display:grid;grid-template-columns:64px repeat(7,minmax(70px,1fr)) 118px;grid-template-rows:auto auto repeat(3,auto) auto;column-gap:12px;row-gap:10px;min-width:800px;max-width:1080px;margin:0 auto;align-items:center}
-/* linha contínua do topo à base, entre Causa | Lei | Efeito */
-.awv-line{justify-self:start;align-self:stretch;width:1px;margin-left:-7px;background:var(--a-line3,#3a3340);pointer-events:none}
-.awv-group{grid-row:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 0 2px}
-.awv-group b{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:24px;line-height:1;color:var(--a-hi,#FAF6EE)}
-.awv-group small{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--a-faint,#6f6a76)}
-.awv-toggles{display:flex;flex-direction:column;gap:5px;align-self:start;padding-left:4px}
-.awv-toggles button{display:flex;align-items:center;gap:8px;height:26px;padding:0 10px 0 8px;border-radius:999px;border:1px solid var(--a-line2,#2a2430);background:none;color:var(--a-dim,#8a8590);font:500 11px 'DM Sans',sans-serif;cursor:pointer;white-space:nowrap}
-.awv-toggles button i{width:22px;height:12px;border-radius:999px;background:#2a2430;position:relative;flex:none}
-.awv-toggles button i::after{content:"";position:absolute;top:2px;left:2px;width:8px;height:8px;border-radius:50%;background:#8a8590;transition:transform .15s}
+/* Tudo cabe na área visível, sem rolagem: as cartas se ajustam à altura disponível */
+.awv{height:100%;min-height:0;padding:2px 0 0;overflow:hidden}
+.awv-grid{position:relative;height:100%;display:grid;grid-template-columns:48px repeat(7,minmax(0,1fr)) 92px;grid-template-rows:auto auto repeat(3,minmax(0,1fr)) auto;column-gap:10px;row-gap:6px;align-items:center}
+.awv-line{justify-self:start;align-self:stretch;width:1px;margin-left:-6px;background:var(--a-line3,#3a3340);pointer-events:none}
+.awv-group{grid-row:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:0}
+.awv-group b{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:19px;line-height:1;color:var(--a-hi,#FAF6EE)}
+.awv-group small{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--a-faint,#6f6a76)}
+.awv-toggles{display:flex;flex-direction:column;gap:3px;align-self:start;padding-left:2px}
+.awv-toggles button{display:flex;align-items:center;gap:6px;height:19px;padding:0 8px 0 5px;border-radius:999px;border:1px solid var(--a-line2,#2a2430);background:none;color:var(--a-dim,#8a8590);font:500 10px 'DM Sans',sans-serif;cursor:pointer;white-space:nowrap}
+.awv-toggles button i{width:18px;height:10px;border-radius:999px;background:#2a2430;position:relative;flex:none}
+.awv-toggles button i::after{content:"";position:absolute;top:2px;left:2px;width:6px;height:6px;border-radius:50%;background:#8a8590;transition:transform .15s}
 .awv-toggles button.on{color:var(--a-hi,#FAF6EE);border-color:color-mix(in srgb,var(--mk) 55%,transparent)}
 .awv-toggles button.on i{background:color-mix(in srgb,var(--mk) 35%,#0a070c)}
-.awv-toggles button.on i::after{background:var(--mk);transform:translateX(10px)}
+.awv-toggles button.on i::after{background:var(--mk);transform:translateX(8px)}
 .awv-toggles button:focus-visible{outline:2px solid var(--a-fg,#EDE9E3);outline-offset:2px}
-.awv-day{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0 2px;border-radius:10px}
-.awv-day .g{font-family:'Noto Sans Symbols 2','Segoe UI Symbol',serif;font-size:22px;line-height:1;color:var(--a-fg,#EDE9E3)}
-.awv-day .d{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--a-dim,#8a8590);font-weight:600}
-.awv-day.is-today{background:rgba(237,233,227,.08)}
+.awv-day{display:flex;align-items:center;justify-content:center;gap:5px;padding:3px 0;border-radius:8px}
+.awv-day .g{font-family:'Noto Sans Symbols 2','Segoe UI Symbol',serif;font-size:16px;line-height:1;color:var(--a-fg,#EDE9E3)}
+.awv-day .d{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--a-dim,#8a8590);font-weight:600}
+.awv-day.is-today{background:rgba(237,233,227,.1)}
 .awv-day.is-today .d{color:var(--a-hi,#FAF6EE)}
-.awv-sym{display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:36px;color:var(--a-hi,#FAF6EE)}
-.awv-zero{display:flex;flex-direction:column;align-items:center;gap:6px}
-.awv-zero .awv-card{width:54px}
-.awv-zero-words{font-size:9.5px;line-height:1.35;text-align:center;color:var(--a-dim,#8a8590)}
-.awv-cell{min-width:0}
-.awv-card{position:relative;display:block;width:100%;aspect-ratio:2/3.15;padding:0;border-radius:12px;overflow:hidden;border:1px solid var(--a-line2,#2a2430);background:#000;cursor:pointer;contain:layout paint}
+.awv-sym{display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:30px;color:var(--a-hi,#FAF6EE)}
+.awv-zero{display:flex;flex-direction:column;align-items:center;gap:3px;align-self:stretch;justify-content:center;min-height:0}
+.awv-zero .awv-card{height:52px;width:auto}
+.awv-zero-words{display:none}
+.awv-cell{height:100%;min-height:0;min-width:0;display:flex;align-items:center;justify-content:center}
+.awv-card{position:relative;display:block;height:100%;width:auto;max-width:100%;aspect-ratio:2/3.15;padding:0;border-radius:10px;overflow:hidden;border:1px solid var(--a-line2,#2a2430);background:#000;cursor:pointer;contain:layout paint}
 .awv-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
-.awv-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,0,4,.82) 0%,rgba(4,0,4,0) 26%,rgba(4,0,4,0) 58%,rgba(4,0,4,.88) 100%)}
-.awv-kw{position:absolute;left:0;right:0;top:6px;text-align:center;font-size:8px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--a-fg,#EDE9E3);padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.awv-num{position:absolute;left:0;right:0;bottom:4px;text-align:center;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:28px;line-height:1;color:var(--a-hi,#FAF6EE);text-shadow:0 1px 8px rgba(0,0,0,.7)}
-.awv-zero .awv-num{font-size:22px}
-.awv-extra{position:absolute;right:6px;bottom:6px;font-family:'DM Mono',monospace;font-size:9.5px;color:var(--a-dim,#8a8590)}
+.awv-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,0,4,.82) 0%,rgba(4,0,4,0) 24%,rgba(4,0,4,0) 60%,rgba(4,0,4,.88) 100%)}
+.awv-kw{position:absolute;left:0;right:0;top:4px;text-align:center;font-size:7px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--a-fg,#EDE9E3);padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.awv-num{position:absolute;left:0;right:0;bottom:3px;text-align:center;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:22px;line-height:1;color:var(--a-hi,#FAF6EE);text-shadow:0 1px 8px rgba(0,0,0,.7)}
+.awv-zero .awv-num{font-size:16px}
+.awv-extra{position:absolute;right:4px;bottom:4px;font-family:'DM Mono',monospace;font-size:8.5px;color:var(--a-dim,#8a8590)}
 .awv-card:hover{border-color:var(--a-fg,#EDE9E3)}
 .awv-card:focus-visible{outline:2px solid var(--a-fg,#EDE9E3);outline-offset:2px}
-.awv-card.is-on{border:2px solid var(--mk);box-shadow:0 0 14px -2px color-mix(in srgb,var(--mk) 70%,transparent)}
-.awv-tags{position:absolute;left:0;right:0;top:20px;display:flex;flex-wrap:wrap;justify-content:center;gap:3px;padding:0 4px}
-.awv-tag{padding:2px 6px;border-radius:999px;color:#040004;font-size:8px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
-.awv-legend{display:flex;align-items:center;gap:10px;padding-left:4px}
-.awv-legend>span:last-child{display:flex;flex-direction:column;font-size:11.5px;line-height:1.35;color:var(--a-mut,#B9B4BE)}
-.awv-mark{flex:none;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--a-fg,#EDE9E3)}
+.awv-card.is-on{border:2px solid var(--mk);box-shadow:0 0 12px -2px color-mix(in srgb,var(--mk) 70%,transparent)}
+.awv-tags{position:absolute;left:0;right:0;top:15px;display:flex;flex-wrap:wrap;justify-content:center;gap:2px;padding:0 3px}
+.awv-tag{padding:1px 5px;border-radius:999px;color:#040004;font-size:7px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.awv-legend{display:flex;align-items:center;gap:7px;padding-left:2px}
+.awv-legend>span:last-child{display:flex;flex-direction:column;font-size:10px;line-height:1.3;color:var(--a-mut,#B9B4BE)}
+.awv-mark{flex:none;width:14px;height:14px;border-radius:50%;border:1.5px solid var(--a-fg,#EDE9E3)}
 .awv-mark.full{background:var(--a-fg,#EDE9E3)}
-.awv-mark.dot{background:radial-gradient(circle,var(--a-fg,#EDE9E3) 0 4px,transparent 4.5px)}
-.awv-col{display:flex;flex-direction:column;align-items:center;gap:2px;padding-top:6px;text-align:center}
-.awv-col b{font-size:12.5px;font-weight:600;color:var(--a-hi,#FAF6EE)}
-.awv-col .g{font-family:'Noto Sans Symbols 2','Segoe UI Symbol',serif;font-size:22px;line-height:1.1;margin:2px 0 4px;color:var(--a-fg,#EDE9E3)}
-.awv-col .w{font-size:10.5px;color:var(--a-dim,#8a8590);line-height:1.45}
+.awv-mark.dot{background:radial-gradient(circle,var(--a-fg,#EDE9E3) 0 3px,transparent 3.5px)}
+.awv-col{display:flex;flex-direction:column;align-items:center;gap:0;padding-top:2px;text-align:center;min-width:0}
+.awv-col b{font-size:11px;font-weight:600;color:var(--a-hi,#FAF6EE);display:flex;align-items:center;gap:4px}
+.awv-col .g{font-family:'Noto Sans Symbols 2','Segoe UI Symbol',serif;font-size:13px;line-height:1.2;color:var(--a-fg,#EDE9E3)}
+.awv-col .w{font-size:9px;color:var(--a-dim,#8a8590);line-height:1.35;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 `;
