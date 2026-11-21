@@ -6,6 +6,7 @@ import { TarotModal } from './TarotModal';
 import { SlimPersonManager, Person } from './SlimPersonManager';
 import { TarotCodex } from './TarotCodex';
 import { ArcaneWeekView } from './ArcaneWeekView';
+import { ArcaneMobileHome } from './ArcaneMobileHome';
 import { 
   Users, 
   House as Home, 
@@ -419,8 +420,40 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
           activeTab === 'calendario' ? 'hidden lg:flex lg:col-span-8' : 'lg:col-span-8'
         }`}>
 
+          {/* Celular: Início no formato da planilha (nome, dados, jornada, Ano/Mês/Dia e Leitura) */}
+          {activeTab === 'calculadora' && (
+            <div className="sm:hidden">
+              <ArcaneMobileHome
+                personPicker={
+                  <SlimPersonManager
+                    persons={persons}
+                    selectedPersonId={selectedPersonId}
+                    onSelectPerson={setSelectedPersonId}
+                    onAddPerson={handleAddPerson}
+                    showAddButton={false}
+                    addSignal={addSignal}
+                    onRemovePerson={handleRemovePerson}
+                    onEditPerson={handleEditPerson}
+                  />
+                }
+                onNew={() => setAddSignal(n => n + 1)}
+                birthDate={activePerson.birthDate}
+                totalDays={res.totalDays}
+                personalArcane={personalArcaneId}
+                progress={journeyProgress}
+                daysRemaining={daysRemainingInJourney}
+                journeys={res.jornada}
+                readDate={readDate}
+                onReadDate={setReadDate}
+                onToday={() => setReadDate(toLocalISODate(new Date()))}
+                ano={arcanePillars[1]} mes={arcanePillars[2]} dia={arcanePillars[3]}
+                onSelectCard={(pl) => setSelectedModalCard({ arcano: pl.arcano, context: pl.label, value: pl.val })}
+              />
+            </div>
+          )}
+
           {/* ROW 2: Consulente Details Row */}
-          <section className="shrink-0 bg-zinc-950 border border-zinc-800 rounded-2xl p-2 sm:px-3 sm:py-1.5 shadow-lg">
+          <section className={`shrink-0 bg-zinc-950 border border-zinc-800 rounded-2xl p-2 sm:px-3 sm:py-1.5 shadow-lg ${activeTab === 'calculadora' ? 'hidden sm:block' : ''}`}>
             <div className="flex flex-wrap items-center justify-start gap-2 min-w-0">
               
               {/* Consulente Selector + Arcano Badge */}
@@ -474,7 +507,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
           </section>
 
           {/* ROW 3: Journey Progress Bar & Date Navigator Bar */}
-          <section className="shrink-0 bg-zinc-950 border border-zinc-800 rounded-2xl p-2.5 sm:px-3.5 sm:py-2">
+          <section className={`shrink-0 bg-zinc-950 border border-zinc-800 rounded-2xl p-2.5 sm:px-3.5 sm:py-2 ${activeTab === 'calculadora' ? 'hidden sm:block' : ''}`}>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3">
               
               <div className="flex-1 min-w-0 bg-zinc-900/70 border border-zinc-800/80 rounded-xl px-2.5 sm:px-3 py-1.5 flex flex-col justify-center gap-1">
@@ -546,7 +579,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
           </section>
 
           {/* ROW 4: Main Active Tab Content */}
-          <div className="flex-1 min-h-0 overflow-hidden">
+          <div className={`flex-1 min-h-0 overflow-hidden ${activeTab === 'calculadora' ? 'hidden sm:block' : ''}`}>
             {(activeTab === 'calculadora' || (activeTab === 'calendario' && window.innerWidth >= 1024)) && (
               <div className="h-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 overflow-y-auto pr-0.5 -webkit-overflow-scrolling-touch">
                 {arcanePillars.map((pillar, idx) => (
