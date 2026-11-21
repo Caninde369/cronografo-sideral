@@ -3804,6 +3804,7 @@ const horizonStrokePath = `
             colorMode={zodiacColorMode}
             highlightFilter={highlightFilter}
             isBrightSky={isBrightSky}
+            isLight={theme === "light"}
             styleMode={zodiacStyle}
           />
         </g>

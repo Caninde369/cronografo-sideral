@@ -1095,8 +1095,13 @@ useEffect(() => {
         }
     };
 
-    const handleRenameMap = (id: string, name: string) => {
-        const updated = savedMaps.map((m: any) => m.id === id ? { ...m, name } : m);
+    // Editar mapa salvo (janela de data, hora e local): nome, data, hora e local
+    const handleUpdateMap = (id: string, patch: { name: string; date: Date; location: { latitude: number; longitude: number; displayName: string } }) => {
+        const iso = patch.date.toISOString();
+        const hhmm = `${patch.date.getHours().toString().padStart(2, '0')}:${patch.date.getMinutes().toString().padStart(2, '0')}`;
+        const updated = savedMaps.map((m: any) => m.id === id
+            ? { ...m, name: patch.name, targetDate: iso, date: iso, time: hhmm, location: { latitude: patch.location.latitude, longitude: patch.location.longitude, displayName: patch.location.displayName } }
+            : m);
         setSavedMaps(updated);
         localStorage.setItem('savedMaps', JSON.stringify(updated));
         const mp = updated.find((m: any) => m.id === id);
@@ -2399,7 +2404,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                     exportData={isMobile ? undefined : exportData}
                                     savedMaps={savedMaps}
                                     onDeleteMap={handleDeleteMap}
-                                    onRenameMap={handleRenameMap}
+                                    onUpdateMap={handleUpdateMap}
                                 />
                             )}
 

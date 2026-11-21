@@ -336,7 +336,7 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
                     title="Clique para abrir o Calendário Lunar"
                     className={`flex flex-col rounded-[16px] border transition-colors select-none w-full shrink-0 relative cursor-pointer group ${
                         isLight 
-                            ? 'bg-[#FBF8F2] border-[rgba(35,23,20,.14)] text-[#231714] hover:border-[rgba(35,23,20,.28)]' 
+                            ? 'liquid-glass text-[#231714]' 
                             : 'bg-[#0a070c] border-[#221d27] text-[#EDE9E3] hover:border-[#3A3440]'
                     } ${className || ''}`}
                     style={{ padding: `${Math.max(8, Math.round(10 * scale))}px ${Math.max(10, Math.round(12 * scale))}px ${Math.max(10, Math.round(12 * scale))}px` }}

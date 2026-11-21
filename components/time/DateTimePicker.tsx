@@ -40,13 +40,15 @@ export const DateTimePicker: React.FC<{
   /** Mapas salvos: escolher um preenche data, hora e local (o Confirmar aplica) */
   savedMaps?: any[];
   onDeleteMap?: (id: string) => void;
-  onRenameMap?: (id: string, name: string) => void;
-}> = ({ open, value, location, focusLocation, rightOffset = 0, onClose, onConfirm, onLocationPick, anchorRect, savedMaps = [], onDeleteMap, onRenameMap }) => {
+  /** Editar um mapa salvo: nome, data, hora e local */
+  onUpdateMap?: (id: string, patch: { name: string; date: Date; location: Loc }) => void;
+}> = ({ open, value, location, focusLocation, rightOffset = 0, onClose, onConfirm, onLocationPick, anchorRect, savedMaps = [], onDeleteMap, onUpdateMap }) => {
   const [showMaps, setShowMaps] = useState(false);
   const [mapQuery, setMapQuery] = useState('');
   const [mapSort, setMapSort] = useState<'recent' | 'az'>('recent');
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
+  // Edição de mapa salvo: o mapa abre na janela inteira (data, hora e local) e o Confirmar vira "Salvar mapa"
+  const [editMap, setEditMap] = useState<{ id: string; name: string } | null>(null);
+  const [savedFlash, setSavedFlash] = useState(false);
   const [delId, setDelId] = useState<string | null>(null);
   const [y, setY] = useState(value.getFullYear());
   const [m, setM] = useState(value.getMonth());
@@ -335,6 +337,16 @@ export const DateTimePicker: React.FC<{
          </div>
         </div>
 
+        {editMap && (
+          <div className="dtp-editbar" role="group" aria-label="Editando mapa salvo">
+            <i className="ti ti-pencil" aria-hidden="true" />
+            <label htmlFor="dtp-edit-name">Editando mapa</label>
+            <input id="dtp-edit-name" value={editMap.name} onChange={e => setEditMap({ ...editMap, name: e.target.value })} placeholder="Nome do mapa" autoComplete="off" />
+            <span className="hint">Ajuste data, hora e local acima e salve.</span>
+            <button type="button" onClick={() => setEditMap(null)}>Cancelar edição</button>
+          </div>
+        )}
+        {savedFlash && !editMap && <div className="dtp-savedflash" role="status"><i className="ti ti-check" aria-hidden="true" /> Mapa salvo</div>}
         <div className="dtp-foot" data-tour="date-foot">
           <div className="dtp-mapsw">
             <button className={`dtp-btn dtp-btn-gold ${showMaps ? 'on' : ''}`} onClick={() => setShowMaps(v => !v)} aria-expanded={showMaps} title="Escolher um mapa salvo">
@@ -352,7 +364,6 @@ export const DateTimePicker: React.FC<{
                 .sort((x: any, z: any) => mapSort === 'az'
                   ? String(x.name || '').localeCompare(String(z.name || ''), 'pt-BR', { sensitivity: 'base' })
                   : savedAt(z) - savedAt(x));
-              const saveEdit = () => { if (editId && editName.trim()) onRenameMap?.(editId, editName.trim()); setEditId(null); };
               return (
               <div className="dtp-maps" role="dialog" aria-label="Mapas salvos">
                 <div className="dtp-maps-head">
@@ -376,14 +387,6 @@ export const DateTimePicker: React.FC<{
                   const dt = raw ? new Date(raw) : null;
                   const ok = !!dt && !isNaN(dt.getTime());
                   const id = mp.id || mp.name;
-                  if (editId === id) return (
-                    <div key={id} className="dtp-map-row is-edit">
-                      <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} aria-label="Novo nome do mapa"
-                        onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') { e.stopPropagation(); setEditId(null); } }} />
-                      <button type="button" className="dtp-map-act" onClick={saveEdit} title="Salvar nome" aria-label="Salvar nome"><i className="ti ti-check" /></button>
-                      <button type="button" className="dtp-map-act" onClick={() => setEditId(null)} title="Cancelar" aria-label="Cancelar"><i className="ti ti-x" /></button>
-                    </div>
-                  );
                   if (delId === id) return (
                     <div key={id} className="dtp-map-row is-del">
                       <span className="nm">Excluir “{mp.name || 'Mapa sem nome'}”?</span>
@@ -402,8 +405,13 @@ export const DateTimePicker: React.FC<{
                         <span className="nm">{mp.name || 'Mapa sem nome'}</span>
                         <span className="dt">{ok && dt ? `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()} · ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}` : '—'}{mp.location?.displayName ? ` · ${String(mp.location.displayName).split(',')[0]}` : ''}</span>
                       </button>
-                      {onRenameMap && mp.id && <button type="button" className="dtp-map-act" onClick={() => { setDelId(null); setEditId(id); setEditName(mp.name || ''); }} title="Editar nome" aria-label={`Editar ${mp.name || 'mapa'}`}><i className="ti ti-pencil" /></button>}
-                      {onDeleteMap && mp.id && <button type="button" className="dtp-map-act is-danger" onClick={() => { setEditId(null); setDelId(id); }} title="Excluir" aria-label={`Excluir ${mp.name || 'mapa'}`}><i className="ti ti-trash" /></button>}
+                      {onUpdateMap && mp.id && <button type="button" className="dtp-map-act" onClick={() => {
+                        setDelId(null);
+                        if (ok && dt) { setY(dt.getFullYear()); setM(dt.getMonth()); setD(dt.getDate()); setH(dt.getHours()); setMi(dt.getMinutes()); setView('dias'); }
+                        if (mp.location && typeof mp.location.latitude === 'number') chooseLoc(mp.location);
+                        setEditMap({ id: mp.id, name: mp.name || '' }); setShowMaps(false);
+                      }} title="Editar nome, data, hora e local" aria-label={`Editar ${mp.name || 'mapa'}`}><i className="ti ti-pencil" /></button>}
+                      {onDeleteMap && mp.id && <button type="button" className="dtp-map-act is-danger" onClick={() => { setDelId(id); }} title="Excluir" aria-label={`Excluir ${mp.name || 'mapa'}`}><i className="ti ti-trash" /></button>}
                     </div>
                   );
                 })}
@@ -413,7 +421,14 @@ export const DateTimePicker: React.FC<{
             })()}
           </div>
           <button className="dtp-btn" onClick={() => { const n = new Date(); setY(n.getFullYear()); setM(n.getMonth()); setD(n.getDate()); setH(n.getHours()); setMi(n.getMinutes()); setView('dias'); }}><span className="dtp-live" aria-hidden="true" />Agora</button>
-          <button data-tour="date-confirm" className="dtp-btn dtp-ok" onClick={() => onConfirm(new Date(y, m, dd, h, mi, 0), loc)}><i className="ti ti-check" /> Confirmar</button>
+          {editMap ? (
+            <button className="dtp-btn dtp-ok" disabled={!editMap.name.trim()} onClick={() => {
+              onUpdateMap?.(editMap.id, { name: editMap.name.trim(), date: new Date(y, m, dd, h, mi, 0), location: loc });
+              setEditMap(null); setSavedFlash(true); window.setTimeout(() => setSavedFlash(false), 2200);
+            }}><i className="ti ti-device-floppy" /> Salvar mapa</button>
+          ) : (
+            <button data-tour="date-confirm" className="dtp-btn dtp-ok" onClick={() => onConfirm(new Date(y, m, dd, h, mi, 0), loc)}><i className="ti ti-check" /> Confirmar</button>
+          )}
         </div>
       </div>
     </>
@@ -508,6 +523,16 @@ const CSS = `
 .dtp-foot .dtp-btn{flex:none;width:150px}.dtp-foot .dtp-ok{width:220px}.dtp-foot .dtp-mapsw .dtp-btn{width:170px}
 @media (max-width:900px){.dtp-foot .dtp-btn,.dtp-foot .dtp-ok,.dtp-foot .dtp-mapsw .dtp-btn{width:100%;padding:0 10px}.dtp-foot>.dtp-mapsw,.dtp-foot>.dtp-btn{justify-self:stretch}.dtp-foot{grid-template-columns:1fr 1fr 1.3fr}}
 .dtp-mapsw{position:relative;display:flex}
+.dtp-editbar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid rgba(212,175,55,.35);background:rgba(212,175,55,.06);flex-wrap:wrap}
+.dtp-editbar>i{color:#F5D98A}
+.dtp-editbar label{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#F5D98A;white-space:nowrap}
+.dtp-editbar input{flex:1 1 180px;min-width:0;height:32px;padding:0 12px;border-radius:999px;border:1px solid rgba(212,175,55,.5);background:#040004;color:#EDE9E3;font:inherit;font-size:13px;outline:0}
+.dtp-editbar input:focus{border-color:#D4AF37}
+.dtp-editbar .hint{font-size:11.5px;color:#8a8590}
+.dtp-editbar button{height:30px;padding:0 12px;border-radius:999px;border:1px solid #2a2430;background:none;font-size:11px}
+.dtp-editbar button:hover{border-color:#EDE9E3}
+.dtp-savedflash{display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;border-top:1px solid #221d27;font-size:12px;color:#86EFAC}
+.dtp-btn:disabled{opacity:.4;cursor:default}
 .dtp-btn.dtp-btn-gold{border-color:rgba(212,175,55,.75);color:#F5D98A}
 .dtp-btn.dtp-btn-gold:hover,.dtp-btn.dtp-btn-gold.on{border-color:#D4AF37;background:rgba(212,175,55,.1)}
 .dtp-btn.on{border-color:#EDE9E3;background:rgba(237,233,227,.08)}

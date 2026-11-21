@@ -180,7 +180,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
   const ringColors = useRingColors();
   const zodiacStyle = useZodiacStyle();
   SOLAR_SIGNS.forEach((sg, i) => {
-    const c = timelineSignColors(i, zodiacStyle, ringColors);
+    const c = timelineSignColors(i, zodiacStyle, ringColors, isLight);
     sg.color = c.color; sg.gradientStart = c.start; sg.gradientEnd = c.end;
   });
   const [viewSpan, setViewSpan] = useState(365);

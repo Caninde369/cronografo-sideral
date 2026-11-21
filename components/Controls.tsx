@@ -294,7 +294,7 @@ export const TimeControls: React.FC<{
     exportData?: any;
     savedMaps?: any[];
     onDeleteMap?: (id: string) => void;
-    onRenameMap?: (id: string, name: string) => void;
+    onUpdateMap?: (id: string, patch: { name: string; date: Date; location: { latitude: number; longitude: number; displayName: string } }) => void;
 }> = ({
     currentTime,
     onTimeChange,
@@ -327,7 +327,7 @@ export const TimeControls: React.FC<{
     onSaveMap,
     savedMaps,
     onDeleteMap,
-    onRenameMap,
+    onUpdateMap,
     exportData
 }) => {
     const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
@@ -724,7 +724,7 @@ export const TimeControls: React.FC<{
                         anchorRect={anchorRect}
                         savedMaps={savedMaps}
                         onDeleteMap={onDeleteMap}
-                        onRenameMap={onRenameMap}
+                        onUpdateMap={onUpdateMap}
                         onClose={() => setShowPicker(false)}
                         onLocationPick={(loc) => { if (onLocationChange && loc.displayName !== location?.displayName) onLocationChange(loc); }}
                         onConfirm={(date, loc) => {

@@ -137,45 +137,88 @@ export function bandColorAt(lon: number, r: RingColors = ring): string {
 export function zodiacSignColor(i: number, isLight = false, style: ZodiacStyle = current, r: RingColors = ring): string {
   const idx = ((i % 12) + 12) % 12;
   let c = isSpectrum(style, r) ? spectralAt(idx * 30 + 15, r) : (r.elements || ELEMENT_DEFAULTS)[SIGN_ELEMENT[idx]];
+  if (isLight) return readableOnCream(c);
   if (style === 'modern') c = mixHex(c, '#ffffff', r.glyphLight);
-  return isLight ? mixHex(c, '#000000', 0.35) : c;
+  return c;
 }
 
 /** Cor do elemento (painel Status). */
 export function elementHex(el: string, isLight = false, r: RingColors = ring): string {
   const c = (r.elements || ELEMENT_DEFAULTS)[el as Element] || '#888888';
-  return isLight ? mixHex(c, '#000000', 0.35) : c;
+  return isLight ? readableOnCream(c) : c;
 }
 
 /** Cores da faixa de um signo na linha do tempo: início, meio (signo) e fim. */
-export function timelineSignColors(i: number, style: ZodiacStyle = current, r: RingColors = ring) {
-  const mid = zodiacSignColor(i, false, style, r);
-  if (!isSpectrum(style, r) || r.mode === 'solid') return { color: mid, start: mid, end: mid };
-  return { color: mid, start: spectralAt(i * 30 + 1, r), end: spectralAt(i * 30 + 29, r) };
+export function timelineSignColors(i: number, style: ZodiacStyle = current, r: RingColors = ring, isLight = false) {
+  const mid = zodiacSignColor(i, isLight, style, r);
+  const band = (c: string) => (isLight ? readableOnCream(c, 3) : c);
+  if (!isSpectrum(style, r) || r.mode === 'solid') return { color: mid, start: band(mid), end: band(mid) };
+  return { color: mid, start: band(spectralAt(i * 30 + 1, r)), end: band(spectralAt(i * 30 + 29, r)) };
+}
+
+// ── Contraste no tema claro ──
+// Fundo creme dos painéis no tema claro. Cores claras (ex.: o azul quase branco do Ar)
+// escurecem só o necessário para ler bem: 4.5:1 para texto e signos, 3:1 para faixas.
+const CREAM = '#EFEBE2';
+const lum = (h: string) => {
+  const [r, g, b] = rgb(h).map(v => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+export const contrastRatio = (a: string, b: string) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+const toHsl = (h: string): [number, number, number] => {
+  const [r, g, b] = rgb(h).map(v => v / 255); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+  if (mx === mn) return [0, 0, l];
+  const d = mx - mn, sv = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+  const hv = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [hv * 60, sv, l];
+};
+const fromHsl = (h: number, sv: number, l: number) => {
+  const k = (n: number) => (n + h / 30) % 12, a = sv * Math.min(l, 1 - l);
+  const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return hex([f(0), f(8), f(4)].map(v => v * 255));
+};
+const readCache = new Map<string, string>();
+export function readableOnCream(c: string, min = 4.5): string {
+  const k = c + min;
+  const hit = readCache.get(k); if (hit) return hit;
+  let out = c;
+  if (contrastRatio(out, CREAM) < min) {
+    // escurece mantendo o tom (matiz): baixa a luminosidade e garante saturação mínima,
+    // para o Ar quase branco virar um azul legível, e não cinza
+    const [hh, ss, ll] = toHsl(c);
+    const sat = Math.max(ss, 0.45);
+    for (let l = Math.min(ll, 0.6); l >= 0.05; l -= 0.02) { out = fromHsl(hh, sat, l); if (contrastRatio(out, CREAM) >= min) break; }
+  }
+  readCache.set(k, out);
+  return out;
 }
 
 /** Cor de um elemento no painel Astros, ou null para manter a original. */
 export function elementColor(el: string, isLight: boolean, r: RingColors = ring): string | null {
   const c = r.elements?.[el as Element];
   if (!c) return null;
-  return isLight ? mixHex(c, '#000000', 0.35) : c;
+  return isLight ? readableOnCream(c) : c;
 }
 
-/** Leva as cores dos elementos para o anel tradicional (variáveis do index.css). */
+/**
+ * Leva as cores dos elementos para o anel tradicional (variáveis do index.css),
+ * com uma versão legível para o tema claro (body.light-mode).
+ */
 function applyElementVars() {
-  if (typeof document === 'undefined') return;
-  const st = document.documentElement.style;
+  if (typeof document === 'undefined' || !document.head) return;
+  let tag = document.getElementById('cronografo-element-vars') as HTMLStyleElement | null;
+  if (!tag) { tag = document.createElement('style'); tag.id = 'cronografo-element-vars'; document.head.appendChild(tag); }
+  const dark: string[] = [], light: string[] = [];
   (['fire', 'earth', 'air', 'water'] as Element[]).forEach(el => {
-    const names = [1, 2, 3].flatMap(k => [`--color-zodiac-${el}-${k}`, `--color-zodiac-icon-${el}-${k}`]);
     const c = ring.elements?.[el];
-    if (!c) { names.forEach(n => st.removeProperty(n)); return; }
-    st.setProperty(`--color-zodiac-${el}-1`, mixHex(c, '#000000', 0.8));
-    st.setProperty(`--color-zodiac-${el}-2`, mixHex(c, '#000000', 0.55));
-    st.setProperty(`--color-zodiac-${el}-3`, c);
-    st.setProperty(`--color-zodiac-icon-${el}-1`, mixHex(c, '#ffffff', 0.35));
-    st.setProperty(`--color-zodiac-icon-${el}-2`, c);
-    st.setProperty(`--color-zodiac-icon-${el}-3`, mixHex(c, '#ffffff', 0.6));
+    if (!c) return;
+    dark.push(`--color-zodiac-${el}-1:${mixHex(c, '#000000', 0.8)}`, `--color-zodiac-${el}-2:${mixHex(c, '#000000', 0.55)}`, `--color-zodiac-${el}-3:${c}`,
+      `--color-zodiac-icon-${el}-1:${mixHex(c, '#ffffff', 0.35)}`, `--color-zodiac-icon-${el}-2:${c}`, `--color-zodiac-icon-${el}-3:${mixHex(c, '#ffffff', 0.6)}`);
+    const d = readableOnCream(c);
+    light.push(`--color-zodiac-${el}-1:${mixHex(c, '#ffffff', 0.6)}`, `--color-zodiac-${el}-2:${mixHex(c, '#ffffff', 0.3)}`, `--color-zodiac-${el}-3:${readableOnCream(c, 3)}`,
+      `--color-zodiac-icon-${el}-1:${d}`, `--color-zodiac-icon-${el}-2:${d}`, `--color-zodiac-icon-${el}-3:${mixHex(d, '#1a1210', 0.15)}`);
   });
+  tag.textContent = dark.length ? `:root{${dark.join(';')}}body.light-mode{${light.join(';')}}` : '';
 }
 applyElementVars();
 
