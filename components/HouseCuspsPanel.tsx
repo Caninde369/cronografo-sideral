@@ -4,6 +4,7 @@ import { ZODIAC_DATA, getZodiacColorClass } from './zodiac';
 import { ZODIAC_ICONS, UI_ICONS, CELESTIAL_GLYPHS } from './icons';
 import { WidgetId } from '../App';
 import { toRoman, formatDegrees } from '../lib/astrology/utils';
+import { useRingColors, useZodiacStyle, zodiacSignColor, elementHex } from '../lib/appearance';
 
 interface HouseCuspsPanelProps {
     ascendantLongitude: number;
@@ -133,7 +134,14 @@ const HouseListRow: React.FC<{
         ? { fire: '#b91c1c', earth: '#15803d', air: '#0369a1', water: '#4338ca', cardinal: '#b91c1c', fixed: '#15803d', mutable: '#1d4ed8', masculine: '#b91c1c', feminine: '#1d4ed8' }
         : { fire: '#F87171', earth: '#4ADE80', air: '#38BDF8', water: '#818CF8', cardinal: '#F87171', fixed: '#4ADE80', mutable: '#60A5FA', masculine: '#F87171', feminine: '#60A5FA' };
     const fg = isLight ? '#231714' : '#F5F2EB';
-    const signColor = zodiacColorMode === 'none' ? fg : (C as Record<string, string>)[zodiacColorMode === 'modality' ? sign.modality : zodiacColorMode === 'polarity' ? sign.polarity : sign.element] || fg;
+    const ringColors = useRingColors();
+    const zodiacStyle = useZodiacStyle();
+    const signIdx = Math.floor(longitude / 30) % 12;
+    // Elemento (padrão): mesma cor do signo no cronógrafo (Anéis › Editar cores)
+    const signColor = zodiacColorMode === 'none' ? fg
+        : (zodiacColorMode === 'modality' || zodiacColorMode === 'polarity')
+            ? (C as Record<string, string>)[zodiacColorMode === 'modality' ? sign.modality : sign.polarity] || fg
+            : zodiacSignColor(signIdx, isLight, zodiacStyle, ringColors);
     const glyph = Math.max(12, Math.round(13 * scale));
     const h = Math.max(22, Math.round(24 * scale));
     const label = houseFormat === 'roman' ? toRoman(houseNumber) : String(houseNumber);

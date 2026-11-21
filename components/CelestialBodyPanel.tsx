@@ -11,7 +11,7 @@ import { findRetrogradePeriod, findDirectPeriod, findStationWindow, RETRO_CAPABL
 import { Tooltip } from './Tooltip';
 import { OPT_CSS, OptHeader, OptGroup, OptToggle, OptSegment, OptSlider } from './panel/PanelOptions';
 import { PLANET_DESCRIPTIONS } from './astro-descriptions';
-import { useRingColors, elementColor } from '../lib/appearance';
+import { useRingColors, useZodiacStyle, zodiacSignColor, updateRingColors } from '../lib/appearance';
 
 export type CelestialSettings = {
     planets: {
@@ -343,6 +343,7 @@ const CelestialBodyCard: React.FC<{
     onRetroClick?: (id: string, kind: 'retro' | 'station' | 'direct', anchor: DOMRect) => void;
 }> = ({ body, housePlacements, retrogradeStatus, stationaryStatus, onHover, isSelected, isSecondarySelected, isVisible, onClick, onRightClick, itemSize, zodiacSignSize, scale = 1, settings, houseFormat, zodiacColorMode, anyHovered, isHovered, anySelected, moonPhase, className, onTooltip, onTooltipLeave, theme = 'dark', isLocked = false, onRetroClick }) => {
     const ringColors = useRingColors();
+    const zodiacStyle = useZodiacStyle();
     
     const safeLongitude = body.longitude || 0;
     const signIndex = Math.floor(safeLongitude / 30);
@@ -376,10 +377,10 @@ const CelestialBodyCard: React.FC<{
             ? { fire: '#b91c1c', earth: '#15803d', air: '#0369a1', water: '#4338ca', cardinal: '#b91c1c', fixed: '#15803d', mutable: '#1d4ed8', masculine: '#b91c1c', feminine: '#1d4ed8' }
             : { fire: '#F87171', earth: '#4ADE80', air: '#38BDF8', water: '#818CF8', cardinal: '#F87171', fixed: '#4ADE80', mutable: '#60A5FA', masculine: '#F87171', feminine: '#60A5FA' };
         const key = zodiacColorMode === 'modality' ? sg.modality : zodiacColorMode === 'polarity' ? sg.polarity : sg.element;
-        // Cores dos elementos editadas pela pessoa (Anéis › Editar cores)
+        // Mesma cor do signo no cronógrafo (Anéis › Editar cores)
         if (zodiacColorMode !== 'modality' && zodiacColorMode !== 'polarity') {
-            const custom = elementColor(key, isLight, ringColors);
-            if (custom) return custom;
+            const idx = ZODIAC_DATA.findIndex(z => z.id === sg.id);
+            if (idx >= 0) return zodiacSignColor(idx, isLight, zodiacStyle, ringColors);
         }
         return (D as Record<string, string>)[key] || neutral;
     })();
@@ -668,6 +669,8 @@ export const CelestialBodyPanel: React.FC<CelestialBodyPanelProps> = ({
     onOpenPaymentPlans,
     referenceDate
 }) => {
+    const panelRingColors = useRingColors();
+    const panelZodiacStyle = useZodiacStyle();
     const [retroInfo, setRetroInfo] = useState<{ id: string; name: string; kind: 'retro' | 'station' | 'direct'; rect: DOMRect } | null>(null);
     const { t } = useLanguage();
     const isFree = Boolean(isFreeTier || isFreeTrial);
@@ -1041,6 +1044,9 @@ return (
                                 <OptToggle sub label="Símbolo" checked={settings.signs.symbols} onChange={() => onSettingsChange({ ...settings, signs: { ...settings.signs, symbols: !settings.signs.symbols } })} />
                                 <OptSegment sub label="Nome" value={!settings.signs.abbr ? 'none' : settings.signs.short ? 'short' : 'full'} options={[{ v: 'full', label: 'Completo' }, { v: 'short', label: 'Sigla' }, { v: 'none', label: 'Não' }]} onChange={(v) => onSettingsChange({ ...settings, signs: { ...settings.signs, abbr: v !== 'none', short: v === 'short' } })} />
                                 <OptToggle sub label="Cores dos signos" checked={settings.signs.colors} onChange={() => onSettingsChange({ ...settings, signs: { ...settings.signs, colors: !settings.signs.colors } })} />
+                                {settings.signs.colors && panelZodiacStyle === 'modern' && (
+                                    <OptSegment sub label="Cor" value={panelRingColors.signSource} options={[{ v: 'spectrum', label: 'Espectro' }, { v: 'elements', label: 'Elementos' }]} onChange={(v) => updateRingColors({ signSource: v as 'spectrum' | 'elements' })} />
+                                )}
                             </>}
                             <OptToggle icon={<i className="ti ti-home" />} label="Casas" checked={settings.houses.enabled} onChange={() => onSettingsChange({ ...settings, houses: { ...settings.houses, enabled: !settings.houses.enabled } })} />
                             {settings.houses.enabled && (

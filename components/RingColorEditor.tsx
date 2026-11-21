@@ -61,7 +61,7 @@ export const RingColorEditor: React.FC<{ isLight?: boolean }> = ({ isLight }) =>
   };
   const onUp = () => { drag.current = null; };
 
-  const els = r.elements || ELEMENT_DEFAULTS;
+  const els = r.elements || RING_DEFAULTS.elements || ELEMENT_DEFAULTS;
   const stops = paletteStops(r);
   const modern = style === 'modern';
 
@@ -82,7 +82,7 @@ export const RingColorEditor: React.FC<{ isLight?: boolean }> = ({ isLight }) =>
 
         <section>
           <h3>Elementos</h3>
-          <p className="rce-hint">Cores dos signos no painel Astros{modern ? '' : ' e no anel tradicional'}.</p>
+          <p className="rce-hint">Usadas no painel Status{modern && r.signSource === 'spectrum' ? '' : ', nos signos do anel, Astros, Casas e linha do tempo'}.</p>
           <div className="rce-els">
             {ELEMENTS.map(([el, name]) => (
               <label key={el} className="rce-el">
@@ -91,11 +91,17 @@ export const RingColorEditor: React.FC<{ isLight?: boolean }> = ({ isLight }) =>
               </label>
             ))}
           </div>
-          {r.elements && <button type="button" className="rce-link" onClick={() => updateRingColors({ elements: null })}>Voltar às cores originais dos elementos</button>}
+          {JSON.stringify(r.elements) !== JSON.stringify(RING_DEFAULTS.elements) && <button type="button" className="rce-link" onClick={() => updateRingColors({ elements: RING_DEFAULTS.elements })}>Voltar às cores padrão dos elementos</button>}
         </section>
 
         {modern && <>
           <section>
+            <h3>Cores dos signos</h3>
+            <p className="rce-hint">Valem para o anel, Astros, Casas e linha do tempo. Tamanho, brilho e clareza continuam.</p>
+            <Seg value={r.signSource} options={[['spectrum', 'Espectro'], ['elements', 'Elementos']]} onChange={v => updateRingColors({ signSource: v })} />
+          </section>
+
+          {r.signSource === 'spectrum' && <section>
             <h3>Espectro</h3>
             <div className="rce-bar" style={{ background: `linear-gradient(90deg, ${[...stops, stops[0]].join(',')})` }} />
             <label className="rce-row rce-row-sel">
@@ -114,7 +120,7 @@ export const RingColorEditor: React.FC<{ isLight?: boolean }> = ({ isLight }) =>
                 return <span key={id} title={SIGN_NAMES[i]} style={{ background: `${c}26`, borderColor: `${c}80` }}><Icon width={16} height={16} fill={c} /></span>;
               })}
             </div>
-          </section>
+          </section>}
 
           <section>
             <h3>Faixa</h3>

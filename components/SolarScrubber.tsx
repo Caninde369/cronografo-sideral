@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ZODIAC_ICONS } from './icons';
 import { calculateSunTropicalLongitude, calculateMoonTropicalLongitude } from '../lib/astrology/celestialBodies';
+import { useRingColors, useZodiacStyle, timelineSignColors } from '../lib/appearance';
 
 const getMoonPhaseAtDate = (date: Date): number => {
   const moonLon = calculateMoonTropicalLongitude(date);
@@ -175,6 +176,13 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
   onOpenPaymentPlans,
   onOpenSolarCalendar
 }) => {
+  // Cores dos signos iguais às do cronógrafo (Anéis › Editar cores)
+  const ringColors = useRingColors();
+  const zodiacStyle = useZodiacStyle();
+  SOLAR_SIGNS.forEach((sg, i) => {
+    const c = timelineSignColors(i, zodiacStyle, ringColors);
+    sg.color = c.color; sg.gradientStart = c.start; sg.gradientEnd = c.end;
+  });
   const [viewSpan, setViewSpan] = useState(365);
   const [viewOffset, setViewOffset] = useState(0);
   const [trackWidth, setTrackWidth] = useState(1000);

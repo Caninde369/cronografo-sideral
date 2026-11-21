@@ -51,19 +51,21 @@ export interface RingColors {
   starGap: number;
   pulse: boolean;           // estrela pulsa a cada segundo
   elements: Record<Element, string> | null; // cores dos elementos (null = originais)
+  signSource: 'spectrum' | 'elements';  // no anel moderno: cada signo na cor do espectro ou do seu elemento
 }
 
 export const RING_DEFAULTS: RingColors = {
   start: 9, dir: -1, pal: 'full', mode: 'flow',
-  width: 70, fill: 0.22, edge: 0.65, sep: 0.4,
-  glyph: 'white', glyphScale: 42 / 46, glyphGlow: 0.3, glyphLight: 0.24,
-  hourSize: 64, starSize: 14.5, starGlow: 0.35, starGap: 2, pulse: false,
-  elements: null,
+  width: 39, fill: 0.11, edge: 0.65, sep: 0.4,
+  glyph: 'color', glyphScale: 0.87, glyphGlow: 0, glyphLight: 0.26,
+  hourSize: 50, starSize: 12, starGlow: 0, starGap: 2, pulse: false,
+  elements: { fire: '#F54E42', earth: '#4ADE80', air: '#D6F3FF', water: '#34D9EF' },
+  signSource: 'spectrum',
 };
 /** Cores originais dos elementos no painel Astros (tema escuro). */
 export const ELEMENT_DEFAULTS: Record<Element, string> = { fire: '#F87171', earth: '#4ADE80', air: '#38BDF8', water: '#818CF8' };
 
-const RKEY = 'cronografo:ringColors';
+const RKEY = 'cronografo:ringColors:v2';
 let ring: RingColors = (() => {
   try { const v = JSON.parse(localStorage.getItem(RKEY) || 'null'); return v ? { ...RING_DEFAULTS, ...v } : { ...RING_DEFAULTS }; } catch { return { ...RING_DEFAULTS }; }
 })();
@@ -116,6 +118,40 @@ export function spectralAt(lon: number, r: RingColors = ring): string {
   t = ((t % 1) + 1) % 1;
   const x = t * (stops.length - 1), i = Math.floor(x), f = x - i;
   return hex(stops[i].map((v, k) => v + (stops[i + 1][k] - v) * f));
+}
+
+const SIGN_ELEMENT: Element[] = ['fire', 'earth', 'air', 'water', 'fire', 'earth', 'air', 'water', 'fire', 'earth', 'air', 'water'];
+const isSpectrum = (style: ZodiacStyle, r: RingColors) => style === 'modern' && r.signSource !== 'elements';
+
+/** Cor de fundo do anel num grau: espectro, ou a cor do elemento do signo quando "Elementos" estiver escolhido. */
+export function bandColorAt(lon: number, r: RingColors = ring): string {
+  if (r.signSource === 'elements') return (r.elements || ELEMENT_DEFAULTS)[SIGN_ELEMENT[Math.floor((((lon % 360) + 360) % 360) / 30)]];
+  return spectralAt(lon, r);
+}
+
+/**
+ * Cor do signo (índice 0 = Áries) usada no anel, Astros, Casas e linha do tempo.
+ * Moderno + Espectro: cor do espectro no meio do signo, clareada pela "Clareza".
+ * Moderno + Elementos: cor do elemento, também com a "Clareza". Tradicional: cor do elemento.
+ */
+export function zodiacSignColor(i: number, isLight = false, style: ZodiacStyle = current, r: RingColors = ring): string {
+  const idx = ((i % 12) + 12) % 12;
+  let c = isSpectrum(style, r) ? spectralAt(idx * 30 + 15, r) : (r.elements || ELEMENT_DEFAULTS)[SIGN_ELEMENT[idx]];
+  if (style === 'modern') c = mixHex(c, '#ffffff', r.glyphLight);
+  return isLight ? mixHex(c, '#000000', 0.35) : c;
+}
+
+/** Cor do elemento (painel Status). */
+export function elementHex(el: string, isLight = false, r: RingColors = ring): string {
+  const c = (r.elements || ELEMENT_DEFAULTS)[el as Element] || '#888888';
+  return isLight ? mixHex(c, '#000000', 0.35) : c;
+}
+
+/** Cores da faixa de um signo na linha do tempo: início, meio (signo) e fim. */
+export function timelineSignColors(i: number, style: ZodiacStyle = current, r: RingColors = ring) {
+  const mid = zodiacSignColor(i, false, style, r);
+  if (!isSpectrum(style, r) || r.mode === 'solid') return { color: mid, start: mid, end: mid };
+  return { color: mid, start: spectralAt(i * 30 + 1, r), end: spectralAt(i * 30 + 29, r) };
 }
 
 /** Cor de um elemento no painel Astros, ou null para manter a original. */

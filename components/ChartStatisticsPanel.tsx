@@ -7,6 +7,7 @@ import { WidgetId } from '../App';
 import { CelestialGlyphSvg } from './chart/CelestialGlyphSvg';
 import { getMoonPhaseInfo } from '../lib/astrology/moon';
 import { CompactToggle } from './Controls';
+import { useRingColors, elementHex } from '../lib/appearance';
 
 export type HighlightFilter = {
     type: 'element' | 'modality' | 'polarity';
@@ -252,6 +253,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
     isFreeTrial = false,
     onOpenPaymentPlans
 }) => {
+    const ringColors = useRingColors();
     const isFree = Boolean(isFreeTier || isFreeTrial);
     const isLight = theme === 'light';
     const isUltraSlim = layoutMode === 'ultraslim';
@@ -589,7 +591,7 @@ export const ChartStatisticsPanel: React.FC<ChartStatisticsPanelProps> = ({
                         const glyphColor = isLight ? '#231714' : '#EDE9E3';
                         const anyFilter = !!highlightFilter;
                         const POL = { feminine: isLight ? '#1d4ed8' : '#60A5FA', masculine: isLight ? '#b91c1c' : '#F87171' } as Record<string, string>;
-                        const EL = { fire: isLight ? '#b91c1c' : '#F87171', earth: isLight ? '#15803d' : '#4ADE80', air: isLight ? '#0369a1' : '#38BDF8', water: isLight ? '#4338ca' : '#818CF8' } as Record<string, string>;
+                        const EL = { fire: elementHex('fire', isLight, ringColors), earth: elementHex('earth', isLight, ringColors), air: elementHex('air', isLight, ringColors), water: elementHex('water', isLight, ringColors) } as Record<string, string>;
                         const MO = { cardinal: isLight ? '#b91c1c' : '#F87171', fixed: isLight ? '#15803d' : '#4ADE80', mutable: isLight ? '#1d4ed8' : '#60A5FA' } as Record<string, string>;
                         const GROUPS: Array<{ mode: 'polarity' | 'element' | 'modality'; title: string; order: string[]; names: Record<string, string>; colors: Record<string, string>; planets: Record<string, Array<{ id: string; name: string }>> }> = [
                             { mode: 'polarity', title: 'Polaridades', order: ['feminine', 'masculine'], names: { feminine: 'Feminino', masculine: 'Masculino' }, colors: POL, planets: stats.planetsByPolarity },
