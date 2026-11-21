@@ -94,7 +94,7 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
   };
 
   // linhas contínuas: antes da 5ª coluna (Lei) e antes da 7ª (Efeito)
-  const cuts = [7, 9];
+  const cuts = [6, 8];
 
   return (
     <div className="awv">
@@ -103,12 +103,12 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
         {cuts.map(c => <span key={c} className="awv-line" style={{ gridColumn: c, gridRow: '1 / -1' }} aria-hidden="true" />)}
 
         {/* Grupos da semana 4 × 3, sem caixas */}
-        <div className="awv-group" style={{ gridColumn: '3 / span 4' }}><b>Causa</b><small>Trabalho</small></div>
-        <div className="awv-group" style={{ gridColumn: '7 / span 2' }}><b>Lei</b><small>Sagrado</small></div>
-        <div className="awv-group" style={{ gridColumn: '9 / span 1' }}><b>Efeito</b><small>Realização</small></div>
+        <div className="awv-group" style={{ gridColumn: '2 / span 4', gridRow: 1 }}><b>Causa</b><small>Trabalho</small></div>
+        <div className="awv-group" style={{ gridColumn: '6 / span 2', gridRow: 1 }}><b>Lei</b><small>Sagrado</small></div>
+        <div className="awv-group" style={{ gridColumn: '8 / span 1', gridRow: 1 }}><b>Efeito</b><small>Realização</small></div>
 
         {/* Marcas: ligar e desligar */}
-        <div className="awv-toggles" style={{ gridColumn: 10, gridRow: '1 / span 2' }} role="group" aria-label="Marcas no calendário">
+        <div className="awv-toggles" style={{ gridColumn: 9, gridRow: 1 }} role="group" aria-label="Marcas no calendário">
           {MARKS.map(m => (
             <button key={m.id} type="button" role="switch" aria-checked={on[m.id]} className={on[m.id] ? 'on' : ''}
               style={{ '--mk': m.color } as React.CSSProperties} onClick={() => setOn(o => ({ ...o, [m.id]: !o[m.id] }))}
@@ -119,8 +119,8 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
         </div>
 
         {/* O 0, à parte */}
-        <span className="awv-zero-words" style={{ gridColumn: 1, gridRow: 2 }}>Recomeço<br />Alteração · Decisão</span>
-        <div className="awv-cell" style={{ gridColumn: 1, gridRow: 3 }} title="0 · Recomeço, Alteração, Decisão">
+        {/* O 0 numa linha acima do Mago (1), com o mesmo tamanho das outras cartas */}
+        <div className="awv-cell" style={{ gridColumn: 1, gridRow: 1 }} title="0 · Recomeço, Alteração, Decisão">
           <Card n={0} />
         </div>
 
@@ -129,7 +129,7 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
           const d = dayOfCol(c);
           const today = c === diaCol;
           return (
-            <div key={c} className={`awv-day ${today ? 'is-today' : ''}`} style={{ gridColumn: c + 3, gridRow: 2 }}>
+            <div key={c} className={`awv-day ${today ? 'is-today' : ''}`} style={{ gridColumn: c + 2, gridRow: 1 }}>
               <span className="g">{d.glyph}</span><span className="d">{d.day}</span>
             </div>
           );
@@ -138,13 +138,13 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
         {/* α, μ, Ω */}
         {ROWS.map((r, ri) => (
           <React.Fragment key={r.sym}>
-            <div className="awv-sym" style={{ gridColumn: 2, gridRow: ri + 3 }}>{r.sym}</div>
+            <div className="awv-sym" style={{ gridColumn: 1, gridRow: ri + 2 }}>{r.sym}</div>
             {Array.from({ length: 7 }, (_, i) => (
-              <div key={i} className="awv-cell" style={{ gridColumn: i + 3, gridRow: ri + 3 }}>
+              <div key={i} className="awv-cell" style={{ gridColumn: i + 2, gridRow: ri + 2 }}>
                 <Card n={r.start + i} />
               </div>
             ))}
-            <div className="awv-legend" style={{ gridColumn: 10, gridRow: ri + 3 }}>
+            <div className="awv-legend" style={{ gridColumn: 9, gridRow: ri + 2 }}>
               <span className={`awv-mark ${r.mark}`} aria-hidden="true" />
               <span>{r.words.map(w => <span key={w}>{w}</span>)}</span>
             </div>
@@ -153,7 +153,7 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
 
         {/* Qualidades de cada coluna */}
         {COLUMNS.map((c, i) => (
-          <div key={c.name} className="awv-col" style={{ gridColumn: i + 3, gridRow: 6 }}>
+          <div key={c.name} className="awv-col" style={{ gridColumn: i + 2, gridRow: 5 }}>
             <b>{c.name} <span className="g" aria-hidden="true">{c.glyph}</span></b>
             {c.words.map(w => <span key={w} className="w">{w}</span>)}
           </div>
@@ -166,12 +166,12 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
 const CSS = `
 /* Tudo cabe na área visível, sem rolagem: as cartas se ajustam à altura disponível */
 .awv{height:100%;min-height:0;padding:2px 0 0;overflow:hidden}
-.awv-grid{position:relative;height:100%;display:grid;grid-template-columns:minmax(0,1fr) 26px repeat(7,minmax(0,1fr)) 88px;grid-template-rows:auto auto repeat(3,minmax(0,1fr)) auto;column-gap:10px;row-gap:6px;align-items:center}
+.awv-grid{position:relative;height:100%;display:grid;grid-template-columns:repeat(8,minmax(0,1fr)) 88px;grid-template-rows:repeat(4,minmax(0,1fr)) auto;column-gap:10px;row-gap:6px;align-items:center}
 .awv-line{justify-self:start;align-self:stretch;width:1px;margin-left:-6px;background:var(--a-line3,#3a3340);pointer-events:none}
-.awv-group{grid-row:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:0}
+.awv-group{align-self:start;display:flex;flex-direction:column;align-items:center;gap:2px;padding:0}
 .awv-group b{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:19px;line-height:1;color:var(--a-hi,#FAF6EE)}
 .awv-group small{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--a-faint,#6f6a76)}
-.awv-toggles{display:flex;flex-direction:column;gap:3px;align-self:start;padding-left:2px}
+.awv-toggles{display:flex;flex-direction:column;gap:3px;align-self:center;padding-left:2px}
 .awv-toggles button{display:flex;align-items:center;gap:6px;height:19px;padding:0 8px 0 5px;border-radius:999px;border:1px solid var(--a-line2,#2a2430);background:none;color:var(--a-dim,#8a8590);font:500 10px 'DM Sans',sans-serif;cursor:pointer;white-space:nowrap}
 .awv-toggles button i{width:18px;height:10px;border-radius:999px;background:#2a2430;position:relative;flex:none}
 .awv-toggles button i::after{content:"";position:absolute;top:2px;left:2px;width:6px;height:6px;border-radius:50%;background:#8a8590;transition:transform .15s}
@@ -179,7 +179,7 @@ const CSS = `
 .awv-toggles button.on i{background:color-mix(in srgb,var(--mk) 35%,#0a070c)}
 .awv-toggles button.on i::after{background:var(--mk);transform:translateX(8px)}
 .awv-toggles button:focus-visible{outline:2px solid var(--a-fg,#EDE9E3);outline-offset:2px}
-.awv-day{display:flex;align-items:center;justify-content:center;gap:5px;padding:3px 0;border-radius:8px}
+.awv-day{align-self:end;display:flex;align-items:center;justify-content:center;gap:5px;padding:3px 0;border-radius:8px}
 .awv-day .g{font-family:'Noto Sans Symbols 2','Segoe UI Symbol',serif;font-size:16px;line-height:1;color:var(--a-fg,#EDE9E3)}
 .awv-day .d{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--a-dim,#8a8590);font-weight:600}
 .awv-day.is-today{background:rgba(237,233,227,.1)}
