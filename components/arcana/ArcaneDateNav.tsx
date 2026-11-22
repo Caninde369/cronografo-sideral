@@ -45,7 +45,8 @@ const CSS = `
 .adn{display:flex;flex-direction:column;gap:6px;padding:9px 10px;border:1px solid var(--a-line,#221d27);border-radius:14px;background:var(--a-card,#0a070c);min-width:0;box-sizing:border-box}
 .adn *{box-sizing:border-box}
 .adn-lbl{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--a-faint,#6f6a76);font-weight:600}
-.adn-row{display:grid;grid-template-columns:34px 34px minmax(0,1fr) 34px 34px auto;gap:4px;align-items:center}
+.adn-row{display:grid;grid-template-columns:32px 32px minmax(0,1fr) 32px 32px auto;gap:4px;align-items:center}
+@media (max-width:400px){.adn-row{grid-template-columns:30px 30px minmax(0,1fr) 30px 30px auto;gap:3px}.adn-date .w{display:none}.adn-row>.adn-today{padding:0 8px}}
 .adn-row>button{height:36px;border-radius:10px;border:1px solid var(--a-line2,#2a2430);background:none;color:var(--a-fg,#EDE9E3);font:500 17px/1 'DM Sans',sans-serif;cursor:pointer;padding:0;touch-action:manipulation}
 .adn-row>button:active{background:rgba(237,233,227,.1)}
 .adn-date{position:relative;display:flex;align-items:center;justify-content:center;gap:7px;height:36px;min-width:0;border-radius:10px;border:1px solid var(--a-line2,#2a2430);background:var(--a-bg,#040004);overflow:hidden;cursor:pointer}

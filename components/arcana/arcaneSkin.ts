@@ -95,5 +95,7 @@ export const ARCANE_SKIN = `
 @media (max-width:639px){
   .arc-skin{overflow-x:hidden;overscroll-behavior-x:none;max-width:100vw}
   .arc-skin .overflow-y-auto,.arc-skin .overflow-auto{overflow-x:hidden}
+  .arc-skin .arc-leftdock{height:auto}
+  .arc-skin .arc-tabbody{overflow-y:auto;overflow-x:hidden;flex:none;min-height:auto}
 }
 `;

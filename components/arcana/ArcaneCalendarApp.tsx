@@ -421,7 +421,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
       {hasPersons && <main className="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden max-w-7xl w-full mx-auto p-2.5 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">
 
         {/* LEFT DOCK (lg:col-span-8) */}
-        <div className={`h-full flex flex-col min-h-0 gap-2.5 sm:gap-3 ${
+        <div className={`arc-leftdock h-full flex flex-col min-h-0 gap-2.5 sm:gap-3 ${
           activeTab === 'calendario' ? 'hidden lg:flex lg:col-span-8' : 'lg:col-span-8'
         }`}>
 
@@ -587,7 +587,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
           </section>
 
           {/* ROW 4: Main Active Tab Content */}
-          <div className={`flex-1 min-h-0 overflow-hidden ${activeTab === 'calculadora' ? 'hidden sm:block' : ''}`}>
+          <div className={`arc-tabbody flex-1 min-h-0 overflow-hidden ${activeTab === 'calculadora' ? 'hidden sm:block' : ''}`}>
             {(activeTab === 'calculadora' || (activeTab === 'calendario' && window.innerWidth >= 1024)) && (
               <div className="h-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 overflow-y-auto pr-0.5 -webkit-overflow-scrolling-touch">
                 {arcanePillars.map((pillar, idx) => (

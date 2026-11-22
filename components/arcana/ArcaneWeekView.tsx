@@ -392,8 +392,11 @@ const CSS = `
 .awv-col .w{font-size:9px;color:var(--a-dim,#8a8590);line-height:1.35;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Celular: 8 colunas (0/α μ Ω + 7 dias), legenda escondida, marcas numa linha embaixo, nada passa da largura */
 @media (max-width:639px){
-  .awv{overflow:hidden;max-width:100%}
-  .awv-grid{grid-template-columns:24px repeat(7,minmax(0,1fr));grid-template-rows:auto repeat(3,minmax(0,1fr)) auto auto;column-gap:4px;row-gap:5px}
+  .awv{height:auto;overflow:visible;max-width:100%}
+  .awv-grid{height:auto;grid-template-columns:24px repeat(7,minmax(0,1fr));grid-template-rows:auto repeat(3,auto) auto auto;column-gap:4px;row-gap:6px}
+  .awv-cell{height:auto}
+  .awv-cell .awv-card{height:auto;width:100%}
+  .awv-zero .awv-card{width:auto}
   .awv-legend{display:none!important}
   .awv-toggles{grid-column:1 / -1!important;grid-row:6!important;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:5px;padding:4px 0 0}
   .awv-toggles button{height:24px;padding:0 9px 0 6px;font-size:10.5px}
