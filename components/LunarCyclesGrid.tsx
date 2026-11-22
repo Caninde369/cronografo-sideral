@@ -161,7 +161,6 @@ export const LunarCyclesGrid: React.FC<Props> = ({ year, latitude = 0, isLight =
                 <b>{cycle.name}</b>
                 <small>Ciclo {cycle.index} · {cycle.start.getDate()} {M3[cycle.start.getMonth()]} → {endDay.getDate()} {M3[endDay.getMonth()]}{endDay.getFullYear() !== cycle.start.getFullYear() ? ` ${endDay.getFullYear()}` : ''} · {cycle.totalDays} dias</small>
               </span>
-              {isCurrent && <span className="lcy-now">Agora</span>}
               {locked && <span className="lcy-lock"><i className="ti ti-lock" aria-hidden="true" /> PRO</span>}
             </header>
             <div className="lcy-rows" aria-hidden={locked || undefined}>

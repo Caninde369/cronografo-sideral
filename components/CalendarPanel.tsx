@@ -820,21 +820,45 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                         >
                             ▶
                         </button>
+                        {view === 'lunar' && lunarView === 'cycles' && (
+                            <label className="lcy-search ml-0.5 w-6 h-6 flex items-center justify-center rounded text-brand-text-muted hover:text-brand-text hover:bg-white/5 cursor-pointer" title="Buscar uma data" aria-label="Buscar uma data no calendário de ciclos">
+                                <i className="ti ti-search text-[13px]" aria-hidden="true" />
+                                <input type="date" onChange={(e) => {
+                                    const v = e.target.value; if (!v) return;
+                                    const [yy, mm, dd] = v.split('-').map(Number);
+                                    const dt = new Date(yy, mm - 1, dd, 12);
+                                    const cy = dt < getYearCycleStart(yy) ? yy - 1 : yy;
+                                    if (cy !== displayYear) {
+                                        if (isFreeTier) { setShowUpgradeBanner(true); onOpenPaymentPlans?.(); return; }
+                                        setDisplayYear(cy);
+                                    }
+                                    setCycleFocus(f => ({ date: dt, sig: (f?.sig ?? 0) + 1 }));
+                                }} />
+                            </label>
+                        )}
                         <button
-                            onClick={() => setDisplayYear(new Date().getFullYear())}
+                            onClick={() => {
+                                const now = new Date();
+                                if (view === 'lunar' && lunarView === 'cycles') {
+                                    const y = now < getYearCycleStart(now.getFullYear()) ? now.getFullYear() - 1 : now.getFullYear();
+                                    if (y !== displayYear) setDisplayYear(y);
+                                    setCycleTodaySig(n => n + 1);
+                                } else {
+                                    setDisplayYear(now.getFullYear());
+                                }
+                            }}
                             className="ml-0.5 px-1 py-0.5 text-[9px] font-bold uppercase text-brand-orange hover:bg-brand-orange/10 rounded transition-colors"
-                            title="Ir para o ano atual"
+                            title={view === 'lunar' && lunarView === 'cycles' ? 'Centralizar no dia de hoje' : 'Ir para o ano atual'}
                         >
                             hoje
                         </button>
                         <div className="h-3 w-px bg-white/10 mx-0.5" />
-                        <button data-close-x=""
+                        <button
                             onClick={onClose}
-                            className="p-1 text-brand-text-muted hover:text-brand-text hover:bg-white/10 rounded transition-colors ml-1"
-                            title="Fechar"
-                            aria-label="Fechar"
+                            className="p-1 text-brand-text-muted hover:text-brand-text hover:bg-white/10 rounded transition-colors"
+                            title="Minimizar Calendário Lunar"
                         >
-                            <i className="ti ti-x text-xs" />
+                            <i className="ti ti-minus text-xs" />
                         </button>
                     </div>
                 )}
@@ -1090,36 +1114,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                 {/* Lunar — Ciclos Celtas */}
                 {view === 'lunar' && lunarView === 'cycles' && (
                     <div className="flex flex-col gap-2">
-                        {/* Ciclos lunares (versão B): 4 linhas por lunação, card do dia e leitura num pop-up */}
-                        <div className="flex justify-end gap-2 sticky top-0 z-[5] -mt-1 pb-1">
-                            <label className="lcy-today lcy-search" title="Buscar uma data" aria-label="Buscar uma data no calendário de ciclos">
-                                <i className="ti ti-search" aria-hidden="true" /> Buscar data
-                                <input type="date" onChange={(e) => {
-                                    const v = e.target.value; if (!v) return;
-                                    const [yy, mm, dd] = v.split('-').map(Number);
-                                    const dt = new Date(yy, mm - 1, dd, 12);
-                                    const cy = dt < getYearCycleStart(yy) ? yy - 1 : yy;
-                                    if (cy !== displayYear) {
-                                        if (isFreeTier) { setShowUpgradeBanner(true); onOpenPaymentPlans?.(); return; }
-                                        setDisplayYear(cy);
-                                    }
-                                    setCycleFocus(f => ({ date: dt, sig: (f?.sig ?? 0) + 1 }));
-                                }} />
-                            </label>
-                            <button
-                                type="button"
-                                className="lcy-today"
-                                onClick={() => {
-                                    const now = new Date();
-                                    const y = now < getYearCycleStart(now.getFullYear()) ? now.getFullYear() - 1 : now.getFullYear();
-                                    if (y !== displayYear) setDisplayYear(y);
-                                    setCycleTodaySig(n => n + 1);
-                                }}
-                                title="Centralizar no dia de hoje"
-                            >
-                                <i className="ti ti-focus-centered" aria-hidden="true" /> Hoje
-                            </button>
-                        </div>
+                        {/* Ciclos lunares (versão B): 4 linhas por lunação, card do dia e leitura num pop-up. Busca e Hoje ficam no seletor de ano. */}
                         <LunarCyclesGrid
                             year={displayYear}
                             latitude={latitude}
