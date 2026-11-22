@@ -676,6 +676,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                 persons={persons}
                 selectedIds={comparisonIds}
                 onToggle={toggleComparisonPerson}
+                onClear={() => setComparisonIds([])}
                 readDateLabel={formatDate(readDate)}
                 getArcano={getArcanoSafe}
                 detail={tableDetail}
