@@ -140,5 +140,7 @@ const CSS = `
 .lpb-edit .row{display:flex;gap:6px;margin-top:8px}
 .lpb-edit .row button{flex:1;height:30px;border-radius:999px;border:1px solid var(--line);background:none;color:var(--fg);font:500 11px 'DM Sans',sans-serif;cursor:pointer}
 .lpb-edit .row button.p{background:var(--fg);color:var(--in);border-color:var(--fg)}
+/* Celular: sem botão Loop e sem durações; só os pontos e o × se um loop já existir */
+body.is-mobile .lpb-sw,body.is-mobile .lpb-presets,body.is-mobile .lpb:not(.has){display:none!important}
 .lpb button:focus-visible,.lpb input:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
 `;

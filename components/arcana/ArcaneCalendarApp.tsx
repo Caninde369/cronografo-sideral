@@ -1,3 +1,4 @@
+import { ArcaneDateNav } from './ArcaneDateNav';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { calculateDetailedArcane, calculatePersonalArcane } from './arcaneCalendar';
 import { MAJOR_ARCANA, Arcanum } from './tarot';
@@ -346,12 +347,12 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
             </div>
           </div>
 
-          <nav className="flex items-center justify-center bg-zinc-900 rounded-lg p-0.5 border border-zinc-800 overflow-x-auto">
+          <nav className="arc-tabs flex items-center justify-center bg-zinc-900 rounded-lg p-0.5 border border-zinc-800 overflow-hidden sm:overflow-x-auto min-w-0 max-w-full">
             {[
               { id: 'calculadora', label: 'INÍCIO', icon: Home },
               { id: 'calendario', label: 'CALENDÁRIO', icon: CalendarIcon, mobileOnly: true },
               { id: 'mesa', label: 'MESA', icon: Users },
-              { id: 'baralho', label: 'VISÃO DE CALENDÁRIO', icon: Layers }
+              { id: 'baralho', label: 'VISÃO DE CALENDÁRIO', short: 'VISÃO', icon: Layers }
             ].map(tab => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -360,7 +361,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                   key={tab.id}
                   id={`tab-btn-${tab.id}`}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-md text-[11px] sm:text-xs font-sans font-bold tracking-wider transition-all shrink-0 ${
+                  className={`flex flex-1 sm:flex-none justify-center items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3.5 py-1.5 rounded-md text-[10.5px] sm:text-xs font-sans font-bold tracking-wide sm:tracking-wider transition-all min-w-0 sm:shrink-0 ${
                     tab.mobileOnly ? 'lg:hidden' : ''
                   } ${
                     isActive
@@ -368,8 +369,8 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                       : 'text-zinc-400 hover:text-white'
                   }`}
                 >
-                  <Icon size={13} className="shrink-0" />
-                  <span>{tab.label}</span>
+                  <Icon size={13} className="shrink-0 hidden sm:block" />
+                  {(tab as any).short ? (<><span className="sm:hidden">{(tab as any).short}</span><span className="hidden sm:inline">{tab.label}</span></>) : <span>{tab.label}</span>}
                 </button>
               );
             })}
@@ -527,8 +528,11 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                 </div>
               </div>
 
+              {/* Celular: navegação de data própria (setas grandes + seletor nativo) */}
+              <ArcaneDateNav className="sm:hidden" value={readDate} onChange={setReadDate} />
+
               {/* Time/Date Navigator */}
-              <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2 shrink-0">
+              <div className="hidden sm:flex items-center justify-end gap-2 shrink-0">
                 <div className="flex items-center gap-1.5 bg-zinc-900 border border-amber-500/30 px-2 sm:px-2.5 py-1 rounded-xl">
                   <CalendarIcon size={14} className="text-amber-400 shrink-0" />
                   <input

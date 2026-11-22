@@ -4,6 +4,7 @@
  * barra da jornada, data de leitura, as três cartas (Ano, Mês, Dia) lado a lado e a Leitura em colunas.
  * Identidade do Cronógrafo (escopo .arc-skin).
  */
+import { ArcaneDateNav } from './ArcaneDateNav';
 import React from 'react';
 import type { Arcanum } from './tarot';
 
@@ -53,13 +54,7 @@ export const ArcaneMobileHome: React.FC<Props> = (p) => {
       </div>
 
       <div className="amh-read">
-        <label className="amh-date">
-          <span className="amh-lbl">Data de leitura · {weekdayOf(p.readDate)}</span>
-          <span className="amh-date-row">
-            <input type="date" value={p.readDate} onChange={e => e.target.value && p.onReadDate(e.target.value)} />
-            <button type="button" onClick={p.onToday}>Hoje</button>
-          </span>
-        </label>
+        <ArcaneDateNav className="amh-datenav" value={p.readDate} onChange={p.onReadDate} label={`Data de leitura`} />
         <div className="amh-kpi"><span className="amh-lbl">Dias para<br />concluir a jornada</span><b>{p.daysRemaining}</b></div>
         <div className="amh-kpi"><span className="amh-lbl">Jornadas<br />completas</span><b>{p.journeys}</b></div>
       </div>
@@ -114,7 +109,8 @@ const CSS = `
 .amh-bar{height:5px;border-radius:3px;background:var(--a-line,#221d27);overflow:hidden}
 .amh-bar i{display:block;height:100%;border-radius:3px;background:var(--a-spec)}
 .amh-read{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:stretch}
-.amh-read .amh-date{grid-column:1/-1;flex-direction:row;align-items:center}
+.amh-read .amh-datenav{grid-column:1/-1}
+.amh{min-width:0;max-width:100%;overflow-x:hidden}
 .amh-read .amh-date .amh-lbl{flex:1}
 .amh-date,.amh-kpi{display:flex;flex-direction:column;justify-content:space-between;gap:6px;padding:9px 10px;border:1px solid var(--a-line,#221d27);border-radius:14px;background:var(--a-card,#0a070c)}
 .amh-date-row{display:flex;align-items:center;gap:6px}

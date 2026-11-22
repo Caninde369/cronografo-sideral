@@ -97,6 +97,8 @@ interface TourStep {
   round?: boolean;
   pad?: number;
   needsSidebar?: boolean;
+  /** só no computador (no celular o passo é pulado) */
+  desktopOnly?: boolean;
   media?: 'daycard' | 'menu';
   scene?: TourScene;
   /** cor do passo (senão, a do tutorial) */
@@ -277,7 +279,7 @@ export const TOUR_STEPS: TourStep[] = [
     ] },
 
   // ══ Tutorial 3 · Ferramentas ═══════════════════════════════════════════════
-  { chapter: 'ferramentas', kind: 'mission', title: 'Repetir um trecho (loop)', icon: 'ti-repeat', targets: ['time-controls', 'timeline'], also: ['clock'], pad: 6, scene: 'restore', hold: true,
+  { chapter: 'ferramentas', kind: 'mission', title: 'Repetir um trecho (loop)', icon: 'ti-repeat', desktopOnly: true, targets: ['time-controls', 'timeline'], also: ['clock'], pad: 6, scene: 'restore', hold: true,
     text: 'O loop repete um pedaço do tempo sem parar. Bom para ver uma semana da Lua, uma estação ou um trânsito acontecendo várias vezes. Duplo clique numa Lua, num signo ou num dia também cria o loop.',
     tasks: [
       { label: 'Ligue o loop no botão Loop: A nasce no instante atual', wait: { dom: '[data-tour="loop-chip"][data-on="true"][data-complete="true"]' }, hand: 'loop-toggle', mouse: 'left', ring: 'loop-toggle' },
@@ -313,7 +315,9 @@ export const TOUR_STEPS: TourStep[] = [
 ];
 
 const END_INDEX = TOUR_STEPS.length - 1;
-const firstIndexOf = (ch: ChapterId) => TOUR_STEPS.findIndex(s => s.chapter === ch);
+const isMobileNow = () => typeof document !== 'undefined' && document.body.classList.contains('is-mobile');
+const skipHere = (i: number) => !!TOUR_STEPS[i]?.desktopOnly && isMobileNow();
+const firstIndexOf = (ch: ChapterId) => TOUR_STEPS.findIndex((s, i) => s.chapter === ch && !skipHere(i));
 /** janelas abertas em que o Esc deve fechar a janela, não o tutorial */
 const WINDOW_SELECTORS = '[data-tour="eclipse-panel"],[data-tour="arcane-panel"],[data-tour="export-modal"],[data-tour="save-modal"],[data-tour="calendar-panel"]';
 
@@ -521,7 +525,8 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
   const goNext = useCallback(() => {
     setIndex(i => {
       if (i >= END_INDEX) return i;
-      const n = i + 1;
+      let n = i + 1;
+      while (n < END_INDEX && skipHere(n)) n++;
       if (TOUR_STEPS[i].chapter === mode && TOUR_STEPS[n].chapter !== mode) return END_INDEX;
       return n;
     });
@@ -533,8 +538,10 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
         const last = TOUR_STEPS.map(s => s.chapter).lastIndexOf(mode);
         return last >= 0 ? last : 0;
       }
-      if (TOUR_STEPS[i - 1].chapter !== mode) return 0;
-      return i - 1;
+      let p = i - 1;
+      while (p > 0 && skipHere(p)) p--;
+      if (TOUR_STEPS[p].chapter !== mode) return 0;
+      return p;
     });
   }, [mode]);
   const startChapter = (ch: ChapterId) => { setMode(ch); setIndex(firstIndexOf(ch)); };

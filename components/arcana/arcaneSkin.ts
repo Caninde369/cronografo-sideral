@@ -90,4 +90,10 @@ export const ARCANE_SKIN = `
 
 /* Barra de progresso da jornada na linha espectral */
 .arc-skin .arc-progress{background:var(--a-spec)!important}
+
+/* Celular: nada rola de lado */
+@media (max-width:639px){
+  .arc-skin{overflow-x:hidden;overscroll-behavior-x:none;max-width:100vw}
+  .arc-skin .overflow-y-auto,.arc-skin .overflow-auto{overflow-x:hidden}
+}
 `;

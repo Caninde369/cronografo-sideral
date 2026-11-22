@@ -390,4 +390,26 @@ const CSS = `
 .awv-col b{font-size:11px;font-weight:600;color:var(--a-hi,#FAF6EE);display:flex;align-items:center;gap:4px}
 .awv-col .g{font-family:'Noto Sans Symbols 2','Segoe UI Symbol',serif;font-size:13px;line-height:1.2;color:var(--a-fg,#EDE9E3)}
 .awv-col .w{font-size:9px;color:var(--a-dim,#8a8590);line-height:1.35;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Celular: 8 colunas (0/α μ Ω + 7 dias), legenda escondida, marcas numa linha embaixo, nada passa da largura */
+@media (max-width:639px){
+  .awv{overflow:hidden;max-width:100%}
+  .awv-grid{grid-template-columns:24px repeat(7,minmax(0,1fr));grid-template-rows:auto repeat(3,minmax(0,1fr)) auto auto;column-gap:4px;row-gap:5px}
+  .awv-legend{display:none!important}
+  .awv-toggles{grid-column:1 / -1!important;grid-row:6!important;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:5px;padding:4px 0 0}
+  .awv-toggles button{height:24px;padding:0 9px 0 6px;font-size:10.5px}
+  .awv-group{display:none}
+  .awv-day{flex-direction:column;gap:1px;padding:2px 0}
+  .awv-day .g{font-size:12px}
+  .awv-day .d{font-size:8px;letter-spacing:.04em}
+  .awv-zero .awv-card{height:34px}
+  .awv-zero-words{display:none}
+  .awv-sym{font-size:18px}
+  .awv-kw{font-size:6px;letter-spacing:.04em;padding:0 1px}
+  .awv-num{font-size:15px;bottom:2px}
+  .awv-col{padding-top:6px}
+  .awv-col b{font-size:8.5px;flex-direction:column;gap:0;line-height:1.15;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .awv-col .g{font-size:10px}
+  .awv-col .w{display:none}
+  .awv-colportal{margin:-3px -2px -9px}
+}
 `;
