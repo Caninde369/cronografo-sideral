@@ -10,6 +10,11 @@ export type PointerHeadTail = 'arrow' | 'circle' | 'square' | 'none';
 export interface QuickToolsSidebarProps {
   /** Celular: a barra vira a página "Mais" (o layout é feito por CSS em mobileStyles.ts) */
   mobile?: boolean;
+  /** celular (página Mais): cartão de perfil no topo */
+  userName?: string;
+  planLabel?: string;
+  trialLabel?: string;
+  trialProgress?: number;
   /** Celular: cada mudança neste número abre a gaveta do mapa natal */
   openRequest?: number;
   isOpen: boolean;
@@ -487,6 +492,20 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
             : 'bg-[#06060a]/85 border-white/10 text-white shadow-[-4px_0_20px_rgba(0,0,0,0.6)] backdrop-blur-2xl'
         }`}
       >
+          {/* Celular: Perfil no topo do Mais (com o plano e o Upgrade) */}
+          {props.mobile && (
+            <div className="qts-profile">
+              <button type="button" className="qts-profile-main" onClick={() => props.onOpenAccount?.()} aria-label="Abrir perfil e conta">
+                <span className="qts-av" aria-hidden="true">{(props.userName || 'A').trim().charAt(0).toUpperCase()}</span>
+                <span className="qts-profile-t"><b>{props.userName || 'Perfil'}</b><small>{props.planLabel || 'Conta'}</small></span>
+              </button>
+              {isFreeTier && <button type="button" className="qts-upg" onClick={() => props.onOpenPaymentPlans?.()}>Upgrade</button>}
+              {props.trialLabel && (
+                <div className="qts-trial"><span>Teste</span><i><b style={{ width: `${Math.round((props.trialProgress ?? 0) * 100)}%` }} /></i><span>{props.trialLabel}</span></div>
+              )}
+            </div>
+          )}
+
           {/* Top Section: Collapse button, Perfil & Pesquisar Data (+) */}
           <div className="qts-sec flex flex-col items-center gap-2 w-full" data-m-title="MAPA E CALENDÁRIOS">
             {/* 0. Botão de Recolher Barra Lateral */}

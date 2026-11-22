@@ -546,7 +546,7 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
                                         <line x1="5" y1="12" x2="19" y2="12" />
                                     </svg>
                                 </button>
-                                <button
+                                <button data-close-x=""
                                     type="button"
                                     data-no-drag="true"
                                     onClick={(e) => {

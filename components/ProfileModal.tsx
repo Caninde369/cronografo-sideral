@@ -218,7 +218,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               {isUserAdmin ? 'Super Administrador' : 'Membro Ativo'}
             </span>
 
-            <button
+            <button data-close-x=""
               onClick={onClose}
               className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
               title="Fechar"

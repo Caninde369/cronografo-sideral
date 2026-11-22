@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { LocationSearchInput } from './LocationSearchInput';
 import { SearchMoonPhase, Seasons } from 'astronomy-engine';
 import { ZODIAC_ICONS } from './icons';
-import { getMoonEmoji, NORTHERN_MOONS, SOUTHERN_MOONS, getYearCycleStart, getYearCycles } from '../lib/astrology/lunarCycles';
+import { getMoonEmoji, NORTHERN_MOONS, SOUTHERN_MOONS, getYearCycleStart } from '../lib/astrology/lunarCycles';
+import { LunarCyclesGrid } from './LunarCyclesGrid';
 import { SIGN_DESCRIPTIONS } from './astro-descriptions';
 import { calculateSunTropicalLongitude } from '../lib/astrology/celestialBodies';
 import { ZODIAC_DATA } from './zodiac';
@@ -478,6 +479,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
         isFreeTier ? 'monthly' : (defaultLunarView ?? 'annual')
     );
     const [displayYear, setDisplayYear] = useState(currentDate.getFullYear());
+    const [cycleTodaySig, setCycleTodaySig] = useState(0);
     const [displayMonth, setDisplayMonth] = useState(currentDate.getMonth());
     const [isEditingLocation, setIsEditingLocation] = useState(false);
     const [showMapSelector, setShowMapSelector] = useState(false);
@@ -576,11 +578,6 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
     }
 }, [currentDate, embedded]);
 
-    // Ciclos lunares do ano exibido — memoizado pois é cálculo pesado
-    const yearCycles = useMemo(() => {
-        if (view !== 'lunar' || lunarView !== 'cycles') return [];
-        return getYearCycles(displayYear, latitude);
-    }, [displayYear, view, lunarView, latitude]);
 
     const handleDaySelect = (d: number, m: number) => {
         setSelDay(d); setSelMonth(m); setSelYear(displayYear);
@@ -830,12 +827,13 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                             hoje
                         </button>
                         <div className="h-3 w-px bg-white/10 mx-0.5" />
-                        <button
+                        <button data-close-x=""
                             onClick={onClose}
-                            className="p-1 text-brand-text-muted hover:text-brand-text hover:bg-white/10 rounded transition-colors"
-                            title="Minimizar Calendário Lunar"
+                            className="p-1 text-brand-text-muted hover:text-brand-text hover:bg-white/10 rounded transition-colors ml-1"
+                            title="Fechar"
+                            aria-label="Fechar"
                         >
-                            <i className="ti ti-minus text-xs" />
+                            <i className="ti ti-x text-xs" />
                         </button>
                     </div>
                 )}
@@ -1090,154 +1088,38 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
 
                 {/* Lunar — Ciclos Celtas */}
                 {view === 'lunar' && lunarView === 'cycles' && (
-                    <div className="flex flex-col gap-5">
-                        {yearCycles.map((cycle, ci) => {
-                            const cycleLabel = `${cycle.start.getDate()} ${MONTHS3[cycle.start.getMonth()]} ${cycle.start.getFullYear()}`;
-                            const nextCycle = yearCycles[ci + 1];
-                            const now = new Date();
-                            const isCurrentCycle = now >= cycle.start && (!nextCycle || now < nextCycle.start);
-                            const isCycleLocked = isFreeTier && !isCurrentCycle;
-                            return (
-                                <div 
-                                    key={ci} 
-                                    ref={isCurrentCycle ? currentCycleRef : null} 
-                                    data-tour={isCurrentCycle ? 'cycle' : undefined}
-                                    className={`rounded-2xl border border-brand-border/10 overflow-hidden scroll-mt-4 relative ${isCycleLocked ? 'cursor-pointer hover:border-amber-500/30 transition-colors' : ''}`}
-                                    onClick={isCycleLocked ? () => { setShowUpgradeBanner(true); onOpenPaymentPlans?.(); } : undefined}
-                                >
-                                    {/* Header do ciclo */}
-                                    <div className="flex items-center gap-3 px-4 py-3 border-b border-brand-border/10 bg-brand-surface-highlight/20">
-                                        <span className="text-xl">{cycle.emoji || '🌑'}</span>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-bold text-brand-text font-manrope flex items-center gap-2">
-                                                <span>{cycle.name}</span>
-                                                {isCurrentCycle && isFreeTier && (
-                                                    <span className="text-[9px] font-bold text-amber-400 bg-amber-400/20 px-1.5 py-0.2 rounded border border-amber-400/30">
-                                                        Ciclo Vigente
-                                                    </span>
-                                                )}
-                                                {isCycleLocked && (
-                                                    <span className="text-[10px] text-[#D4AF37] flex items-center gap-0.5 font-normal px-1.5 py-0.2 rounded bg-amber-500/10 border border-amber-500/20" title="Disponível nos planos Pro e Fundador">
-                                                        <i className="ti ti-lock text-[9px]" />
-                                                        <span className="text-[8px] font-bold">PRO</span>
-                                                    </span>
-                                                )}
-                                            </p>
-                                            <p className="text-[10px] text-brand-text-muted font-manrope">Ciclo {cycle.index} · Lua Nova · {cycleLabel}</p>
-                                        </div>
-                                    </div>
-
-                                    {/* Grade do Ciclo Lunar (4 Fases / 4 Semanas de tamanho exato de acordo com a mecânica orbital) */}
-                                    <div style={{ filter: isCycleLocked ? 'blur(3.5px)' : 'none', opacity: isCycleLocked ? 0.35 : 1 }}>
-                                    {(() => {
-                                        const phases = cycle.phases || getCyclePhases(cycle.totalDays || 29);
-                                        const maxCols = Math.max(7, ...phases.map(p => p.days.length));
-
-                                        return (
-                                            <div className="w-full overflow-x-auto no-scrollbar">
-                                                <div style={{
-                                                    display: 'grid',
-                                                    gridTemplateColumns: `50px repeat(${maxCols}, minmax(0, 1fr))`,
-                                                    width: '100%',
-                                                    minWidth: `${50 + maxCols * 44}px`
-                                                }}>
-                                                    {/* Dia da semana fica dentro de cada célula (não num cabeçalho
-                                                        único): cada fase tem 6–8 dias e começa num dia da semana
-                                                        diferente, então uma linha de cabeçalho só acertaria a 1ª fase. */}
-
-                                                    {/* Exatamente 4 Fases (Nova, Crescente, Cheia, Minguante) */}
-                                                    {phases.map(phase => (
-                                                        <React.Fragment key={phase.name}>
-                                                            {/* Label da fase */}
-                                                            <div style={{
-                                                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                                                                padding: '8px 4px', background: 'rgba(0,0,0,0.2)',
-                                                                borderRight: '1px solid rgba(255,255,255,0.10)',
-                                                                borderBottom: '0.5px solid rgba(255,255,255,0.06)',
-                                                                textAlign: 'center',
-                                                            }}>
-                                                                <div className="mb-1">
-                                                                    <MoonPhaseDisk lunarDay={phase.days[0]} size={18} />
-                                                                </div>
-                                                                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-text-muted font-manrope leading-tight">{phase.name}</span>
-                                                            </div>
-
-                                                            {/* Células de cada dia da fase */}
-                                                            {Array.from({ length: maxCols }, (_, di) => {
-                                                                const lunarDay = di < phase.days.length ? phase.days[di] : null;
-
-                                                                if (lunarDay === null) {
-                                                                    return (
-                                                                        <div key={`${phase.name}-empty-${di}`} style={{
-                                                                            borderRight: di === maxCols - 1 ? 'none' : '0.5px solid rgba(255,255,255,0.06)',
-                                                                            borderBottom: '0.5px solid rgba(255,255,255,0.06)',
-                                                                            background: 'rgba(0,0,0,0.08)',
-                                                                        }} />
-                                                                    );
-                                                                }
-
-                                                                const date = new Date(cycle.start);
-                                                                date.setDate(cycle.start.getDate() + lunarDay - 1);
-                                                                const solarSign = getSolarSign(date, date.getFullYear());
-                                                                const ec = ELEMENT_COLORS[solarSign.element];
-                                                                const isToday = date.toDateString() === new Date().toDateString();
-                                                                const isSel = date.getDate() === selDay && date.getMonth() === selMonth && date.getFullYear() === selYear;
-                                                                const dow = date.getDay();
-                                                                const dowConfig = WEEKDAY_PLANET_CONFIG[dow];
-
-                                                                return (
-                                                                    <div key={`${phase.name}-${lunarDay}`}
-                                                                        ref={isToday ? todayCellRef : null}
-                                                                        data-tour={isToday ? 'day-card' : undefined}
-                                                                        onClick={() => handleDaySelect(date.getDate(), date.getMonth())}
-                                                                        style={{
-                                                                            padding: '5px 3px', display: 'flex', flexDirection: 'column',
-                                                                            alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
-                                                                            borderRight: di === maxCols - 1 ? 'none' : '0.5px solid rgba(255,255,255,0.06)',
-                                                                            borderBottom: '0.5px solid rgba(255,255,255,0.06)',
-                                                                            background: isSel ? 'rgb(var(--color-brand-purple) / 0.18)' : isToday ? 'rgba(251,146,60,0.08)' : ec.bg.replace('0.15','0.20').replace('0.10','0.14'),
-                                                                            outline: isSel ? '1.5px solid rgb(var(--color-brand-purple))' : isToday ? '1.5px solid #FB923C' : 'none',
-                                                                            outlineOffset: '-1px',
-                                                                            transition: 'filter 0.1s',
-                                                                            minHeight: '68px',
-                                                                            boxSizing: 'border-box',
-                                                                        }}
-                                                                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.filter='brightness(1.2)'}
-                                                                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.filter='none'}
-                                                                    >
-                                                                        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
-                                                                            <span className="text-[9.5px] font-bold text-brand-text font-manrope leading-none whitespace-nowrap">{date.getDate()} {MONTHS3[date.getMonth()]}</span>
-                                                                            {(() => {
-                                                                                const SignIcon = ZODIAC_ICON_MAP[solarSign.sign];
-                                                                                return SignIcon
-                                                                                    ? <SignIcon width={11} height={11} style={{ color: ec.dot, fill: ec.dot, flexShrink: 0 }} />
-                                                                                    : <span style={{ fontSize: '10px', color: ec.dot, flexShrink: 0 }}>{solarSign.glyph}</span>;
-                                                                            })()}
-                                                                        </div>
-                                                                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '2px 0' }}>
-                                                                            <MoonPhaseDisk lunarDay={lunarDay} size={22} />
-                                                                        </div>
-                                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-                                                                            <PlanetSphereIcon dow={dow} size={11} />
-                                                                            <span className={`text-[8.5px] font-bold tracking-wider font-manrope uppercase leading-none ${
-                                                                                isToday ? 'text-amber-400 font-extrabold' : 'text-brand-text-muted/80'
-                                                                            }`}>
-                                                                                {dowConfig.abbr}
-                                                                            </span>
-                                                                        </div>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </React.Fragment>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        );
-                                    })()}
-                                    </div>
-                                </div>
-                            );
-                        })}
+                    <div className="flex flex-col gap-2">
+                        {/* Ciclos lunares (versão B): 4 linhas por lunação, card do dia e leitura num pop-up */}
+                        <div className="flex justify-end sticky top-0 z-[5] -mt-1 pb-1">
+                            <button
+                                type="button"
+                                className="lcy-today"
+                                onClick={() => {
+                                    const now = new Date();
+                                    const y = now < getYearCycleStart(now.getFullYear()) ? now.getFullYear() - 1 : now.getFullYear();
+                                    if (y !== displayYear) setDisplayYear(y);
+                                    setCycleTodaySig(n => n + 1);
+                                }}
+                                title="Centralizar no dia de hoje"
+                            >
+                                <i className="ti ti-focus-centered" aria-hidden="true" /> Hoje
+                            </button>
+                        </div>
+                        <LunarCyclesGrid
+                            year={displayYear}
+                            latitude={latitude}
+                            isLight={theme === 'light'}
+                            selected={new Date(selYear, selMonth, selDay)}
+                            onPickDate={(d) => {
+                                setSelDay(d.getDate()); setSelMonth(d.getMonth()); setSelYear(d.getFullYear());
+                                const nd = new Date(currentDate);
+                                nd.setFullYear(d.getFullYear(), d.getMonth(), d.getDate());
+                                onDateSelect(nd);
+                            }}
+                            isFreeTier={isFreeTier}
+                            onLocked={() => { setShowUpgradeBanner(true); onOpenPaymentPlans?.(); }}
+                            todaySignal={cycleTodaySig}
+                        />
                     </div>
                 )}
 
@@ -1434,7 +1316,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                             <button onClick={onClose} className="p-1 text-brand-text-muted hover:text-brand-text hover:bg-white/10 rounded transition-colors" title="Minimizar Calendário Lunar">
                                 <i className="ti ti-minus text-xs" />
                             </button>
-                            <button onClick={onClose} className="p-1 text-brand-text-muted hover:text-brand-text hover:bg-white/10 rounded transition-colors" title="Fechar">
+                            <button data-close-x="" onClick={onClose} className="p-1 text-brand-text-muted hover:text-brand-text hover:bg-white/10 rounded transition-colors" title="Fechar">
                                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                             </button>
                         </div>

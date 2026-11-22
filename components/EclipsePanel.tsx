@@ -426,7 +426,7 @@ export const EclipsePanel: React.FC<EclipsePanelProps> = ({ isOpen, onClose, ref
                             <i className={`ti ${mode === 'list' ? 'ti-arrow-left' : 'ti-list'}`} aria-hidden="true" style={{ fontSize: 15 }} />
                             {mode === 'list' ? 'Voltar' : 'Lista de eclipses'}
                         </button>
-                        <button type="button" onClick={onClose} aria-label="Fechar" style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', padding: 4, display: 'flex' }}>
+                        <button data-close-x="" type="button" onClick={onClose} aria-label="Fechar" style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', padding: 4, display: 'flex' }}>
                             <i className="ti ti-x" aria-hidden="true" style={{ fontSize: 18 }} />
                         </button>
                     </div>

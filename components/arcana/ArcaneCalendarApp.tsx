@@ -339,7 +339,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
             {/* Mobile: só o fechar (o consulente fica na linha do consulente) */}
             <div className="sm:hidden flex items-center gap-2">
               {onClose && (
-                <button onClick={onClose} aria-label="Fechar Calendário Arcano" title="Fechar"
+                <button data-close-x="" onClick={onClose} aria-label="Fechar Calendário Arcano" title="Fechar"
                   className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-700 transition-all shrink-0">
                   <X size={16} />
                 </button>
@@ -379,7 +379,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
           {/* Desktop: só o fechar (o consulente fica na linha do consulente) */}
           <div className="hidden sm:flex items-center justify-end gap-2 sm:min-w-[120px]">
             {onClose && (
-              <button onClick={onClose} aria-label="Fechar Calendário Arcano" title="Fechar (Esc)"
+              <button data-close-x="" onClick={onClose} aria-label="Fechar Calendário Arcano" title="Fechar (Esc)"
                 className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-700 transition-all shrink-0">
                 <X size={16} />
               </button>

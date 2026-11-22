@@ -13,7 +13,8 @@ import { PaywallModal } from './components/PaywallModal';
 import { HouseCuspsPanel } from './components/HouseCuspsPanel';
 import { SunInfoPanel } from './components/SunInfoPanel';
 import { MoonInfoPanel } from './components/MoonInfoPanel';
-import { CalendarPanel } from './components/CalendarPanel';
+import { CalendarPanel, MoonPhaseDisk } from './components/CalendarPanel';
+import { MoonPanelMobile } from './components/MoonPanelMobile';
 import { ChartStatisticsPanel, HighlightFilter } from './components/ChartStatisticsPanel';
 import { SearchMoonPhase } from 'astronomy-engine';
 import { EnergyChartPanel } from './components/EnergyChartPanel';
@@ -21,6 +22,7 @@ import { TransitChart } from './components/TransitChart';
 import { StarField } from './components/StarField';
 import { Dashboard } from './components/Dashboard';
 import { MOBILE_CSS } from './components/mobileStyles';
+import { CLOSE_CSS } from './components/closeButtonStyles';
 import { TimeControls, SizeControl, CompactToggle, SegmentedControl } from './components/Controls';
 import { UI_ICONS, ZODIAC_ICONS } from './components/icons';
 import { LocationSearchInput } from './components/LocationSearchInput';
@@ -35,7 +37,7 @@ import { ExportPDFButton } from './components/ExportPDFButton';
 import { TopBar } from './components/TopBar';
 import { QuickToolsSidebar } from './components/QuickToolsSidebar';
 import { useTrialTimer } from './hooks/useTrialTimer';
-import { useTrialUsage } from './hooks/useTrialUsage';
+import { useTrialUsage, formatHM } from './hooks/useTrialUsage';
 import { TrialEndModal } from './components/TrialPill';
 import { RingColorEditor } from './components/RingColorEditor';
 import StarfieldBackground from './components/StarfieldBackground';
@@ -392,7 +394,7 @@ export const App: React.FC = () => {
     const [mobileKind, setMobileKind] = useState(getMobileKind);
     const [viewport, setViewport] = useState(() => ({ w: typeof window !== 'undefined' ? window.innerWidth : 1400, h: typeof window !== 'undefined' ? window.innerHeight : 900 }));
     const isMobile = mobileKind !== null;
-    const [mTab, setMTab] = useState<'ceu' | 'astros' | 'aspectos' | 'casas' | 'mais'>('ceu');
+    const [mTab, setMTab] = useState<'ceu' | 'astros' | 'aspectos' | 'casas' | 'mais' | 'lua'>('ceu');
     const [mSub, setMSub] = useState<'lista' | 'resumo'>('lista');
     const [mControlsH, setMControlsH] = useState(200);
     const [mNatalReq, setMNatalReq] = useState(0);
@@ -879,7 +881,7 @@ useEffect(() => {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [showMoonPopover, setShowMoonPopover] = useState(false);
     const [showCalendarPanel, setShowCalendarPanel] = useState(false);
-    const [calendarConfig, setCalendarConfig] = useState<{ defaultView?: 'year'|'month'|'lunar'; defaultLunarView?: 'annual'|'monthly'|'cycles' }>({});
+    const [calendarConfig, setCalendarConfig] = useState<{ defaultView?: 'year'|'month'|'lunar'|'solar'; defaultLunarView?: 'annual'|'monthly'|'cycles' }>({});
     const [showChronographMenu, setShowChronographMenu] = useState(false);
     const [activeChronographMenu, setActiveChronographMenu] = useState<'background' | 'display' | 'colors' | null>(null);
 
@@ -1750,10 +1752,11 @@ const handlePlanetClick = useCallback((id: string) => {
         setSelectedHouses([]);
     }, []);
 
-    const handleClockClick = useCallback(() => {
-        if (!showCalendarPanel) setCalendarConfig({});
-        setShowCalendarPanel(prev => !prev);
-    }, [showCalendarPanel]);
+    // Centro do relógio (carimbo de data): abre a navegação de data, a mesma do botão calendário
+    const handleClockClick = useCallback((e?: any) => {
+        const el = e?.currentTarget as Element | undefined;
+        window.dispatchEvent(new CustomEvent('cronografo:open-datepicker', { detail: { rect: el?.getBoundingClientRect?.() } }));
+    }, []);
 
     const handleLunarCalendarClick = useCallback(() => {
         setCalendarConfig({ defaultView: 'lunar', defaultLunarView: 'cycles' });
@@ -2508,7 +2511,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                             zodiacColorMode={zodiacColorMode}
                                             settings={celestialSettings}
                                             onSettingsChange={setCelestialSettings}
-                                            planetSize={panelPlanetSize}
+                                            planetSize={isMobile ? Math.max(panelPlanetSize, 16) : panelPlanetSize}
                                             onPlanetSizeChange={setPanelPlanetSize}
                                             zodiacSignSize={panelZodiacSignSize}
                                             onZodiacSignSizeChange={setPanelZodiacSignSize}
@@ -3303,6 +3306,7 @@ const handlePlanetClick = useCallback((id: string) => {
                 </div>
                 <style>{ONBOARDING_TOUR_CSS}</style>
                 <style>{MOBILE_CSS}</style>
+                <style>{CLOSE_CSS}</style>
                 <OnboardingTour
                     open={showTour}
                     onClose={closeTour}
@@ -3545,65 +3549,87 @@ const handlePlanetClick = useCallback((id: string) => {
                                 {isFreeTier && !isAuthenticated && (
                                     <button type="button" className="m-chip" onClick={() => setShowLoginModal(true)}>Entrar</button>
                                 )}
-                                {isFreeTier && (
-                                    <button type="button" className="m-chip m-chip-gold" onClick={() => setShowPaymentPlansModal(true)}>Upgrade</button>
-                                )}
-                                <button type="button" className="m-ico" aria-label="Apresentar em tela cheia" onClick={() => setImmersiveMode(true)}>
+                                <button type="button" className="m-ghost" aria-label="Apresentar em tela cheia" onClick={() => setImmersiveMode(true)}>
                                     <i className="ti ti-maximize" aria-hidden="true" />
-                                </button>
-                                <button type="button" className={`m-ico m-ico-gold ${natalTime ? 'is-on' : ''}`} aria-label="Pesquisar data ou mapa natal" onClick={() => setMNatalReq(n => n + 1)}>
-                                    <i className="ti ti-plus" aria-hidden="true" />
                                 </button>
                             </div>
                             {mTab === 'ceu' && (
                                 <div className="m-head-row m-head-date">
-                                    <button type="button" className="m-date" onClick={() => { setCalendarConfig({}); setShowCalendarPanel(true); }} aria-label="Mudar data, hora e local">
-                                        <span className={`m-date-dot ${isRealTime ? 'is-live' : ''}`} />
-                                        <span className="m-date-txt">
-                                            <b>{`${String(currentTime.getDate()).padStart(2, '0')} ${['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][currentTime.getMonth()]} ${currentTime.getFullYear()} · ${String(currentTime.getHours()).padStart(2, '0')}:${String(currentTime.getMinutes()).padStart(2, '0')}`}</b>
-                                            <small>{`${location?.displayName || 'Local'} · ${isRealTime ? 'Agora' : ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][currentTime.getDay()]}`}</small>
-                                        </span>
-                                        <i className="ti ti-pencil" aria-hidden="true" />
+                                    <div className="m-dcard">
+                                        {isRealTime ? (
+                                            <span className="m-live" aria-label="Seguindo a hora de agora"><i aria-hidden="true" />Agora</span>
+                                        ) : (
+                                            <button type="button" className="m-back" data-tour="now" onClick={() => setIsRealTime(true)} aria-label="Voltar para a data e hora de agora">
+                                                <i className="ti ti-arrow-back-up" aria-hidden="true" /><span>Voltar<br />para hoje</span>
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            className="m-date"
+                                            onClick={(e) => window.dispatchEvent(new CustomEvent('cronografo:open-datepicker', { detail: { rect: (e.currentTarget as HTMLElement).getBoundingClientRect() } }))}
+                                            aria-label="Mudar data, hora e local"
+                                        >
+                                            <span className="m-date-txt">
+                                                <b>{`${String(currentTime.getDate()).padStart(2, '0')} ${['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][currentTime.getMonth()]} ${currentTime.getFullYear()} · ${String(currentTime.getHours()).padStart(2, '0')}:${String(currentTime.getMinutes()).padStart(2, '0')}`}</b>
+                                                <small>{`${isRealTime ? 'Ao vivo' : ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][currentTime.getDay()]} · ${(location?.displayName || 'Local').split(',')[0]}`}</small>
+                                            </span>
+                                            <i className="ti ti-pencil" aria-hidden="true" />
+                                        </button>
+                                    </div>
+                                    <button type="button" className={`m-plus ${natalTime ? 'is-on' : ''}`} aria-label="Mapa natal" onClick={() => setMNatalReq(n => n + 1)}>
+                                        <i className="ti ti-plus" aria-hidden="true" />
                                     </button>
-                                    {celestialData && (
-                                        <div className="m-moon">
-                                            <MoonInfoPanel
-                                                moonPhase={celestialData.moonPhase}
-                                                moonIllumination={celestialData.moonIllumination}
-                                                moonEclipticLongitude={celestialData.moonEclipticLongitude}
-                                                moonriseTime={celestialData.moonriseTime}
-                                                moonsetTime={celestialData.moonsetTime}
-                                                currentDate={currentTime}
-                                                latitude={location?.latitude ?? 0}
-                                                theme={theme}
-                                                forceMinimized
-                                                onClick={handleLunarCalendarClick}
-                                            />
-                                        </div>
-                                    )}
                                 </div>
                             )}
                         </header>
                         <nav className="m-tabs" aria-label="Navegação">
                             {([
-                                ['ceu', 'Céu', 'ti-circle-dot'],
                                 ['astros', 'Astros', 'ti-planet'],
-                                ['aspectos', 'Aspectos', 'ti-star'],
-                                ['casas', 'Casas', 'ti-home'],
+                                ['casas', 'Casas', 'ti-chart-pie-4'],
                                 ['mais', 'Mais', 'ti-layout-grid'],
+                                ['aspectos', 'Aspectos', 'ti-triangle'],
+                                ['lua', 'Lua', ''],
                             ] as const).map(([id, label, icon]) => (
                                 <button
                                     key={id}
                                     type="button"
-                                    className={mTab === id ? 'is-on' : ''}
+                                    className={`${mTab === id ? 'is-on' : ''} ${id === 'mais' ? 'm-tab-mais' : ''}`}
+                                    data-tour={id === 'lua' ? 'lunar' : undefined}
                                     aria-current={mTab === id ? 'page' : undefined}
-                                    onClick={() => setMTab(prev => (prev === id && id !== 'ceu' ? 'ceu' : id))}
+                                    onClick={() => setMTab(prev => (prev === id ? 'ceu' : id))}
                                 >
-                                    <i className={`ti ${icon}`} aria-hidden="true" />
-                                    <span>{label}</span>
+                                    {id === 'lua'
+                                        ? <MoonPhaseDisk phase={celestialData?.moonPhase ?? 0} size={22} />
+                                        : <span className="m-tab-ico"><i className={`ti ${mTab === 'mais' && id === 'mais' ? 'ti-x' : icon}`} aria-hidden="true" /></span>}
+                                    <span>{id === 'lua' && celestialData ? `Lua ${Math.round(celestialData.moonIllumination * 100)}%` : (mTab === 'mais' && id === 'mais' ? 'Fechar' : label)}</span>
                                 </button>
                             ))}
                         </nav>
+                        {mTab === 'lua' && celestialData && (
+                            <MoonPanelMobile
+                                currentDate={currentTime}
+                                locationName={location?.displayName}
+                                latitude={location?.latitude ?? 0}
+                                moonPhase={celestialData.moonPhase}
+                                moonIllumination={celestialData.moonIllumination}
+                                moonLongitude={celestialData.moonEclipticLongitude}
+                                moonHouse={celestialData.housePlacements?.moon}
+                                moonriseTime={celestialData.moonriseTime}
+                                moonsetTime={celestialData.moonsetTime}
+                                isLight={theme === 'light'}
+                                isFreeTier={isFreeTier}
+                                onClose={() => setMTab('ceu')}
+                                onPickDate={(d) => { const nd = new Date(currentTime); nd.setFullYear(d.getFullYear(), d.getMonth(), d.getDate()); setCurrentTime(nd); setIsRealTime(false); setMTab('ceu'); }}
+                                onOpenEclipses={() => { setMTab('ceu'); setShowEclipseModal(true); }}
+                                onOpenPaymentPlans={() => setShowPaymentPlansModal(true)}
+                                onOpenCalendar={(v) => {
+                                    setMTab('ceu');
+                                    if (v === 'monthly' || v === 'annual') setCalendarConfig({ defaultView: 'lunar', defaultLunarView: v });
+                                    else setCalendarConfig({ defaultView: v === 'solar' ? 'solar' : v === 'month' ? 'month' : 'year' } as any);
+                                    setShowCalendarPanel(true);
+                                }}
+                            />
+                        )}
                     </>
                 )}
                 {isMobile && immersiveMode && (
@@ -3615,6 +3641,10 @@ const handlePlanetClick = useCallback((id: string) => {
                 <QuickToolsSidebar 
                     onOpenArcaneCalendar={() => setShowArcaneCalendar(true)}
                     mobile={isMobile}
+                    userName={username}
+                    planLabel={isAdmin ? 'Administrador' : userPlan === 'lifetime' ? 'Fundador' : userPlan === 'monthly' ? 'Pro' : trial.state === 'active' ? 'Teste gratuito' : 'Plano Gratuito'}
+                    trialLabel={trial.state === 'active' ? `${formatHM(trial.remainingSeconds)} restantes` : undefined}
+                    trialProgress={trial.limitSeconds ? trial.usedSeconds / trial.limitSeconds : 0}
                     openRequest={mNatalReq}
                     isOpen={isQuickToolsSidebarOpen}
                     onToggle={() => setIsQuickToolsSidebarOpen(prev => !prev)}

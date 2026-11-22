@@ -232,6 +232,7 @@ const TC_CSS = `
 .tcb-l{border-color:rgba(35,23,20,.25);color:#231714}
 .tcb-l:hover{border-color:#231714}
 .tcb-red{border-color:rgba(248,113,113,.55);color:#F87171}
+.tc-now-live{border-color:transparent;color:inherit;opacity:.85;cursor:default}
 .tcb-amber{border-color:rgba(252,211,77,.55);color:#FCD34D}
 .tcb-violet{border-color:rgba(196,181,253,.6);color:#C4B5FD}
 .tcb-active{border-color:currentColor}
@@ -336,6 +337,16 @@ export const TimeControls: React.FC<{
     const [exportReq, setExportReq] = useState(0);
     const isLight = theme === 'light';
     const [showPicker, setShowPicker] = useState(false);
+    useEffect(() => {
+        const open = (e: Event) => {
+            const r = (e as CustomEvent).detail?.rect as DOMRect | undefined;
+            setAnchorRect(r || null);
+            setPickerFocusLoc(false);
+            setShowPicker(true);
+        };
+        window.addEventListener('cronografo:open-datepicker', open);
+        return () => window.removeEventListener('cronografo:open-datepicker', open);
+    }, []);
     const [pickerFocusLoc, setPickerFocusLoc] = useState(false);
     const [showSolarCal, setShowSolarCal] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -901,18 +912,22 @@ export const TimeControls: React.FC<{
                 <div className="relative flex items-center justify-between gap-1 sm:gap-2 w-full h-9 min-w-0">
                     {/* Left corner: Hoje button & Minimize Timeline button */}
                     <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 z-20">
+                        {/* Hoje: deixa claro que leva a data de volta para agora. Ao vivo, vira só um estado. (No celular fica no card de data do topo.) */}
                         <button
                             data-tour="now"
+                            data-m-hide=""
                             onClick={() => { onSetRealTime(true); setIsPlaying(false); }}
-                            className={`tcb flex items-center justify-center gap-1.5 ${showHojeText ? 'px-3 sm:px-3.5' : 'w-9 px-0'} h-9 rounded-full text-xs font-bold active:scale-95 cursor-pointer shrink-0 ${
-                                isRealTime 
-                                    ? 'tcb-red'
-                                    : (isLight ? 'tcb-l' : '')
+                            className={`tcb tc-now flex items-center justify-center gap-1.5 ${showHojeText ? 'px-3 sm:px-3.5' : 'w-9 px-0'} h-9 rounded-full text-xs font-bold cursor-pointer shrink-0 ${
+                                isRealTime ? 'tc-now-live' : (isLight ? 'tcb-l' : '')
                             }`}
-                            title="Tempo Real (Sincronizar Agora - Hoje)"
+                            title={isRealTime ? 'Seguindo a hora de agora' : 'Voltar para a data e hora de agora'}
+                            aria-label={isRealTime ? 'Seguindo a hora de agora' : 'Voltar para hoje'}
+                            aria-pressed={isRealTime}
                         >
-                            <span className={`w-2.5 h-2.5 rounded-full inline-block shrink-0 ${isRealTime ? 'bg-red-400 animate-pulse' : 'bg-red-400'}`} />
-                            {showHojeText && <span className="text-xs font-bold hidden min-[480px]:inline">Hoje</span>}
+                            {isRealTime
+                                ? <span className="w-2 h-2 rounded-full inline-block shrink-0 bg-emerald-400" aria-hidden="true" />
+                                : <i className="ti ti-arrow-back-up text-[15px] shrink-0" aria-hidden="true" />}
+                            {showHojeText && <span className="text-xs font-bold hidden min-[480px]:inline">{isRealTime ? 'Agora' : 'Voltar para hoje'}</span>}
                         </button>
                         <button
                             data-m-hide=""

@@ -211,7 +211,7 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = (props) => 
                             </p>
                         </div>
                     </div>
-                    <button
+                    <button data-close-x=""
                         onClick={props.onClose}
                         disabled={props.isExporting}
                         className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 cursor-pointer"

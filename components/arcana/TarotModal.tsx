@@ -24,7 +24,7 @@ export const TarotModal: React.FC<TarotModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
-        <button
+        <button data-close-x=""
           id="btn-close-modal"
           onClick={onClose}
           className="absolute top-3 right-3 sm:top-4 sm:right-4 w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-700 transition-all z-20"

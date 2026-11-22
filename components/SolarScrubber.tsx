@@ -267,6 +267,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
 
   /** Zoom por toque (celular não tem rodinha): centra a linha no momento atual. */
   const setZoomMode = (span: number) => { setViewSpan(span); setViewOffset(0); };
+  const [zoomOpen, setZoomOpen] = useState(false);
 
   const handleGradPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!gradRef.current) return;
@@ -988,10 +989,20 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
 
           {!(loopA || loopB) && <div className="scrub-loop-head">{loopBar}</div>}
         </div>
-        <div className="m-only scrub-zoom" role="group" aria-label="Zoom da linha do tempo">
-          {([['ANO', 'Ano', 365], ['SIGNO', 'Signo', 30], ['SEMANA', 'Sem.', 7], ['DIA', 'Dia', 1]] as const).map(([id, label, span]) => (
-            <button key={id} type="button" className={vMode === id ? 'is-on' : ''} onClick={() => setZoomMode(span)}>{label}</button>
-          ))}
+        <div className="m-only scrub-zoom">
+          <button type="button" className="scrub-zoom-btn" aria-haspopup="listbox" aria-expanded={zoomOpen} onClick={() => setZoomOpen(v => !v)}>
+            <small>Escala</small>{({ ANO: 'Ano', SIGNO: 'Signo', SEMANA: 'Semana', DIA: 'Dia' } as Record<string, string>)[vMode] || 'Escala'}<i className="ti ti-chevron-down" aria-hidden="true" />
+          </button>
+          {zoomOpen && (
+            <>
+              <div className="scrub-zoom-scrim" onClick={() => setZoomOpen(false)} />
+              <div className="scrub-zoom-list" role="listbox" aria-label="Escala da linha do tempo">
+                {([['ANO', 'Ano', 365, '365 d'], ['SIGNO', 'Signo', 30, '30 d'], ['SEMANA', 'Semana', 7, '7 d'], ['DIA', 'Dia', 1, '24 h']] as const).map(([id, label, span, hint]) => (
+                  <button key={id} type="button" role="option" aria-selected={vMode === id} className={vMode === id ? 'is-on' : ''} onClick={() => { setZoomMode(span); setZoomOpen(false); }}>{label}<small>{hint}</small></button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
         {headerRight && (
           <div className="scrub-head-right absolute right-0 bottom-0 flex items-end gap-1.5">

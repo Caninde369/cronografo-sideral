@@ -183,7 +183,7 @@ export const PaymentPlansModal: React.FC<PaymentPlansModalProps> = ({
   ) : null;
 
   const closeButton = (
-    <button
+    <button data-close-x=""
       onClick={onClose}
       className="p-1.5 sm:p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
       title="Fechar (Esc)"

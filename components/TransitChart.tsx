@@ -439,7 +439,7 @@ export const TransitChart: React.FC<TransitChartProps> = ({ currentTime, natalCe
                         </div>
                     )}
                     {onClose && (
-                        <button onClick={onClose} className="p-1.5 text-brand-text-muted hover:text-brand-text bg-brand-surface-highlight/50 hover:bg-brand-surface-highlight rounded-md transition-colors" aria-label="Fechar painel de trânsitos">
+                        <button data-close-x="" onClick={onClose} className="p-1.5 text-brand-text-muted hover:text-brand-text bg-brand-surface-highlight/50 hover:bg-brand-surface-highlight rounded-md transition-colors" aria-label="Fechar painel de trânsitos">
                             <UI_ICONS.CloseIcon className="w-5 h-5" />
                         </button>
                     )}

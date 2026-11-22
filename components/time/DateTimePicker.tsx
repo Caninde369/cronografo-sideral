@@ -512,16 +512,13 @@ const CSS = `
 .dtp-list button.sel{background:#EDE9E3;color:#040004;border-color:#EDE9E3}
 .dtp-list.dtp-mono button{font-family:'DM Mono',monospace}
 .dtp-pin{font-size:12px!important;margin-right:4px;vertical-align:-1px;color:#B9B4BE}
-.dtp-live{width:7px;height:7px;border-radius:50%;background:#EF4444;box-shadow:0 0 0 3px rgba(239,68,68,.18)}
+.dtp-live{width:7px;height:7px;border-radius:50%;background:#4ADE80;box-shadow:0 0 0 3px rgba(74,222,128,.18)}
 .dtp.dtp-in{animation:dtp-zoom .42s cubic-bezier(.16,1,.3,1)}
 @keyframes dtp-zoom{from{opacity:0;transform:scale(.18)}60%{opacity:1}to{opacity:1;transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){.dtp.dtp-in{animation:none}}
-.dtp-foot{padding:12px 16px 14px;border-top:1px solid rgba(255,255,255,.1);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
-.dtp-foot>.dtp-mapsw{justify-self:start}
-.dtp-foot>.dtp-btn:not(.dtp-ok){justify-self:center}
-.dtp-foot>.dtp-ok{justify-self:end}
-.dtp-foot .dtp-btn{flex:none;width:150px}.dtp-foot .dtp-ok{width:220px}.dtp-foot .dtp-mapsw .dtp-btn{width:170px}
-@media (max-width:900px){.dtp-foot .dtp-btn,.dtp-foot .dtp-ok,.dtp-foot .dtp-mapsw .dtp-btn{width:100%;padding:0 10px}.dtp-foot>.dtp-mapsw,.dtp-foot>.dtp-btn{justify-self:stretch}.dtp-foot{grid-template-columns:1fr 1fr 1.3fr}}
+.dtp-foot{padding:12px 16px 14px;border-top:1px solid rgba(255,255,255,.1);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;gap:8px}
+.dtp-foot>*{justify-self:stretch;min-width:0}
+.dtp-foot .dtp-btn,.dtp-foot .dtp-mapsw .dtp-btn{flex:none;width:100%;height:44px;padding:0 10px;border-radius:14px;white-space:nowrap}
 .dtp-mapsw{position:relative;display:flex}
 .dtp-editbar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid rgba(212,175,55,.35);background:rgba(212,175,55,.06);flex-wrap:wrap}
 .dtp-editbar>i{color:#F5D98A}

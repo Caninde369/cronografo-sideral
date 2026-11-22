@@ -138,7 +138,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
         className="relative w-full max-w-md rounded-[22px] bg-[#06060a]/95 border border-white/15 shadow-[0_20px_60px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1)] text-white p-6 sm:p-7"
       >
         {/* Close Button */}
-        <button
+        <button data-close-x=""
           onClick={onClose}
           className="absolute top-4 right-4 p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-colors"
           title="Fechar"
