@@ -3337,7 +3337,10 @@ const handlePlanetClick = useCallback((id: string) => {
                     location={location}
                     onOpenLunarCalendar={handleLunarCalendarClick}
                     onSetTime={(date) => { setCurrentTime(date); setIsRealTime(false); }}
-                    onSetNatalTime={(date) => {
+                    natalLocationName={natalTime ? natalLocation?.displayName : undefined}
+                    currentLocation={location}
+                    onSetNatalTime={(date, loc) => {
+                        if (loc) setNatalLocation(loc as any);
                         setNatalTime(date);
                         setShowNatalLines(true);
                         setCelestialTab('natal');
@@ -3661,7 +3664,10 @@ const handlePlanetClick = useCallback((id: string) => {
                     natalTime={natalTime}
                     savedMaps={savedMaps}
                     onUseSavedNatal={handleUseSavedMapAsNatal}
-                    onSetNatalTime={(date) => {
+                    natalLocationName={natalTime ? natalLocation?.displayName : undefined}
+                    currentLocation={location}
+                    onSetNatalTime={(date, loc) => {
+                        if (loc) setNatalLocation(loc as any);
                         setNatalTime(date);
                         setShowNatalLines(true);
                         setCelestialTab('natal');

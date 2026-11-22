@@ -278,19 +278,19 @@ export const TOUR_STEPS: TourStep[] = [
 
   // ══ Tutorial 3 · Ferramentas ═══════════════════════════════════════════════
   { chapter: 'ferramentas', kind: 'mission', title: 'Repetir um trecho (loop)', icon: 'ti-repeat', targets: ['time-controls', 'timeline'], also: ['clock'], pad: 6, scene: 'restore', hold: true,
-    text: 'O loop repete um pedaço do tempo sem parar. Bom para ver uma semana da Lua, uma estação ou um trânsito acontecendo várias vezes.',
+    text: 'O loop repete um pedaço do tempo sem parar. Bom para ver uma semana da Lua, uma estação ou um trânsito acontecendo várias vezes. Duplo clique numa Lua, num signo ou num dia também cria o loop.',
     tasks: [
-      { label: 'Dê um duplo clique numa Lua Nova da linha do tempo (o círculo azul)', wait: { dom: '[data-tour="loop-chip"][data-complete="true"]' }, hand: 'moon-new', mouse: 'double' },
-      { label: 'Pronto: o loop vai dessa Lua Nova até 7 dias depois. Aperte o play para o relógio andar sozinho', wait: { click: '[data-tour="play"]' }, hand: 'play', mouse: 'left', ring: 'play' },
-      { label: 'Com o mouse sobre a marcha (velocidade), role a rodinha para acelerar ou frear', wait: { event: 'wheel', within: '[data-tour="speed"]', count: 3 }, hand: 'speed', mouse: 'wheel', ring: 'speed' },
-      { label: 'Trave o zodíaco para ver só os astros andando dentro do loop', wait: { fn: s => !!s.zodiacLocked }, hand: 'zodiac-lock', mouse: 'left', ring: 'zodiac-lock' },
-      { label: 'Olhe o relógio repetindo o trecho', wait: { delay: 5000 } },
-      { label: 'Para sair do loop, clique no ✕ ao lado das datas do loop', wait: { domGone: '[data-tour="loop-chip"]' }, hand: 'loop-close', mouse: 'left', ring: 'loop-chip' },
+      { label: 'Ligue o loop no botão Loop: A nasce no instante atual', wait: { dom: '[data-tour="loop-chip"][data-on="true"][data-complete="true"]' }, hand: 'loop-toggle', mouse: 'left', ring: 'loop-toggle' },
+      { label: 'Escolha a duração: toque em 7 dias', wait: { click: '[data-tour="loop-presets"] button' }, hand: 'loop-presets', mouse: 'left', ring: 'loop-presets' },
+      { label: 'Arraste a alça B na linha do tempo para encurtar ou alongar o trecho', wait: { drag: '[data-tour="loop-handle-b"]' }, hand: 'loop-handle-b', mouse: 'left' },
+      { label: 'Toque em A, ajuste a data e a hora e salve', wait: { click: '.lpb-edit .row button' }, hand: 'loop-a', mouse: 'left', ring: 'loop-a' },
+      { label: 'Aperte o play: o relógio repete o trecho sozinho', wait: { click: '[data-tour="play"]' }, hand: 'play', mouse: 'left', ring: 'play' },
+      { label: 'Desligue o loop: os pontos ficam guardados para depois', wait: { dom: '[data-tour="loop-chip"][data-on="false"]' }, hand: 'loop-toggle', mouse: 'left', ring: 'loop-toggle' },
     ] },
   { chapter: 'ferramentas', kind: 'mission', title: 'Seu mapa natal', text: 'Seu mapa de nascimento fica por baixo, e o céu de agora gira por cima.', icon: 'ti-circles', targets: ['natal'], pad: 6, needsSidebar: true, hold: true,
     tasks: [
       { label: 'Clique no +', wait: { dom: '[data-tour="natal-popover"]' }, hand: 'natal', mouse: 'left' },
-      { label: 'Use um mapa salvo ou digite sua data e aplique', wait: { fn: s => !!s.natal }, targets: ['natal-popover', 'natal'], also: ['clock'] },
+      { label: 'Escolha um mapa salvo, ou toque em Digitar: data, hora e cidade de nascimento, e aplique', wait: { fn: s => !!s.natal }, targets: ['natal-popover', 'natal'], also: ['clock'] },
       { label: 'Clique em Agora', wait: { fn: s => !!s.realTime }, targets: ['now'], also: ['clock'], hand: 'now', mouse: 'left' },
     ] },
   { chapter: 'ferramentas', kind: 'explore', title: 'Trânsitos natais', icon: 'ti-affiliate', targets: ['clock'], round: true, pad: 0, also: ['astros-panel'], tips: 'all',

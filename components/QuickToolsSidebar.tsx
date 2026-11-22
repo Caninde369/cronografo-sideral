@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SizeControlContent } from './SizeControlPopover';
 import { ExportPDFButton } from './ExportPDFButton';
 import { useZodiacStyle, setZodiacStyle, setColorEditorOpen, type ZodiacStyle } from '../lib/appearance';
+import { NatalPopoverBody } from './NatalPopoverBody';
 
 export type PointerHeadTail = 'arrow' | 'circle' | 'square' | 'none';
 
@@ -71,7 +72,11 @@ export interface QuickToolsSidebarProps {
 
   // Mapa Natal
   natalTime?: Date | null;
-  onSetNatalTime?: (d: Date) => void;
+  onSetNatalTime?: (d: Date, loc?: { latitude: number; longitude: number; displayName: string }) => void;
+  /** cidade do mapa natal ativo */
+  natalLocationName?: string;
+  /** local atual (atalho "Usar esta cidade") */
+  currentLocation?: { latitude: number; longitude: number; displayName: string } | null;
   /** Mapas salvos (para usar como mapa natal pelo botão +) */
   savedMaps?: any[];
   onUseSavedNatal?: (map: any) => void;
@@ -427,109 +432,7 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
   const isLight = props.theme === 'light';
   const isFreeTier = !!props.isFreeTier;
   const [openPopover, setOpenPopover] = useState<string | null>(null);
-  const [showSavedNatalList, setShowSavedNatalList] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Local state for Natal Date inputs inside the quick tools sidebar
-  const [natalDay, setNatalDay] = useState('');
-  const [natalMonth, setNatalMonth] = useState('');
-  const [natalYear, setNatalYear] = useState('');
-  const [natalHour, setNatalHour] = useState('');
-  const [natalMinute, setNatalMinute] = useState('');
-  const [continuousNatalInput, setContinuousNatalInput] = useState('');
-  const [natalError, setNatalError] = useState<string | null>(null);
-
-  const formatQuickNatalString = (raw: string): string => {
-    const digits = raw.replace(/\D/g, '').slice(0, 12);
-    if (digits.length === 0) return '';
-    if (digits.length <= 2) return digits;
-    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-    if (digits.length <= 8) return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-    if (digits.length <= 10) return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)} às ${digits.slice(8)}`;
-    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)} às ${digits.slice(8, 10)}:${digits.slice(10, 12)}`;
-  };
-
-  // Sync inputs when props.natalTime changes
-  useEffect(() => {
-    if (props.natalTime && !isNaN(props.natalTime.getTime())) {
-      const d = props.natalTime;
-      const dd = String(d.getDate()).padStart(2, '0');
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const yyyy = String(d.getFullYear());
-      const hh = String(d.getHours()).padStart(2, '0');
-      const min = String(d.getMinutes()).padStart(2, '0');
-      setNatalDay(String(d.getDate()));
-      setNatalMonth(String(d.getMonth() + 1));
-      setNatalYear(yyyy);
-      setNatalHour(hh);
-      setNatalMinute(min);
-      setContinuousNatalInput(`${dd}/${mm}/${yyyy} às ${hh}:${min}`);
-    } else {
-      setNatalDay('');
-      setNatalMonth('');
-      setNatalYear('');
-      setNatalHour('');
-      setNatalMinute('');
-      setContinuousNatalInput('');
-    }
-  }, [props.natalTime]);
-
-  const handleApplyNatalDate = () => {
-    setNatalError(null);
-    let d: number | null = null;
-    let m: number | null = null;
-    let y: number | null = null;
-    let h: number = 0;
-    let min: number = 0;
-
-    const raw = continuousNatalInput.trim();
-    const digitsOnly = raw.replace(/\D/g, '');
-
-    if (digitsOnly.length >= 8) {
-      d = parseInt(digitsOnly.substring(0, 2), 10);
-      m = parseInt(digitsOnly.substring(2, 4), 10);
-      y = parseInt(digitsOnly.substring(4, 8), 10);
-      if (digitsOnly.length >= 10) {
-        h = parseInt(digitsOnly.substring(8, 10), 10);
-      }
-      if (digitsOnly.length >= 12) {
-        min = parseInt(digitsOnly.substring(10, 12), 10);
-      }
-    } else {
-      const parsedD = parseInt(natalDay, 10);
-      const parsedM = parseInt(natalMonth, 10);
-      const parsedY = parseInt(natalYear, 10);
-      const parsedH = natalHour ? parseInt(natalHour, 10) : 0;
-      const parsedMin = natalMinute ? parseInt(natalMinute, 10) : 0;
-
-      if (!isNaN(parsedD) && !isNaN(parsedM) && !isNaN(parsedY)) {
-        d = parsedD;
-        m = parsedM;
-        y = parsedY;
-        h = isNaN(parsedH) ? 0 : parsedH;
-        min = isNaN(parsedMin) ? 0 : parsedMin;
-      }
-    }
-
-    if (d === null || m === null || y === null || isNaN(d) || isNaN(m) || isNaN(y)) {
-      setNatalError('Informe ao menos Dia, Mês e Ano válidos.');
-      return;
-    }
-
-    if (d < 1 || d > 31 || m < 1 || m > 12 || y < 1 || y > 3000 || h < 0 || h > 23 || min < 0 || min > 59) {
-      setNatalError('Valores de data ou hora inválidos.');
-      return;
-    }
-
-    const calculatedDate = new Date(y, m - 1, d, h, min, 0);
-    if (isNaN(calculatedDate.getTime())) {
-      setNatalError('Data inválida.');
-      return;
-    }
-
-    props.onSetNatalTime?.(calculatedDate);
-    setOpenPopover(null);
-  };
 
   // Celular: o "+" do topo pede para abrir a gaveta do mapa natal
   useEffect(() => {
@@ -652,269 +555,26 @@ export const QuickToolsSidebar: React.FC<QuickToolsSidebarProps> = (props) => {
                   data-tour="natal-popover"
                   data-no-drag="true"
                   onClick={(e) => e.stopPropagation()}
-                  className={`qts-pop absolute top-0 right-full mr-3 w-80 sm:w-[340px] max-h-[calc(100vh-2rem)] rounded-[14px] p-3 pb-5 shadow-[0_20px_56px_rgba(0,0,0,.85),inset_0_1px_1px_rgba(255,255,255,.2)] z-[60] border backdrop-blur-[20px] overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
-                    isLight ? 'bg-white/95 border-black/15 text-[#231714]' : 'bg-[#06060a]/[0.975] border-white/20 text-white'
+                  className={`qts-pop absolute top-0 right-full mr-3 w-80 sm:w-[340px] max-h-[calc(100vh-2rem)] rounded-[18px] p-4 shadow-[0_24px_60px_-12px_rgba(0,0,0,.85)] z-[60] border overflow-y-auto overscroll-contain custom-scrollbar font-sans ${
+                    isLight ? 'bg-[#fbf9f4] border-[rgba(35,23,20,.16)] text-[#231714]' : 'bg-[#0a070c] border-[#2a2430] text-[#EDE9E3]'
                   }`}
                 >
-                  <div className="px-1 py-1 border-b border-emerald-500/20 mb-2 flex justify-between items-center">
-                    <div className="flex items-center gap-1.5 text-emerald-400">
-                      <i className="ti ti-calendar-time text-sm font-bold" />
-                      <span className="ds-pop-title">Pesquisar Data / Mapa Natal</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setOpenPopover(null)}
-                      className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
-                        isLight ? 'hover:bg-black/10 text-neutral-600 hover:text-black' : 'hover:bg-white/10 text-white/60 hover:text-white'
-                      }`}
-                      title="Fechar"
-                    >
-                      <i className="ti ti-x text-xs" />
-                    </button>
-                  </div>
-
-                  {/* Mapas salvos: usar como mapa natal */}
-                  {props.onUseSavedNatal && (
-                    <div className="mb-2.5" data-tour="natal-saved">
-                      <button
-                        type="button"
-                        onClick={() => setShowSavedNatalList(v => !v)}
-                        className={`w-full h-9 px-3 rounded-xl border flex items-center justify-between text-xs font-bold transition-all cursor-pointer ${
-                          isLight
-                            ? 'border-amber-600/30 bg-amber-500/10 text-amber-900 hover:bg-amber-500/15'
-                            : 'border-amber-400/30 bg-amber-400/10 text-amber-200 hover:bg-amber-400/15'
-                        }`}
-                      >
-                        <span className="flex items-center gap-2"><i className="ti ti-bookmarks text-sm" />Usar um mapa salvo</span>
-                        <i className={`ti ti-chevron-${showSavedNatalList ? 'up' : 'down'} text-sm`} />
-                      </button>
-                      {showSavedNatalList && (
-                        <div className={`mt-1.5 max-h-48 overflow-y-auto rounded-xl border custom-scrollbar ${isLight ? 'border-black/10 bg-black/[0.03]' : 'border-white/10 bg-white/[0.03]'}`}>
-                          {(props.savedMaps ?? []).length === 0 ? (
-                            <div className={`p-3 text-center text-[11px] ${isLight ? 'text-neutral-500' : 'text-white/50'}`}>
-                              Nenhum mapa salvo ainda.
-                            </div>
-                          ) : (
-                            (props.savedMaps ?? []).map((map: any) => {
-                              const raw = map.natalDate || map.targetDate || map.date;
-                              const d = raw ? new Date(raw) : null;
-                              const when = d && !isNaN(d.getTime())
-                                ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-                                : '';
-                              return (
-                                <button
-                                  key={map.id}
-                                  type="button"
-                                  onClick={() => { props.onUseSavedNatal?.(map); setShowSavedNatalList(false); }}
-                                  className={`w-full text-left px-3 py-2 flex items-center justify-between gap-2 border-b last:border-b-0 transition-colors cursor-pointer ${
-                                    isLight ? 'border-black/5 hover:bg-amber-500/10' : 'border-white/5 hover:bg-amber-400/10'
-                                  }`}
-                                >
-                                  <span className="text-xs font-bold truncate">{map.name || 'Mapa sem nome'}</span>
-                                  <span className={`text-[10px] font-mono shrink-0 ${isLight ? 'text-neutral-500' : 'text-white/50'}`}>{when}</span>
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Status Banner */}
-                  <div className={`p-2 rounded-xl mb-2.5 border text-xs flex items-center justify-between ${
-                    props.natalTime
-                      ? (isLight ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900' : 'bg-emerald-400/10 border-emerald-400/30 text-emerald-200')
-                      : (isLight ? 'bg-black/5 border-black/10 text-neutral-600' : 'bg-white/5 border-white/10 text-neutral-400')
-                  }`}>
-                    <div>
-                      <div className="text-[10px] uppercase font-bold tracking-wider opacity-70">
-                        {props.natalTime ? 'Mapa Natal Ativo' : 'Nenhum Mapa Ativo'}
-                      </div>
-                      <div className="font-mono font-semibold text-xs mt-0.5">
-                        {props.natalTime
-                          ? `${String(props.natalTime.getDate()).padStart(2, '0')}/${String(props.natalTime.getMonth() + 1).padStart(2, '0')}/${props.natalTime.getFullYear()} às ${String(props.natalTime.getHours()).padStart(2, '0')}:${String(props.natalTime.getMinutes()).padStart(2, '0')}`
-                          : 'Digite a data para calcular'}
-                      </div>
-                    </div>
-                    {props.natalTime && props.onClearNatal && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          props.onClearNatal?.();
-                          setContinuousNatalInput('');
-                        }}
-                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 transition-all cursor-pointer"
-                        title="Remover Mapa Natal"
-                      >
-                        Limpar
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Digitação Rápida Contínua */}
-                  <div className="flex flex-col gap-1 mb-2.5">
-                    <div className="flex justify-between items-center px-1">
-                      <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? 'text-black/60' : 'text-white/60'}`}>
-                        Digitação Rápida (DDMMAAAAHHMM)
-                      </span>
-                      <span className="text-[9px] opacity-50 font-mono">Ex: 291119980805</span>
-                    </div>
-                    <div className="flex gap-1.5">
-                      <input
-                        type="text"
-                        placeholder="29/11/1998 às 08:05"
-                        value={continuousNatalInput}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const formatted = formatQuickNatalString(val);
-                          setContinuousNatalInput(formatted);
-                          const digits = val.replace(/\D/g, '');
-                          if (digits.length >= 2) setNatalDay(digits.substring(0, 2));
-                          if (digits.length >= 4) setNatalMonth(digits.substring(2, 4));
-                          if (digits.length >= 8) setNatalYear(digits.substring(4, 8));
-                          if (digits.length >= 10) setNatalHour(digits.substring(8, 10));
-                          if (digits.length >= 12) setNatalMinute(digits.substring(10, 12));
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleApplyNatalDate();
-                        }}
-                        className={`flex-1 px-2.5 py-1.5 rounded-lg border text-xs font-mono outline-none ${
-                          isLight
-                            ? 'bg-black/5 border-black/15 text-black focus:border-emerald-500'
-                            : 'bg-white/10 border-white/20 text-white focus:border-emerald-400'
-                        }`}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleApplyNatalDate}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-500 text-black font-bold text-xs hover:bg-emerald-400 active:scale-95 transition-all cursor-pointer shadow-sm"
-                      >
-                        Aplicar
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Campos Individuais */}
-                  <div className={`p-2 rounded-xl border mb-2.5 ${isLight ? 'bg-black/[0.02] border-black/10' : 'bg-white/[0.02] border-white/10'}`}>
-                    <div className="text-[9px] uppercase font-bold tracking-wider opacity-60 mb-1.5 px-0.5">
-                      Campos Individuais
-                    </div>
-                    <div className="grid grid-cols-5 gap-1 text-center font-mono">
-                      <div>
-                        <span className="text-[8px] uppercase block opacity-60">Dia</span>
-                        <input
-                          type="number"
-                          min="1"
-                          max="31"
-                          placeholder="29"
-                          value={natalDay}
-                          onChange={(e) => setNatalDay(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleApplyNatalDate(); }}
-                          className={`w-full px-1 py-1 rounded border text-xs text-center outline-none ${
-                            isLight ? 'bg-black/5 border-black/15 text-black' : 'bg-white/10 border-white/20 text-white'
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <span className="text-[8px] uppercase block opacity-60">Mês</span>
-                        <input
-                          type="number"
-                          min="1"
-                          max="12"
-                          placeholder="11"
-                          value={natalMonth}
-                          onChange={(e) => setNatalMonth(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleApplyNatalDate(); }}
-                          className={`w-full px-1 py-1 rounded border text-xs text-center outline-none ${
-                            isLight ? 'bg-black/5 border-black/15 text-black' : 'bg-white/10 border-white/20 text-white'
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <span className="text-[8px] uppercase block opacity-60">Ano</span>
-                        <input
-                          type="number"
-                          placeholder="1998"
-                          value={natalYear}
-                          onChange={(e) => setNatalYear(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleApplyNatalDate(); }}
-                          className={`w-full px-1 py-1 rounded border text-xs text-center outline-none ${
-                            isLight ? 'bg-black/5 border-black/15 text-black' : 'bg-white/10 border-white/20 text-white'
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <span className="text-[8px] uppercase block opacity-60">Hora</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max="23"
-                          placeholder="08"
-                          value={natalHour}
-                          onChange={(e) => setNatalHour(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleApplyNatalDate(); }}
-                          className={`w-full px-1 py-1 rounded border text-xs text-center outline-none ${
-                            isLight ? 'bg-black/5 border-black/15 text-black' : 'bg-white/10 border-white/20 text-white'
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <span className="text-[8px] uppercase block opacity-60">Min</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max="59"
-                          placeholder="05"
-                          value={natalMinute}
-                          onChange={(e) => setNatalMinute(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleApplyNatalDate(); }}
-                          className={`w-full px-1 py-1 rounded border text-xs text-center outline-none ${
-                            isLight ? 'bg-black/5 border-black/15 text-black' : 'bg-white/10 border-white/20 text-white'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Controles de Visualização Natal */}
-                  <OptionCard isLight={isLight}>
-                    <CtrlRow label="Exibir Linhas Natais" icon="ti-chart-line" iconColor="text-emerald-400" isLight={isLight}>
-                      <Toggle on={!!props.showNatalLines} onToggle={() => props.setShowNatalLines?.(!props.showNatalLines)} activeColor="bg-emerald-500" isLight={isLight} />
-                    </CtrlRow>
-                    <CtrlRow label="Cor dos Planetas Natais" icon="ti-palette" iconColor="text-teal-400" isLight={isLight}>
-                      <SegSel
-                        options={[
-                          { label: 'Dourado', value: 'gold' },
-                          { label: 'Colorido', value: 'colored' }
-                        ]}
-                        value={props.natalColorMode || 'gold'}
-                        onChange={(v) => props.setNatalColorMode?.(v as 'gold' | 'colored')}
-                        isLight={isLight}
-                      />
-                    </CtrlRow>
-                  </OptionCard>
-
-                  {/* Botão de Configuração Completa */}
-                  {props.onOpenNatal && (
-                    <div className="pt-2 mt-2 border-t border-white/10">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          props.onOpenNatal?.();
-                          setOpenPopover(null);
-                        }}
-                        className={`w-full py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                          isLight
-                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 hover:bg-emerald-500/20'
-                            : 'bg-emerald-400/10 border-emerald-400/30 text-emerald-200 hover:bg-emerald-400/20'
-                        }`}
-                      >
-                        <i className="ti ti-adjustments-alt text-xs" />
-                        Abrir Configuração Natal Completa
-                      </button>
-                    </div>
-                  )}
+                  <NatalPopoverBody
+                    isLight={isLight}
+                    natalTime={props.natalTime}
+                    natalLocationName={props.natalLocationName}
+                    currentLocation={props.currentLocation}
+                    savedMaps={props.savedMaps}
+                    onUseSavedNatal={props.onUseSavedNatal ? (m) => props.onUseSavedNatal?.(m) : undefined}
+                    onApply={(d, loc) => props.onSetNatalTime?.(d, loc ?? undefined)}
+                    onClear={props.natalTime && props.onClearNatal ? () => props.onClearNatal?.() : undefined}
+                    showNatalLines={!!props.showNatalLines}
+                    onToggleLines={() => props.setShowNatalLines?.(!props.showNatalLines)}
+                    natalColorMode={props.natalColorMode}
+                    onColorMode={(v) => props.setNatalColorMode?.(v)}
+                    onOpenFull={props.onOpenNatal ? () => { props.onOpenNatal?.(); setOpenPopover(null); } : undefined}
+                    onClose={() => setOpenPopover(null)}
+                  />
                 </div>
               )}
             </div>

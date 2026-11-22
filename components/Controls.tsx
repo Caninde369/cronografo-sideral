@@ -344,6 +344,8 @@ export const TimeControls: React.FC<{
     const [selectedStampUnit, setSelectedStampUnit] = useState<'d' | 'm' | 'y' | 'h' | 'i' | 's' | null>(null);
     const [loopA, setLoopA] = useState<Date | null>(null);
     const [loopB, setLoopB] = useState<Date | null>(null);
+    // Desligar o loop guarda A e B; o play só repete o trecho com o loop ligado
+    const [loopOn, setLoopOn] = useState(true);
     const [isTimelineMinimized, setIsTimelineMinimized] = useState(false);
     // Inicia maximizado conforme solicitação do usuário
     const [isFullWidth, setIsFullWidth] = useState<boolean>(true);
@@ -430,10 +432,10 @@ export const TimeControls: React.FC<{
     currentTimeRef.current = currentTime;
 
     const loopARef = useRef(loopA);
-    loopARef.current = loopA;
+    loopARef.current = loopOn ? loopA : null;
 
     const loopBRef = useRef(loopB);
-    loopBRef.current = loopB;
+    loopBRef.current = loopOn ? loopB : null;
 
     // Press-and-hold (hold-to-repeat) logic for Step Back and Step Forward
     const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -794,9 +796,11 @@ export const TimeControls: React.FC<{
                         isRealTime={isRealTime}
                         loopA={loopA}
                         loopB={loopB}
-                        onSetLoopA={setLoopA}
-                        onSetLoopB={setLoopB}
-                        onClearLoop={() => { setLoopA(null); setLoopB(null); }}
+                        onSetLoopA={(d) => { setLoopA(d); if (d) setLoopOn(true); }}
+                        onSetLoopB={(d) => { setLoopB(d); if (d) setLoopOn(true); }}
+                        onClearLoop={() => { setLoopA(null); setLoopB(null); setLoopOn(true); }}
+                        loopOn={loopOn}
+                        onToggleLoop={setLoopOn}
                         isLight={isLight}
                         isFreeTier={isFreeTier}
                         onOpenPaymentPlans={onOpenPaymentPlans}

@@ -1,3 +1,4 @@
+import { LoopBar } from './time/LoopBar';
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ZODIAC_ICONS } from './icons';
@@ -23,6 +24,9 @@ interface SolarScrubberProps {
   onSetLoopA?: (date: Date | null) => void;
   onSetLoopB?: (date: Date | null) => void;
   onClearLoop?: () => void;
+  /** loop ligado (desligado mantém os pontos guardados) */
+  loopOn?: boolean;
+  onToggleLoop?: (on: boolean) => void;
   isLight?: boolean;
   isFreeTier?: boolean;
   onOpenPaymentPlans?: () => void;
@@ -171,6 +175,8 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
   onSetLoopA,
   onSetLoopB,
   onClearLoop,
+  loopOn = true,
+  onToggleLoop,
   isLight = false,
   isFreeTier = false,
   onOpenPaymentPlans,
@@ -425,6 +431,73 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
 
   const pctA = getPctFromDate(loopA);
   const pctB = getPctFromDate(loopB);
+
+  // Alças A/B e o trecho inteiro arrastam na linha do tempo
+  const loopDragRef = useRef<{ kind: 'a' | 'b' | 'range'; x0: number; a0: number; b0: number } | null>(null);
+  const dateFromClientX = (clientX: number) => {
+    const el = trackRef.current || containerRef.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (clientX - r.left) / (r.width || 1)));
+    return getGregorianFromZDay(vpStart + pct * viewSpan, zodiacBaseYear);
+  };
+  const startLoopDrag = (kind: 'a' | 'b' | 'range') => (e: React.PointerEvent<HTMLElement>) => {
+    if (!loopA || !loopB) return;
+    e.stopPropagation(); e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    loopDragRef.current = { kind, x0: e.clientX, a0: loopA.getTime(), b0: loopB.getTime() };
+  };
+  const moveLoopDrag = (e: React.PointerEvent<HTMLElement>) => {
+    const st = loopDragRef.current;
+    if (!st) return;
+    e.stopPropagation();
+    if (st.kind === 'range') {
+      const el = trackRef.current || containerRef.current;
+      const W = el?.getBoundingClientRect().width || 1;
+      const dMs = ((e.clientX - st.x0) / W) * viewSpan * 864e5;
+      onSetLoopA?.(new Date(st.a0 + dMs));
+      onSetLoopB?.(new Date(st.b0 + dMs));
+      return;
+    }
+    const d = dateFromClientX(e.clientX);
+    if (!d) return;
+    if (st.kind === 'a') { if (d.getTime() < st.b0 - 6e4) onSetLoopA?.(d); }
+    else if (d.getTime() > st.a0 + 6e4) onSetLoopB?.(d);
+  };
+  const endLoopDrag = (e: React.PointerEvent<HTMLElement>) => {
+    if (!loopDragRef.current) return;
+    e.stopPropagation();
+    loopDragRef.current = null;
+  };
+  const nudgeLoop = (kind: 'a' | 'b') => (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault(); e.stopPropagation();
+    const step = (e.shiftKey ? 864e5 : 36e5) * (e.key === 'ArrowLeft' ? -1 : 1);
+    const cur = kind === 'a' ? loopA : loopB;
+    if (cur) (kind === 'a' ? onSetLoopA : onSetLoopB)?.(new Date(cur.getTime() + step));
+  };
+  const toggleLoop = () => {
+    if (!loopA && !loopB) {
+      setLoopRange(currentDate, new Date(currentDate.getTime() + 7 * 864e5));
+      onToggleLoop?.(true);
+      return;
+    }
+    onToggleLoop?.(!loopOn);
+  };
+  const loopBar = (
+    <LoopBar
+      isLight={isLight}
+      loopOn={loopOn && !!(loopA || loopB)}
+      a={loopA}
+      b={loopB}
+      now={currentDate}
+      onToggle={toggleLoop}
+      onSetRange={(a, b) => { setLoopRange(a, b); onToggleLoop?.(true); }}
+      onSetA={(d) => onSetLoopA?.(d)}
+      onSetB={(d) => onSetLoopB?.(d)}
+      onClear={() => onClearLoop?.()}
+    />
+  );
 
   const formatDateShort = (d: Date) => {
     const day = String(d.getDate()).padStart(2, '0');
@@ -913,25 +986,7 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
 
 
 
-          {(loopA || loopB) && (
-            <div data-tour="loop-chip" data-complete={loopA && loopB ? 'true' : 'false'} className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-mono select-none ${isLight ? 'bg-amber-500/10 border-amber-500/25 text-amber-800' : 'bg-amber-500/15 border-amber-500/30 text-amber-300'}`}>
-              <span className={`w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0`} />
-              <span className={`font-semibold ${isLight ? 'text-neutral-800' : 'text-white/90'}`}>Loop:</span>
-              <span className="text-cyan-600 dark:text-cyan-300 font-bold">{loopA ? formatDateShort(loopA) : '?'}</span>
-              <span className={`${isLight ? 'text-neutral-400' : 'text-white/40'}`}>→</span>
-              <span className="text-pink-600 dark:text-pink-300 font-bold">{loopB ? formatDateShort(loopB) : '?'}</span>
-              {onClearLoop && (
-                <button
-                  data-tour="loop-close"
-                  onClick={(e) => { e.stopPropagation(); onClearLoop(); }}
-                  className={`ml-1 px-1 rounded transition-colors cursor-pointer text-[10px] ${isLight ? 'hover:bg-black/10 text-neutral-500 hover:text-neutral-800' : 'hover:bg-white/20 text-white/70 hover:text-white'}`}
-                  title="Limpar Loop A-B"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          )}
+          {!(loopA || loopB) && <div className="scrub-loop-head">{loopBar}</div>}
         </div>
         <div className="m-only scrub-zoom" role="group" aria-label="Zoom da linha do tempo">
           {([['ANO', 'Ano', 365], ['SIGNO', 'Signo', 30], ['SEMANA', 'Sem.', 7], ['DIA', 'Dia', 1]] as const).map(([id, label, span]) => (
@@ -1188,6 +1243,8 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
         ))}
       </div>
 
+      {(loopA || loopB) && <div className="scrub-loop-row" style={{ margin: '2px 0 4px' }}>{loopBar}</div>}
+
       <div 
         ref={trackRef}
         style={{ touchAction: 'none', paddingBottom: 8 + CURVE_SAG }}
@@ -1209,100 +1266,70 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
             }} />
           </div>
 
-          {/* Loop A-B Highlight Region */}
-          {pctA !== null && pctB !== null && (
-            <div style={curveLayer(CURVE_MASK_BAND)}><div style={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              left: `${Math.max(0, Math.min(1, Math.min(pctA, pctB))) * 100}%`,
-              width: `${Math.max(0, Math.min(1, Math.abs(pctB - pctA))) * 100}%`,
-              background: 'linear-gradient(90deg, rgba(6, 182, 212, 0.35), rgba(236, 72, 153, 0.35))',
-              boxShadow: '0 0 10px rgba(6, 182, 212, 0.4)',
-              borderRadius: 3,
-              pointerEvents: 'none',
-              zIndex: 4
-            }} /></div>
-          )}
+          {/* Loop A-B: trecho (arrasta inteiro) */}
+          {pctA !== null && pctB !== null && (() => {
+            const on = loopOn;
+            const l = Math.max(0, Math.min(1, Math.min(pctA, pctB))) * 100;
+            const w = Math.max(0, Math.min(1, Math.max(pctA, pctB)) - Math.max(0, Math.min(pctA, pctB))) * 100;
+            return (
+              <>
+                <div style={curveLayer(CURVE_MASK_BAND)}><div style={{
+                  position: 'absolute', top: 0, bottom: 0, left: `${l}%`, width: `${w}%`,
+                  background: on
+                    ? 'linear-gradient(90deg, rgba(34,211,238,0.32), rgba(244,114,182,0.32))'
+                    : 'repeating-linear-gradient(135deg, rgba(160,160,170,0.22) 0 4px, transparent 4px 8px)',
+                  borderRadius: 3, pointerEvents: 'none', zIndex: 4
+                }} /></div>
+                {w > 0.5 && (
+                  <div
+                    data-tour="loop-range"
+                    title="Arraste para mover o trecho inteiro"
+                    onPointerDown={startLoopDrag('range')}
+                    onPointerMove={moveLoopDrag}
+                    onPointerUp={endLoopDrag}
+                    onPointerCancel={endLoopDrag}
+                    onDoubleClick={(e) => e.stopPropagation()}
+                    style={{ position: 'absolute', left: `${l}%`, width: `${w}%`, top: -10, height: 20, zIndex: 12, cursor: 'grab', touchAction: 'none' }}
+                  />
+                )}
+              </>
+            );
+          })()}
 
-          {/* Point A Marker Pin */}
-          {pctA !== null && pctA >= -0.2 && pctA <= 1.2 && (
-            <div style={{
-              position: 'absolute',
-              left: `${pctA * 100}%`,
-              top: '50%',
-              transform: `translateX(-50%) translateY(${curveY(pctA)}px)`,
-              zIndex: 15,
-              pointerEvents: 'none',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center'
-            }}>
-              <div style={{
-                position: 'absolute',
-                bottom: 8,
-                background: '#06B6D4',
-                color: '#000000',
-                fontSize: 9,
-                fontWeight: 800,
-                fontFamily: 'monospace',
-                padding: '1px 5px',
-                borderRadius: 4,
-                boxShadow: '0 0 8px rgba(6, 182, 212, 0.9)',
-                border: '1px solid #22D3EE',
-                whiteSpace: 'nowrap'
-              }}>
-                A
-              </div>
-              <div style={{
-                width: 2,
-                height: 20,
-                background: '#06B6D4',
-                boxShadow: '0 0 6px #06B6D4',
-                borderRadius: 1
-              }} />
+          {/* Alças A e B (arrastáveis; setas movem 1 h, Shift = 1 dia) */}
+          {([['a', pctA, loopA] as const, ['b', pctB, loopB] as const]).map(([k, pc, d]) => (pc !== null && d && pc >= -0.02 && pc <= 1.02) ? (
+            <div
+              key={k}
+              data-tour={`loop-handle-${k}`}
+              role="slider"
+              tabIndex={0}
+              aria-label={`Ponto ${k.toUpperCase()}`}
+              aria-valuetext={formatDateShort(d)}
+              title={`Ponto ${k.toUpperCase()} · ${formatDateShort(d)} · arraste para mover`}
+              onPointerDown={startLoopDrag(k)}
+              onPointerMove={moveLoopDrag}
+              onPointerUp={endLoopDrag}
+              onPointerCancel={endLoopDrag}
+              onDoubleClick={(e) => e.stopPropagation()}
+              onKeyDown={nudgeLoop(k)}
+              className="scrub-loop-h"
+              style={{
+                position: 'absolute', left: `${pc * 100}%`, top: '50%',
+                transform: `translate(-50%, calc(-100% + 4px + ${curveY(pc)}px))`,
+                zIndex: 15, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                cursor: 'ew-resize', touchAction: 'none', opacity: loopOn ? 1 : 0.5, padding: '0 6px'
+              }}
+            >
+              <span style={{
+                width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: k === 'a' ? (isLight ? '#0891B2' : '#22D3EE') : (isLight ? '#DB2777' : '#F472B6'),
+                color: isLight ? '#fff' : '#040004', font: "700 10px 'DM Sans', sans-serif",
+                boxShadow: `0 0 0 2px ${isLight ? '#fbf9f4' : '#0a070c'}, 0 4px 12px -3px rgba(0,0,0,.7)`
+              }}>{k.toUpperCase()}</span>
+              <span style={{ width: 2, height: 12, borderRadius: 2, marginTop: 1, background: k === 'a' ? (isLight ? '#0891B2' : '#22D3EE') : (isLight ? '#DB2777' : '#F472B6') }} />
             </div>
-          )}
+          ) : null)}
 
-          {/* Point B Marker Pin */}
-          {pctB !== null && pctB >= -0.2 && pctB <= 1.2 && (
-            <div style={{
-              position: 'absolute',
-              left: `${pctB * 100}%`,
-              top: '50%',
-              transform: `translateX(-50%) translateY(${curveY(pctB)}px)`,
-              zIndex: 15,
-              pointerEvents: 'none',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center'
-            }}>
-              <div style={{
-                position: 'absolute',
-                bottom: 8,
-                background: '#EC4899',
-                color: '#FFFFFF',
-                fontSize: 9,
-                fontWeight: 800,
-                fontFamily: 'monospace',
-                padding: '1px 5px',
-                borderRadius: 4,
-                boxShadow: '0 0 8px rgba(236, 72, 153, 0.9)',
-                border: '1px solid #F472B6',
-                whiteSpace: 'nowrap'
-              }}>
-                B
-              </div>
-              <div style={{
-                width: 2,
-                height: 20,
-                background: '#EC4899',
-                boxShadow: '0 0 6px #EC4899',
-                borderRadius: 1
-              }} />
-            </div>
-          )}
-          
           <div className="scrub-thumb" data-tour="scrub-thumb" style={{
             position: 'absolute',
             left: `${cursorPct * 100}%`,
