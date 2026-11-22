@@ -191,9 +191,10 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = (props) => 
         >
             <div 
                 data-tour="export-modal"
-                className="relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl bg-[#0e0c18] border border-white/15 text-white shadow-2xl shadow-black/80 overflow-hidden"
+                className="exp-skin relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl bg-[#0e0c18] border border-white/15 text-white shadow-2xl shadow-black/80 overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
+                <style>{EXP_SKIN}</style>
                 {/* Cabeçalho do Modal */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/[0.02]">
                     <div className="flex items-center gap-3">
@@ -201,14 +202,12 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = (props) => 
                             <Download className="w-5 h-5" />
                         </div>
                         <div>
-                            <h2 className="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-2">
-                                <span>Configurar Exportação PDF</span>
-                                <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                                    A4 Alta Resolução
-                                </span>
+                            <h2 className="exp-title flex items-center gap-2.5">
+                                <span>Exportar o mapa</span>
+                                <span className="exp-chip">PDF · A4</span>
                             </h2>
-                            <p className="text-xs text-neutral-400">
-                                Personalize orientação, tema de cores e diagramação de dados com visualização prévia em tempo real.
+                            <p className="exp-sub">
+                                Escolha a orientação, o tema e o conteúdo. A prévia mostra como vai ficar.
                             </p>
                         </div>
                     </div>
@@ -444,7 +443,7 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = (props) => 
                                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-md ${
                                         props.copied
                                             ? 'bg-emerald-500/25 border-emerald-400 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
-                                            : 'bg-blue-600 hover:bg-blue-500 border-blue-400/60 text-white shadow-[0_0_15px_rgba(37,99,235,0.5)] active:scale-95'
+                                            : 'exp-ghost active:scale-95'
                                     }`}
                                 >
                                     <Copy className="w-4 h-4" />
@@ -753,7 +752,7 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = (props) => 
                                     type="button"
                                     onClick={handleConfirm}
                                     disabled={props.isExporting}
-                                    className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl border border-blue-400/50 shadow-[0_0_16px_rgba(37,99,235,0.6)] flex items-center gap-2 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                                    className="exp-primary flex items-center gap-2 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
                                 >
                                     <Download className="w-4 h-4" />
                                     <span>
@@ -761,7 +760,7 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = (props) => 
                                             ? 'Processando PDF...' 
                                             : props.isFreeTier 
                                             ? 'Baixar PDF (com marca d\'água)' 
-                                            : 'Confirmar & Baixar PDF'}
+                                            : 'Baixar PDF'}
                                     </span>
                                 </button>
                             )}
@@ -777,3 +776,29 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = (props) => 
     }
     return modalContent;
 };
+
+/** Identidade do Cronógrafo na janela de exportar (fundo, linhas finas, Cormorant, DM Sans/Mono, botão azul). */
+const EXP_SKIN = `
+.exp-skin{background:#0a070c!important;border-color:#2a2430!important;border-radius:22px!important;font-family:'DM Sans',system-ui,sans-serif;color:#EDE9E3}
+.exp-skin .exp-title{margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:28px;line-height:1;color:#FAF6EE}
+.exp-skin .exp-chip{font-family:'DM Mono',ui-monospace,monospace;font-style:normal;font-size:10.5px;letter-spacing:.06em;padding:3px 9px;border-radius:999px;border:1px solid #2a2430;color:#B9B4BE}
+.exp-skin .exp-sub{margin:6px 0 0;font-size:12.5px;color:#8a8590}
+.exp-skin .border-white\\/10,.exp-skin .border-white\\/15{border-color:#221d27!important}
+.exp-skin .bg-white\\/\\[0\\.02\\]{background:transparent!important}
+.exp-skin .bg-white\\/\\[0\\.03\\]{background:#0f0b12!important}
+.exp-skin .text-neutral-300{color:#B9B4BE!important}
+.exp-skin .text-neutral-400{color:#8a8590!important}
+.exp-skin label.uppercase{font-size:10.5px!important;letter-spacing:.16em!important;color:#8a8590!important}
+.exp-skin .text-cyan-400,.exp-skin .text-cyan-300,.exp-skin .text-emerald-400,.exp-skin .text-indigo-400,.exp-skin .text-indigo-300{color:#EDE9E3!important}
+.exp-skin .bg-cyan-500\\/10,.exp-skin .bg-cyan-500\\/15,.exp-skin .bg-cyan-500\\/20,.exp-skin .bg-emerald-500\\/15,.exp-skin .bg-indigo-500\\/15{background:rgba(237,233,227,.06)!important}
+.exp-skin .border-cyan-400,.exp-skin .border-emerald-400,.exp-skin .border-indigo-400,.exp-skin .border-cyan-400\\/80{border-color:#EDE9E3!important}
+.exp-skin .border-cyan-500\\/30{border-color:#2a2430!important}
+.exp-skin .ring-cyan-400,.exp-skin .ring-emerald-400,.exp-skin .ring-indigo-400{--tw-ring-color:rgba(237,233,227,.5)!important}
+.exp-skin .shadow-lg{box-shadow:none!important}
+.exp-skin button.rounded-xl{border-radius:14px}
+.exp-skin .exp-primary{height:42px;padding:0 22px;border-radius:999px;border:0;background:#2F5BEA;color:#fff;font:600 13px 'DM Sans',sans-serif;letter-spacing:.02em;box-shadow:0 10px 30px -10px rgba(47,91,234,.8)}
+.exp-skin .exp-ghost{background:transparent!important;border-color:#3a3340!important;color:#EDE9E3!important;border-radius:999px!important;box-shadow:none!important}
+.exp-skin .exp-ghost:hover{border-color:#EDE9E3!important}
+.exp-skin .exp-primary:hover:not(:disabled){background:#3D69F5}
+.exp-skin .exp-primary:focus-visible{outline:2px solid #EDE9E3;outline-offset:2px}
+`;

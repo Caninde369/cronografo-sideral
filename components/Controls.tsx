@@ -252,6 +252,7 @@ const TC_CSS = `
 .tc-loc-l{color:rgba(35,23,20,.6)}
 .tc-loc-l:hover{color:#231714;background:rgba(0,0,0,.05)}
 .tc-loc-ed{font-size:10px;opacity:.7}
+.tc-mi.tc-mi-blue{background:#2F5BEA;color:#fff;margin-top:2px}.tc-mi.tc-mi-blue:hover{background:#3D69F5}.tc-mi.tc-mi-blue i{color:#fff!important;opacity:1}
 .tc-mi{width:100%;display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#EDE9E3;font-size:13px;cursor:pointer;text-align:left}
 .tc-mi:hover{background:rgba(255,255,255,.06)}
 .tc-mi i{font-size:16px;color:#B9B4BE}
@@ -758,7 +759,7 @@ export const TimeControls: React.FC<{
                                     </button>
                                 )}
                                 {exportData && (
-                                    <button role="menuitem" type="button" data-tour="more-export" className="tc-mi" onClick={() => { setMoreMenu(null); setExportReq(n => n + 1); }}>
+                                    <button role="menuitem" type="button" data-tour="more-export" className="tc-mi tc-mi-blue" onClick={() => { setExportReq(n => n + 1); setMoreMenu(null); }}>
                                         <i className="ti ti-download" aria-hidden="true" /><span>Exportar PDF</span>
                                     </button>
                                 )}

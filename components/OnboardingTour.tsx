@@ -601,6 +601,17 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
   useEffect(() => {
     if (!open || !currentTask) return;
     const w = currentTask.wait;
+    // Exportar PDF: se o clique no item do menu não abrir a janela, o tutorial pede para abrir
+    if ('dom' in w && w.dom.includes('export-modal')) {
+      const down = (e: PointerEvent) => {
+        const it = document.querySelector('[data-tour="more-export"]');
+        const r = it?.getBoundingClientRect();
+        if (!r || e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
+        window.setTimeout(() => { if (!isPresent('[data-tour="export-modal"]')) window.dispatchEvent(new Event('cronografo:open-export')); }, 450);
+      };
+      document.addEventListener('pointerdown', down, true);
+      return () => document.removeEventListener('pointerdown', down, true);
+    }
     if ('click' in w) {
       const on = (e: MouseEvent) => { if ((e.target as Element)?.closest?.(w.click)) clickedRef.current = true; };
       document.addEventListener('click', on, true);
@@ -716,18 +727,22 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
       [vw - CARD_W - 16, vh - ch - 16], [16, vh - ch - 16], [vw - CARD_W - 16, 16], [16, 16],
     ];
     const mcx = m.x + m.w / 2, mcy = m.y + m.h / 2;
+    const hand: Box | null = handBox ? { x: handBox.left - 14, y: handBox.top - 14, w: handBox.width + 28, h: handBox.height + 28 } as Box : null;
+    if (hand) raw.push([hand.x - gap - CARD_W, hand.y], [hand.x - gap - CARD_W, hand.y + hand.h / 2 - ch / 2]);
     let best: [number, number] | null = null, bestScore = Infinity;
     for (const [l0, t0] of raw) {
       const l = clampL(l0), t = clampT(t0);
       const onMain = over(l, t, m) / (CARD_W * ch);
-      const cover = boxes.extra.reduce((acc, b) => acc + over(l, t, b), 0) / (CARD_W * ch) + onMain * 8;
+      // o botão da mão (onde a pessoa vai clicar) nunca pode ficar embaixo do cartão
+      const onHand = hand ? over(l, t, hand) / Math.max(1, hand.w * hand.h) : 0;
+      const cover = boxes.extra.reduce((acc, b) => acc + over(l, t, b), 0) / (CARD_W * ch) + onMain * 8 + onHand * 40;
       const dx = Math.max(0, m.x - (l + CARD_W), l - (m.x + m.w)), dy = Math.max(0, m.y - (t + ch), t - (m.y + m.h));
       const score = Math.hypot(dx, dy) + cover * 260 + Math.hypot(l + CARD_W / 2 - mcx, t + ch / 2 - mcy) * 0.05;
       if (score < bestScore) { bestScore = score; best = [l, t]; }
     }
     const pick = best ?? [clampL(raw[0][0]), clampT(raw[0][1])];
     setCardPos({ left: pick[0], top: pick[1] });
-  }, [open, boxes, isSheet, index, taskIdx, missionDone]);
+  }, [open, boxes, isSheet, index, taskIdx, missionDone, handBox]);
 
   // Teclado
   useEffect(() => {
@@ -910,10 +925,17 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
             <div className="tour-prog" aria-hidden="true">
               {progressSteps.map(k => <span key={k} className={k < index ? 'd' : k === index ? 'a' : ''} />)}
             </div>
+            {isEnd ? (
+              <div className="tour-btns tour-btns-end">
+                <button type="button" className="tour-next" onClick={() => onClose(true)} autoFocus>Explorar sozinho</button>
+                <div>
+                  <button type="button" className="tour-back" onClick={goBack}>Voltar</button>
+                  <button type="button" className="tour-skip" onClick={backToMenu}>Aprender mais</button>
+                </div>
+              </div>
+            ) : (
             <div className="tour-btns">
-              {isEnd
-                ? <button type="button" className="tour-skip" onClick={backToMenu}>Aprender mais</button>
-                : <button type="button" className="tour-skip" onClick={() => onClose(false)}>Sair</button>}
+              <button type="button" className="tour-skip" onClick={() => onClose(false)}>Sair</button>
               <span>
                 <button type="button" className="tour-back" onClick={goBack}>Voltar</button>
                 <button
@@ -922,10 +944,11 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
                   onClick={() => (isEnd ? onClose(true) : goNext())}
                   autoFocus={kind === 'info'}
                 >
-                  {isEnd ? 'Explorar sozinho' : missionLive ? 'Pular passo' : 'Próximo'}
+                  {missionLive ? 'Pular passo' : 'Próximo'}
                 </button>
               </span>
             </div>
+            )}
           </>
         )}
       </div>
@@ -1002,7 +1025,11 @@ body.tour-open .itt{z-index:2147483100!important}
 .tour-prog{display:flex;gap:3px;margin:13px 0 10px}
 .tour-prog span{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.1);transition:background .3s}
 .tour-prog span.d{background:color-mix(in srgb,var(--tc) 45%,transparent)}.tour-prog span.a{background:var(--tc)}
-.tour-btns{display:flex;justify-content:space-between;align-items:center}
+.tour-btns{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tour-btns>span{display:flex;align-items:center;white-space:nowrap}
+.tour-btns-end{flex-direction:column;align-items:stretch}
+.tour-btns-end .tour-next{width:100%}
+.tour-btns-end>div{display:flex;align-items:center;justify-content:space-between}
 .tour-btns button,.tour-menu button{height:36px;border-radius:999px;padding:0 16px;font:600 14px/1 'DM Sans',sans-serif;cursor:pointer}
 .tour-skip{background:transparent;border:0;color:#8e887c}.tour-skip:hover{color:#cfc9bd}
 .tour-back{background:transparent;border:1px solid rgba(255,255,255,.18);color:#cfc9bd;margin-right:6px}

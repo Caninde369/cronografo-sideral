@@ -772,6 +772,13 @@ export const ExportPDFButton: React.FC<ExportPDFButtonProps> = (props) => {
     const [exportProgress, setExportProgress] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     useEffect(() => { if (props.openRequest) setIsModalOpen(true); }, [props.openRequest]);
+    // O tutorial pode pedir a janela de exportar (só a instância escondida da barra de baixo responde)
+    useEffect(() => {
+        if (props.variant !== 'hidden') return;
+        const open = () => setIsModalOpen(true);
+        window.addEventListener('cronografo:open-export', open);
+        return () => window.removeEventListener('cronografo:open-export', open);
+    }, [props.variant]);
     const [showMenu, setShowMenu] = useState(false);
     const [copied, setCopied] = useState(false);
     const [clockScreenshot, setClockScreenshot] = useState<string>('');
