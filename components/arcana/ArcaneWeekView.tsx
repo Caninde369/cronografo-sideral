@@ -162,6 +162,12 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
     return () => window.removeEventListener('keydown', esc, true);
   }, [openN]);
 
+  // Portal vertical: duas ou mais marcas na mesma coluna (cartas alinhadas de cima a baixo)
+  const columnPortals = Array.from({ length: 7 }, (_, c) => {
+    const ms = MARKS.filter(m => on[m.id] && highlight && highlight[m.id] !== 0 && (highlight[m.id] - 1) % 7 === c);
+    return { c, ms };
+  }).filter(x => x.ms.length >= 2);
+
   const cardProps = (n: number) => ({ n, arcano: getArcano(n), marks: marksFor(n), onSelect: openCard });
 
   // linhas contínuas: antes da 5ª coluna (Lei) e antes da 7ª (Efeito)
@@ -209,6 +215,23 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
       {pop}
       <div className="awv-grid" role="grid" aria-label="Os 22 arcanos numa semana: Causa, Lei e Efeito">
         {cuts.map(c => <span key={c} className="awv-line" style={{ gridColumn: c, gridRow: '1 / -1' }} aria-hidden="true" />)}
+
+        {/* Portal vertical: a coluna inteira ganha a moldura com as cores das marcas alinhadas */}
+        {columnPortals.map(({ c, ms }) => {
+          const k = ms.length;
+          const seg = 360 / k;
+          const st = { gridColumn: c + 2, gridRow: '2 / span 3', '--stops': ms.map((m, i) => `${m.color} ${i * seg}deg ${(i + 1) * seg}deg`).join(',') } as React.CSSProperties;
+          const label = k >= 4 ? 'Grande portal' : 'Portal';
+          return (
+            <div key={`portal-${c}-${ms.map(m => m.id).join('')}`} className={`awv-colportal u${k}`} style={st} role="note"
+              aria-label={`${label}: ${ms.map(m => m.label).join(', ')} alinhados na mesma coluna`} title={`${label} · ${ms.map(m => m.label).join(', ')}`}>
+              <span className="awv-glow" aria-hidden="true" />
+              <span className="awv-ring" aria-hidden="true" />
+              {k >= 4 && <Particles />}
+              <span className="awv-colportal-lbl">{label}</span>
+            </div>
+          );
+        })}
 
         {/* Grupos da semana 4 × 3, sem caixas */}
         <div className="awv-group" style={{ gridColumn: '2 / span 4', gridRow: 1 }}><b>Causa</b><small>Trabalho</small></div>
@@ -296,7 +319,16 @@ const CSS = `
 .awv-zero{display:flex;flex-direction:column;align-items:center;gap:3px;align-self:stretch;justify-content:center;min-height:0}
 .awv-zero .awv-card{height:52px;width:auto}
 .awv-zero-words{align-self:end;justify-self:center;text-align:center;font-size:8.5px;line-height:1.3;color:var(--a-dim,#8a8590)}
-.awv-cell{height:100%;min-height:0;min-width:0;display:flex;align-items:center;justify-content:center}
+.awv-cell{position:relative;z-index:2;height:100%;min-height:0;min-width:0;display:flex;align-items:center;justify-content:center}
+/* Portal vertical (coluna) */
+.awv-colportal{position:relative;align-self:stretch;justify-self:stretch;margin:-5px -5px -12px;border-radius:16px;pointer-events:none;z-index:1}
+.awv-colportal .awv-ring,.awv-colportal .awv-glow{inset:0;border-radius:16px}
+.awv-colportal .awv-ring{padding:2px;z-index:2}
+.awv-colportal.u2 .awv-glow{opacity:.5}
+.awv-colportal.u3 .awv-glow{opacity:1;filter:blur(16px);animation:awv-spin 6s linear infinite,awv-pulse 2.4s ease-in-out infinite}
+.awv-colportal.u4 .awv-ring{background:conic-gradient(from var(--awv-spin),#fff,#F5F2EB,#fff,#d9d4ff,#fff)}
+.awv-colportal.u4 .awv-glow{background:#fff;filter:blur(18px);animation:awv-pulse4 2.2s ease-in-out infinite}
+.awv-colportal-lbl{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);z-index:4;padding:2px 8px;border-radius:999px;background:var(--a-hi,#FAF6EE);color:#040004;font-size:7.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
 .awv-card{position:relative;display:block;height:100%;width:auto;max-width:100%;aspect-ratio:2/3.15;padding:0;border:0;border-radius:10px;background:none;cursor:pointer;isolation:isolate}
 .awv-face{position:absolute;inset:0;border-radius:inherit;overflow:hidden;border:1px solid var(--a-line2,#2a2430);background:#000;z-index:1}
 .awv-face img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
@@ -354,7 +386,7 @@ const CSS = `
 .awv-mark{flex:none;width:14px;height:14px;border-radius:50%;border:1.5px solid var(--a-fg,#EDE9E3)}
 .awv-mark.full{background:var(--a-fg,#EDE9E3)}
 .awv-mark.dot{background:radial-gradient(circle,var(--a-fg,#EDE9E3) 0 3px,transparent 3.5px)}
-.awv-col{display:flex;flex-direction:column;align-items:center;gap:0;padding-top:2px;text-align:center;min-width:0}
+.awv-col{display:flex;flex-direction:column;align-items:center;gap:0;padding-top:10px;text-align:center;min-width:0}
 .awv-col b{font-size:11px;font-weight:600;color:var(--a-hi,#FAF6EE);display:flex;align-items:center;gap:4px}
 .awv-col .g{font-family:'Noto Sans Symbols 2','Segoe UI Symbol',serif;font-size:13px;line-height:1.2;color:var(--a-fg,#EDE9E3)}
 .awv-col .w{font-size:9px;color:var(--a-dim,#8a8590);line-height:1.35;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
