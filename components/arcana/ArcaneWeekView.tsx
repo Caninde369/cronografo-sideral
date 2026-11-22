@@ -217,7 +217,7 @@ export const ArcaneWeekView: React.FC<Props> = ({ getArcano, readDate, highlight
         {cuts.map(c => <span key={c} className="awv-line" style={{ gridColumn: c, gridRow: '1 / -1' }} aria-hidden="true" />)}
 
         {/* Portal vertical: a coluna inteira ganha a moldura com as cores das marcas alinhadas */}
-        {columnPortals.map(({ c, ms }) => {
+        {false && columnPortals.map(({ c, ms }) => {
           const k = ms.length;
           const seg = 360 / k;
           const st = { gridColumn: c + 2, gridRow: '2 / span 3', '--stops': ms.map((m, i) => `${m.color} ${i * seg}deg ${(i + 1) * seg}deg`).join(',') } as React.CSSProperties;
