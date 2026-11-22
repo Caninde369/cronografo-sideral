@@ -42,7 +42,9 @@ export const DateTimePicker: React.FC<{
   onDeleteMap?: (id: string) => void;
   /** Editar um mapa salvo: nome, data, hora e local */
   onUpdateMap?: (id: string, patch: { name: string; date: Date; location: Loc }) => void;
-}> = ({ open, value, location, focusLocation, rightOffset = 0, onClose, onConfirm, onLocationPick, anchorRect, savedMaps = [], onDeleteMap, onUpdateMap }) => {
+  /** Salvar mapa: aplica a data, hora e local escolhidos e abre a janela de salvar */
+  onSaveMap?: (date: Date, loc: Loc) => void;
+}> = ({ open, value, location, focusLocation, rightOffset = 0, onClose, onConfirm, onLocationPick, anchorRect, savedMaps = [], onDeleteMap, onUpdateMap, onSaveMap }) => {
   const [showMaps, setShowMaps] = useState(false);
   const [mapQuery, setMapQuery] = useState('');
   const [mapSort, setMapSort] = useState<'recent' | 'az'>('recent');
@@ -347,7 +349,7 @@ export const DateTimePicker: React.FC<{
           </div>
         )}
         {savedFlash && !editMap && <div className="dtp-savedflash" role="status"><i className="ti ti-check" aria-hidden="true" /> Mapa salvo</div>}
-        <div className="dtp-foot" data-tour="date-foot">
+        <div className={`dtp-foot ${onSaveMap && !editMap ? 'has-save' : ''}`} data-tour="date-foot">
           <div className="dtp-mapsw">
             <button className={`dtp-btn dtp-btn-gold ${showMaps ? 'on' : ''}`} onClick={() => setShowMaps(v => !v)} aria-expanded={showMaps} title="Escolher um mapa salvo">
               <i className="ti ti-bookmarks" /> Mapas salvos
@@ -420,6 +422,9 @@ export const DateTimePicker: React.FC<{
               );
             })()}
           </div>
+          {onSaveMap && !editMap && (
+            <button className="dtp-btn dtp-save" onClick={() => onSaveMap(new Date(y, m, dd, h, mi, 0), loc)} title="Salvar esta data, hora e local como mapa"><i className="ti ti-bookmark-plus" /> Salvar mapa</button>
+          )}
           <button className="dtp-btn" onClick={() => { const n = new Date(); setY(n.getFullYear()); setM(n.getMonth()); setD(n.getDate()); setH(n.getHours()); setMi(n.getMinutes()); setView('dias'); }}><span className="dtp-live" aria-hidden="true" />Agora</button>
           {editMap ? (
             <button className="dtp-btn dtp-ok" disabled={!editMap.name.trim()} onClick={() => {
@@ -518,6 +523,9 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.dtp.dtp-in{animation:none}}
 .dtp-foot{padding:12px 16px 14px;border-top:1px solid rgba(255,255,255,.1);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;gap:8px}
 .dtp-foot>*{justify-self:stretch;min-width:0}
+.dtp-foot.has-save{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:560px){.dtp-foot.has-save{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.dtp-foot .dtp-btn{letter-spacing:.08em}
 .dtp-foot .dtp-btn,.dtp-foot .dtp-mapsw .dtp-btn{flex:none;width:100%;height:44px;padding:0 10px;border-radius:14px;white-space:nowrap}
 .dtp-mapsw{position:relative;display:flex}
 .dtp-editbar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid rgba(212,175,55,.35);background:rgba(212,175,55,.06);flex-wrap:wrap}

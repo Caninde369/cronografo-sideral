@@ -38,6 +38,15 @@ export const MoonPanelMobile: React.FC<Props> = (p) => {
   const cycleYearOf = (d: Date) => (d < getYearCycleStart(d.getFullYear()) ? d.getFullYear() - 1 : d.getFullYear());
   const [year, setYear] = useState(() => cycleYearOf(new Date()));
   const [todaySig, setTodaySig] = useState(0);
+  const [focus, setFocus] = useState<{ date: Date; sig: number } | null>(null);
+  const goToDate = (v: string) => {
+    const [yy, mm, dd] = v.split('-').map(Number);
+    if (!yy || !mm || !dd) return;
+    const dt = new Date(yy, mm - 1, dd, 12);
+    const cy = cycleYearOf(dt);
+    if (cy !== year) { if (p.isFreeTier) { p.onOpenPaymentPlans?.(); return; } setYear(cy); }
+    setFocus(f => ({ date: dt, sig: (f?.sig ?? 0) + 1 }));
+  };
   const [more, setMore] = useState(false);
 
   const info = getMoonPhaseInfo(p.moonPhase);
@@ -79,12 +88,16 @@ export const MoonPanelMobile: React.FC<Props> = (p) => {
           </button>
         )}
         <div className="mlp-bar">
-          <span className="lbl">Ciclos lunares</span>
+          <span className="lbl">Ciclos</span>
           <span className="yr">
             <button type="button" aria-label="Ano anterior" onClick={() => { if (p.isFreeTier) { p.onOpenPaymentPlans?.(); return; } setYear(y => y - 1); }}>‹</button>
             <b>{year} · {String((year + 1) % 100).padStart(2, '0')}</b>
             <button type="button" aria-label="Próximo ano" onClick={() => { if (p.isFreeTier) { p.onOpenPaymentPlans?.(); return; } setYear(y => y + 1); }}>›</button>
           </span>
+          <label className="mini lcy-search" title="Buscar uma data" aria-label="Buscar uma data no calendário de ciclos">
+            <i className="ti ti-search" aria-hidden="true" />
+            <input type="date" onChange={e => e.target.value && goToDate(e.target.value)} />
+          </label>
           <button type="button" className="mini" onClick={() => { const y = cycleYearOf(new Date()); if (y !== year) setYear(y); setTodaySig(n => n + 1); }} title="Centralizar no dia de hoje">
             <i className="ti ti-focus-centered" aria-hidden="true" />Hoje
           </button>
@@ -113,6 +126,7 @@ export const MoonPanelMobile: React.FC<Props> = (p) => {
           isFreeTier={p.isFreeTier}
           onLocked={p.onOpenPaymentPlans}
           todaySignal={todaySig}
+          focus={focus}
         />
       </div>
     </div>
@@ -165,6 +179,7 @@ const MLP_CSS = `
 .mlp-bar .yr{display:flex;align-items:center;gap:1px}
 .mlp-bar .yr button{width:28px;height:28px;border-radius:50%;border:1px solid var(--line2);background:none;color:var(--fg);font-size:14px;line-height:1;cursor:pointer}
 .mlp-bar .yr b{font:500 12px 'DM Mono',ui-monospace,monospace;color:var(--hi);padding:0 4px;white-space:nowrap}
+.mlp .mini.lcy-search{width:34px;padding:0;justify-content:center}
 .mlp .mini{height:30px;display:inline-flex;align-items:center;gap:4px;padding:0 10px;border-radius:999px;border:1px solid var(--line3);background:none;color:var(--fg);font:600 11px 'DM Sans',sans-serif;cursor:pointer;white-space:nowrap}
 .mlp .mini i{font-size:14px}
 .mlp .more{position:relative}

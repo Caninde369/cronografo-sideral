@@ -480,6 +480,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
     );
     const [displayYear, setDisplayYear] = useState(currentDate.getFullYear());
     const [cycleTodaySig, setCycleTodaySig] = useState(0);
+    const [cycleFocus, setCycleFocus] = useState<{ date: Date; sig: number } | null>(null);
     const [displayMonth, setDisplayMonth] = useState(currentDate.getMonth());
     const [isEditingLocation, setIsEditingLocation] = useState(false);
     const [showMapSelector, setShowMapSelector] = useState(false);
@@ -1090,7 +1091,21 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                 {view === 'lunar' && lunarView === 'cycles' && (
                     <div className="flex flex-col gap-2">
                         {/* Ciclos lunares (versão B): 4 linhas por lunação, card do dia e leitura num pop-up */}
-                        <div className="flex justify-end sticky top-0 z-[5] -mt-1 pb-1">
+                        <div className="flex justify-end gap-2 sticky top-0 z-[5] -mt-1 pb-1">
+                            <label className="lcy-today lcy-search" title="Buscar uma data" aria-label="Buscar uma data no calendário de ciclos">
+                                <i className="ti ti-search" aria-hidden="true" /> Buscar data
+                                <input type="date" onChange={(e) => {
+                                    const v = e.target.value; if (!v) return;
+                                    const [yy, mm, dd] = v.split('-').map(Number);
+                                    const dt = new Date(yy, mm - 1, dd, 12);
+                                    const cy = dt < getYearCycleStart(yy) ? yy - 1 : yy;
+                                    if (cy !== displayYear) {
+                                        if (isFreeTier) { setShowUpgradeBanner(true); onOpenPaymentPlans?.(); return; }
+                                        setDisplayYear(cy);
+                                    }
+                                    setCycleFocus(f => ({ date: dt, sig: (f?.sig ?? 0) + 1 }));
+                                }} />
+                            </label>
                             <button
                                 type="button"
                                 className="lcy-today"
@@ -1119,6 +1134,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                             isFreeTier={isFreeTier}
                             onLocked={() => { setShowUpgradeBanner(true); onOpenPaymentPlans?.(); }}
                             todaySignal={cycleTodaySig}
+                            focus={cycleFocus}
                         />
                     </div>
                 )}
@@ -1266,7 +1282,7 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({
                                                             onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.3)'}
                                                             onMouseLeave={e => e.currentTarget.style.filter = 'none'}
                                                         >
-                                                            <span style={{ fontSize: 13, fontWeight: 600, color: isToday ? 'rgba(160,190,255,0.95)' : 'rgba(255,255,255,0.88)', lineHeight: 1 }}>
+                                                            <span style={{ fontSize: 17, fontWeight: 600, fontFamily: "'Cormorant Infant', 'Cormorant Garamond', Georgia, serif", color: isToday ? 'rgba(160,190,255,0.95)' : 'rgba(255,255,255,0.88)', lineHeight: 1 }}>
                                                             {solarDay}
                                                             </span>
                                                             <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.28)', whiteSpace: 'nowrap' }}>

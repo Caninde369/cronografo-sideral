@@ -64,6 +64,7 @@ body.is-mobile .app-stage{border:0!important;border-radius:0!important;box-shado
 body.is-mobile [data-time-controls]{left:0!important;right:0!important;bottom:var(--m-tabs)!important}
 body.is-mobile:not([data-mtab="ceu"]) [data-time-controls]{display:none!important}
 body.is-mobile [data-time-controls] [data-m-hide],body.is-mobile [data-time-controls] [data-tour="present"]{display:none!important}
+body.is-mobile [data-time-controls] [data-m-hide].tc-tl-show{display:flex!important;width:44px!important;height:44px!important;opacity:1;border-color:color-mix(in srgb,var(--m-fg) 30%,transparent)!important}
 body.is-mobile [data-tour="time-step"] > button,body.is-mobile [data-time-controls] [data-tour="zodiac-lock"]{width:44px!important;height:44px!important;min-width:44px}
 body.is-mobile [data-time-controls] [data-tour="play"].tcb-solid{background:transparent!important;color:var(--m-fg)!important;border-color:color-mix(in srgb,var(--m-fg) 45%,transparent)!important}
 body.is-mobile [data-time-controls] [data-tour="speed"]{height:44px!important}
@@ -84,9 +85,25 @@ body.is-mobile aside[data-dock] button[title="Fechar"],body.is-mobile aside[data
 body.is-mobile aside[data-dock="left"] [data-tour^="body-"]{flex:0 0 auto!important;min-height:46px;border-radius:12px}
 .m-seg{display:none}
 body.is-mobile .m-seg{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:10px 12px 8px;background:var(--m-bg);border:1px solid var(--m-line);border-bottom:0;border-radius:20px 20px 0 0}
-.m-seg button{height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--m-line);background:transparent;color:var(--m-fg);font:500 13px/1 'DM Sans',sans-serif;cursor:pointer}
-.m-seg button.is-on{background:var(--m-gold);border-color:transparent;color:#1A1408;font-weight:700}
+.m-seg > button,.m-dhead-chips button{height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--m-line);background:transparent;color:var(--m-fg);font:500 13px/1 'DM Sans',sans-serif;cursor:pointer}
+.m-seg > button.is-on,.m-dhead-chips button.is-on{background:var(--m-fg);border-color:var(--m-fg);color:var(--m-bg);font-weight:700}
 .m-seg-hint{flex-basis:100%;font:400 11.5px/1.2 'DM Sans',sans-serif;color:var(--m-mut)}
+/* cabeçalho das gavetas: título grande, opções e fechar no topo */
+body.is-mobile .m-dhead{flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:10px;padding:12px 12px 10px 16px}
+.m-dhead-row{display:flex;align-items:center;gap:8px}
+.m-dhead-row h3{flex:1;min-width:0;margin:0;font:italic 500 27px/1 'Cormorant Garamond',Georgia,serif;color:var(--m-fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-dhead-opt{width:42px;height:42px;flex:none;border-radius:50%;border:1px solid var(--m-line);background:transparent;color:var(--m-fg);display:flex;align-items:center;justify-content:center;font-size:19px;cursor:pointer}
+.m-dhead-chips{display:flex;gap:6px}
+body.is-mobile aside[data-dock="left"] .pf-head{display:none!important}
+body.is-mobile aside[data-dock="right"] .pf-head{height:62px!important;padding:8px 12px 8px 16px!important;gap:8px!important;border-radius:20px 20px 0 0}
+body.is-mobile aside[data-dock="right"] .pf-title{font-size:27px!important;line-height:1!important}
+body.is-mobile aside[data-dock="right"] .pf-menu{width:42px!important;height:42px!important;border-radius:50%!important;border:1px solid var(--m-line)!important}
+body.is-mobile aside[data-dock="right"] .pf-menu svg{width:19px!important;height:19px!important}
+/* divisões Planetas, Pontos lunares, Asteroides: mais grossas; chave fácil de tocar */
+body.is-mobile .cbp-sec{height:44px!important;margin:10px 0 4px!important;padding:0 6px 0 12px!important;border-radius:12px!important;border-color:var(--m-line)!important}
+body.is-mobile .cbp-sec span.font-bold{font-size:11.5px!important;opacity:.9!important}
+body.is-mobile .cbp-sec svg{width:16px!important;height:16px!important}
+body.is-mobile .cbp-sw{zoom:1.75;padding:6px 4px}
 
 /* ── barra de ferramentas → página "Mais" ── */
 body.is-mobile .qts-expand{display:none!important}

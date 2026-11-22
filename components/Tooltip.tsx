@@ -11,6 +11,8 @@ interface TooltipProps {
 
 export const Tooltip: React.FC<TooltipProps> = ({ text, visible, x, y, className }) => {
     if (!visible || !text) return null;
+    // Celular: sem tooltips
+    if (typeof document !== 'undefined' && document.body.classList.contains('is-mobile')) return null;
 
     // Calculate position immediately
     const tooltipWidth = 220; // Approximate max width

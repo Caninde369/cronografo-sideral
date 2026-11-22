@@ -7,7 +7,7 @@ import { Aspect, ASPECT_ORBS, getAspectTransitRange, formatDateCompact } from '.
 import { WidgetId } from '../App';
 import { SizeControl, PopupToggle, SegmentedControl, MicroToggle } from './Controls';
 import { toRoman } from '../lib/astrology/utils';
-import { PlanetSphere } from './CelestialBodyPanel';
+import { PlanetSphere, PanelSphereDefs } from './CelestialBodyPanel';
 import { Tooltip } from './Tooltip';
 import { CompactToggle } from './Controls';
 
@@ -616,6 +616,7 @@ export const AstroInfoPanel: React.FC<AstroInfoPanelProps> = ({
             data-tour="astros-panel"
             className="flex flex-col h-full font-manrope bg-transparent w-full min-w-0"
         >
+            <PanelSphereDefs />
                 {!hideHeader && (
                     <div className="px-3 py-2 flex justify-between items-center gap-2 flex-shrink-0 rounded-t-3xl">
                         <div className="flex items-center gap-2 min-w-0 flex-1">

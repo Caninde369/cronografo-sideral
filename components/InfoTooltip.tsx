@@ -131,6 +131,8 @@ const InfoTooltip: React.FC<InfoTooltipProps> = ({ model, anchor, onPointerInsid
   }, [model, anchor, isSheet, showDetails]);
 
   if (!model || !anchor || typeof document === 'undefined') return null;
+  // Celular: sem tooltips (pedido do Rafa em 22/11/2026)
+  if (document.body.classList.contains('is-mobile')) return null;
 
   const light = theme === 'light';
   const accent = model.accent;

@@ -106,9 +106,11 @@ interface Props {
   todaySignal?: number;
   /** rola até o ciclo de hoje ao montar */
   scrollOnMount?: boolean;
+  /** busca por data: rola até o dia e marca (sig muda a cada busca) */
+  focus?: { date: Date; sig: number } | null;
 }
 
-export const LunarCyclesGrid: React.FC<Props> = ({ year, latitude = 0, isLight = false, selected, onPickDate, isFreeTier, onLocked, todaySignal, scrollOnMount = true }) => {
+export const LunarCyclesGrid: React.FC<Props> = ({ year, latitude = 0, isLight = false, selected, onPickDate, isFreeTier, onLocked, todaySignal, scrollOnMount = true, focus }) => {
   const cycles = useMemo<LunarCycle[]>(() => getYearCycles(year, latitude), [year, latitude]);
   const today = useMemo(() => noon(new Date()), []);
   const todayRef = useRef<HTMLButtonElement | null>(null);
@@ -121,6 +123,19 @@ export const LunarCyclesGrid: React.FC<Props> = ({ year, latitude = 0, isLight =
   };
   useEffect(() => { if (scrollOnMount) requestAnimationFrame(() => scrollToToday(false)); /* eslint-disable-next-line */ }, [year]);
   useEffect(() => { if (todaySignal) scrollToToday(true); /* eslint-disable-next-line */ }, [todaySignal]);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [found, setFound] = useState<string | null>(null);
+  useEffect(() => {
+    if (!focus) return;
+    const key = `${focus.date.getFullYear()}-${focus.date.getMonth()}-${focus.date.getDate()}`;
+    setFound(key);
+    const t = window.setTimeout(() => {
+      const el = rootRef.current?.querySelector(`[data-day="${key}"]`) as HTMLElement | null;
+      if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 120);
+    const t2 = window.setTimeout(() => setFound(null), 4000);
+    return () => { window.clearTimeout(t); window.clearTimeout(t2); };
+  }, [focus?.sig]);
   useEffect(() => {
     if (!open) return;
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(null); };
@@ -129,7 +144,7 @@ export const LunarCyclesGrid: React.FC<Props> = ({ year, latitude = 0, isLight =
   }, [open]);
 
   return (
-    <div className={`lcy ${isLight ? 'is-light' : ''}`}>
+    <div ref={rootRef} className={`lcy ${isLight ? 'is-light' : ''}`}>
       <style>{LCY_CSS}</style>
       {cycles.map((cycle, ci) => {
         const next = cycles[ci + 1];
@@ -162,7 +177,8 @@ export const LunarCyclesGrid: React.FC<Props> = ({ year, latitude = 0, isLight =
                     const isSel = !!selected && sameDay(info.date, selected);
                     return (
                       <button key={k} type="button" ref={isToday ? todayRef : undefined}
-                        className={`lcy-d ${k === 0 ? 'is-phase' : ''} ${isToday ? 'is-today' : ''} ${isSel ? 'is-sel' : ''}`}
+                        data-day={`${info.date.getFullYear()}-${info.date.getMonth()}-${info.date.getDate()}`}
+                        className={`lcy-d ${k === 0 ? 'is-phase' : ''} ${isToday ? 'is-today' : ''} ${isSel ? 'is-sel' : ''} ${found === `${info.date.getFullYear()}-${info.date.getMonth()}-${info.date.getDate()}` ? 'is-found' : ''}`}
                         style={{ ['--tint' as any]: EC[s[3]].bg }}
                         aria-disabled={locked || undefined}
                         tabIndex={locked ? -1 : undefined}
@@ -243,6 +259,7 @@ export const LCY_CSS = `
 .lcy-d.is-phase{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fg) 42%,transparent)}
 .lcy-d.is-sel{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--fg) 70%,transparent)}
 .lcy-d.is-today{box-shadow:inset 0 0 0 2px var(--fg)}
+.lcy-d.is-found{box-shadow:inset 0 0 0 2px var(--fg),0 0 0 3px color-mix(in srgb,var(--fg) 35%,transparent)}
 .lcy-d:focus-visible{outline:2px solid var(--fg);outline-offset:1px}
 .lcy-sg{display:flex;align-items:center;gap:4px;font:600 10px 'DM Sans',sans-serif;letter-spacing:.04em;color:color-mix(in srgb,var(--fg) 88%,transparent);line-height:1}
 .lcy-sg i,.lcy-bot i,.lcy-dl .sy{font-style:normal;font-family:'Noto Sans Symbols 2','Segoe UI Symbol','Apple Symbols',serif}
@@ -263,6 +280,8 @@ body.is-mobile .lcy-h{padding:9px 10px}
 body.is-mobile .lcy-t b{font-size:19px}
 .lcy-today{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 13px 0 11px;border-radius:999px;border:1px solid rgba(160,154,168,.45);background:rgba(10,7,12,.85);color:inherit;font:600 11px 'DM Sans',sans-serif;letter-spacing:.06em;cursor:pointer}
 .lcy-today:hover{border-color:currentColor}
+.lcy-search{position:relative;overflow:hidden}
+.lcy-search input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;cursor:pointer;-webkit-appearance:none;appearance:none;font-size:16px;color-scheme:dark}
 .lcy-today i{font-size:15px}
 /* pop-up do dia */
 .lcy-pop-wrap{position:fixed;inset:0;z-index:12000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.55);--fg:#EDE9E3;--hi:#FAF6EE;--mut:#B9B4BE;--dim:#8a8590;--line:#221d27;--line2:#2a2430;--line3:#3a3340;--card:#0a070c}

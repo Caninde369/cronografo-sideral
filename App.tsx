@@ -489,12 +489,8 @@ export const App: React.FC = () => {
     const [houseCuspsLayout, setHouseCuspsLayout] = useState<'table' | 'cards'>('table');
     const [houseCuspsColumns, setHouseCuspsColumns] = useState<'1col' | '2col'>('1col');
     const [showCuspDegrees, setShowCuspDegrees] = useState(true);
-    const [statsLayout, setStatsLayout] = useState<'minimal' | 'ultraslim'>(() => {
-        if (typeof window !== 'undefined' && (window.innerHeight < 820 || window.innerWidth <= 1366)) {
-            return 'ultraslim';
-        }
-        return 'minimal';
-    });
+    // Resumo do céu abre sempre na versão completa (pedido do Rafa em 22/11/2026)
+    const [statsLayout, setStatsLayout] = useState<'minimal' | 'ultraslim'>('minimal');
     const [sectionOrder, setSectionOrder] = useState<('celestial' | 'chronograph' | 'details')[]>(['celestial', 'chronograph', 'details']);
     const [isHeliocentricMode, setIsHeliocentricMode] = useState(false);
 
@@ -701,9 +697,6 @@ export const App: React.FC = () => {
             let sidebarW = 0;
             if (isQuickToolsSidebarOpen) sidebarW += 64;
 
-            if (height < 820 || width <= 1366) {
-                setStatsLayout('ultraslim');
-            }
 
             setPanelStates(prev => {
                 const aspectsWidth = panelWidths.aspects || 245;
@@ -2383,6 +2376,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                     onToggleFullscreen={() => setImmersiveMode(!immersiveMode)}
                                     isFullscreen={immersiveMode}
                                     onOpenSettings={() => { setCalendarConfig({}); setShowCalendarPanel(true); }}
+                                    onOpenSolarCalendar={handleSolarCalendarClick}
                                     onOpenNatalSettings={() => setIsNatalSettingsOpen(true)}
                                     onOpenLunarCalendar={handleLunarCalendarClick}
                                     celestialData={celestialData}
@@ -2404,6 +2398,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                     onClearNatal={() => setNatalTime(null)}
                                     onLocationChange={(loc) => { setLocation({ latitude: loc.latitude, longitude: loc.longitude, displayName: loc.displayName }); }}
                                     onSaveMap={isMobile ? undefined : () => setShowSaveMapModal(true)}
+                                    pickerSaveMap={() => setShowSaveMapModal(true)}
                                     exportData={isMobile ? undefined : exportData}
                                     savedMaps={savedMaps}
                                     onDeleteMap={handleDeleteMap}
@@ -2447,10 +2442,30 @@ const handlePlanetClick = useCallback((id: string) => {
                         >
                             {/* Celular: a gaveta Astros alterna entre a lista de astros e o Resumo (Status) */}
                             {isMobile && (
-                                <div className="m-seg pointer-events-auto">
-                                    <button type="button" className={mSub === 'lista' ? 'is-on' : ''} onClick={() => setMSub('lista')}>Astros</button>
-                                    <button type="button" className={mSub === 'resumo' ? 'is-on' : ''} onClick={() => setMSub('resumo')}>Resumo do céu</button>
-                                    <span className="m-seg-hint">Toque: destaca · Segure: mostra ou esconde</span>
+                                <div className="m-seg m-dhead pointer-events-auto">
+                                    <div className="m-dhead-row">
+                                        <h3>{mSub === 'lista' ? 'Astros' : 'Resumo do céu'}</h3>
+                                        <button
+                                            type="button"
+                                            ref={mSub === 'lista' ? celestialMenuRef : statisticsMenuRef}
+                                            className="m-dhead-opt"
+                                            aria-label="Opções do painel"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (isFreeTier || isFreeTrial) { setShowPaymentPlansModal(true); return; }
+                                                const key = (mSub === 'lista' ? 'planets' : 'statistics') as any;
+                                                setActiveMenu(activeMenu === key ? null : key);
+                                            }}
+                                        >
+                                            <i className={`ti ${isFreeTier || isFreeTrial ? 'ti-lock' : 'ti-dots-vertical'}`} aria-hidden="true" />
+                                        </button>
+                                        <button type="button" className="cs-x" aria-label="Fechar" onClick={() => setMTab('ceu')}><i className="ti ti-x" aria-hidden="true" /></button>
+                                    </div>
+                                    <div className="m-dhead-chips">
+                                        <button type="button" className={mSub === 'lista' ? 'is-on' : ''} onClick={() => setMSub('lista')}>Astros</button>
+                                        <button type="button" className={mSub === 'resumo' ? 'is-on' : ''} onClick={() => setMSub('resumo')}>Resumo do céu</button>
+                                    </div>
+                                    {mSub === 'lista' && <span className="m-seg-hint">Toque: destaca · Segure: mostra ou esconde</span>}
                                 </div>
                             )}
                             {/* Painel ASTROS (Superior Esquerdo) */}
@@ -2466,7 +2481,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                         onFocus={() => focusPanel('celestial')}
                                         zIndex={panelStates.celestial.zIndex}
                                         width={dockPixelWidth}
-                                        menuButtonRef={celestialMenuRef}
+                                        menuButtonRef={isMobile ? undefined : celestialMenuRef}
                                         onMenuToggle={(e) => {
                                             e.stopPropagation();
                                             if (isFreeTier || isFreeTrial) {
@@ -2552,7 +2567,7 @@ const handlePlanetClick = useCallback((id: string) => {
                                         onFocus={() => focusPanel('statistics')}
                                         zIndex={panelStates.statistics.zIndex}
                                         width={dockPixelWidth}
-                                        menuButtonRef={statisticsMenuRef}
+                                        menuButtonRef={isMobile ? undefined : statisticsMenuRef}
                                         onMenuToggle={(e) => {
                                             e.stopPropagation();
                                             if (isFreeTier || isFreeTrial) {

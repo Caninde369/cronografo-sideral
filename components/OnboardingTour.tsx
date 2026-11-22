@@ -564,7 +564,11 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ open, onClose, onNeedSi
   const evaluate = useCallback((w: Wait): boolean => {
     const st = stateRef.current;
     if ('fn' in w) return w.fn(st);
-    if ('dom' in w) return isPresent(w.dom);
+    if ('dom' in w) {
+      // celular não mostra tooltips: a tarefa de "parar o mouse" segue sozinha
+      if (w.dom.includes('.itt') && isMobileNow()) return Date.now() - armedAtRef.current >= 2500;
+      return isPresent(w.dom);
+    }
     if ('domGone' in w) return !isPresent(w.domGone);
     if ('click' in w) return clickedRef.current;
     if ('delay' in w) return Date.now() - armedAtRef.current >= w.delay;

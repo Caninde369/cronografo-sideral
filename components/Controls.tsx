@@ -275,6 +275,8 @@ export const TimeControls: React.FC<{
     onToggleFullscreen: () => void;
     isFullscreen: boolean;
     onOpenSettings: () => void;
+    /** abre o calendário completo na visão Solar (ao tocar em Dia solar) */
+    onOpenSolarCalendar?: () => void;
     onOpenNatalSettings: () => void;
     onOpenLunarCalendar: () => void;
     celestialData: any;
@@ -293,6 +295,8 @@ export const TimeControls: React.FC<{
     onLocationChange?: (loc: { latitude: number; longitude: number; displayName: string }) => void;
     /** Menu ⋯ ao lado do +: salvar e exportar o mapa */
     onSaveMap?: () => void;
+    /** salvar mapa a partir do seletor de data (vale também no celular) */
+    pickerSaveMap?: () => void;
     exportData?: any;
     savedMaps?: any[];
     onDeleteMap?: (id: string) => void;
@@ -311,6 +315,7 @@ export const TimeControls: React.FC<{
     onToggleFullscreen,
     isFullscreen,
     onOpenSettings,
+    onOpenSolarCalendar,
     onOpenNatalSettings,
     onOpenLunarCalendar,
     celestialData,
@@ -327,6 +332,7 @@ export const TimeControls: React.FC<{
     onClearNatal,
     onLocationChange,
     onSaveMap,
+    pickerSaveMap,
     savedMaps,
     onDeleteMap,
     onUpdateMap,
@@ -739,6 +745,18 @@ export const TimeControls: React.FC<{
                         savedMaps={savedMaps}
                         onDeleteMap={onDeleteMap}
                         onUpdateMap={onUpdateMap}
+                        onSaveMap={(pickerSaveMap || onSaveMap) ? (date, loc) => {
+                            if (isFreeTier) {
+                                const { startDate, endDate } = getFreeTierSolarYearBounds(new Date());
+                                if (date.getTime() < startDate.getTime() || date.getTime() > endDate.getTime()) { setShowPicker(false); onOpenPaymentPlans?.(); return; }
+                            }
+                            setIsPlaying(false);
+                            onSetRealTime(false);
+                            onTimeChange(date);
+                            if (onLocationChange && loc && loc.displayName !== location?.displayName) onLocationChange(loc);
+                            setShowPicker(false);
+                            window.setTimeout(() => (pickerSaveMap || onSaveMap)?.(), 60);
+                        } : undefined}
                         onClose={() => setShowPicker(false)}
                         onLocationPick={(loc) => { if (onLocationChange && loc.displayName !== location?.displayName) onLocationChange(loc); }}
                         onConfirm={(date, loc) => {
@@ -815,7 +833,7 @@ export const TimeControls: React.FC<{
                         isLight={isLight}
                         isFreeTier={isFreeTier}
                         onOpenPaymentPlans={onOpenPaymentPlans}
-                        onOpenSolarCalendar={() => setShowSolarCal(true)}
+                        onOpenSolarCalendar={() => (onOpenSolarCalendar ? onOpenSolarCalendar() : setShowSolarCal(true))}
                         headerRight={
                             <div className="flex items-end gap-1.5 select-none">
                                 <div className="flex flex-col items-end gap-1">
@@ -859,9 +877,9 @@ export const TimeControls: React.FC<{
                                             />
                                         </div>
                                         <div className="flex items-baseline">
-                                            <UnitCell value={hourVal} isSelected={selectedStampUnit === 'h'} onClick={() => setSelectedStampUnit(prev => prev === 'h' ? null : 'h')} onNudge={(dir) => nudge('h', dir)} isLight={isLight} textSizeClass="text-[22px]" fontFamily="'Cormorant Garamond', Georgia, serif" italic fixedDigits />
-                                            <span className={`${isLight ? 'text-neutral-400' : 'text-white/45'} text-[20px]`} style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic' }}>:</span>
-                                            <UnitCell value={minVal} isSelected={selectedStampUnit === 'i'} onClick={() => setSelectedStampUnit(prev => prev === 'i' ? null : 'i')} onNudge={(dir) => nudge('i', dir)} isLight={isLight} textSizeClass="text-[22px]" fontFamily="'Cormorant Garamond', Georgia, serif" italic fixedDigits />
+                                            <UnitCell value={hourVal} isSelected={selectedStampUnit === 'h'} onClick={() => setSelectedStampUnit(prev => prev === 'h' ? null : 'h')} onNudge={(dir) => nudge('h', dir)} isLight={isLight} textSizeClass="text-[22px]" fontFamily="'Cormorant Infant', 'Cormorant Garamond', Georgia, serif" fixedDigits />
+                                            <span className={`${isLight ? 'text-neutral-400' : 'text-white/45'} text-[20px]`} style={{ fontFamily: "'Cormorant Infant', 'Cormorant Garamond', Georgia, serif", fontWeight: 600 }}>:</span>
+                                            <UnitCell value={minVal} isSelected={selectedStampUnit === 'i'} onClick={() => setSelectedStampUnit(prev => prev === 'i' ? null : 'i')} onNudge={(dir) => nudge('i', dir)} isLight={isLight} textSizeClass="text-[22px]" fontFamily="'Cormorant Infant', 'Cormorant Garamond', Georgia, serif" fixedDigits />
                                         </div>
                                     </div>
                                 </div>
@@ -932,7 +950,7 @@ export const TimeControls: React.FC<{
                         <button
                             data-m-hide=""
                             onClick={() => setIsTimelineMinimized(!isTimelineMinimized)}
-                            className={`tcb tcb-ghost ${isLight ? 'tcb-l' : ''} flex items-center justify-center gap-1.5 ${showTimelineText ? 'px-2' : 'w-9 px-0'} h-9 rounded-full text-xs font-bold active:scale-95 cursor-pointer shrink-0`}
+                            className={`tcb tcb-ghost ${isLight ? 'tcb-l' : ''} ${isTimelineMinimized ? 'tc-tl-show' : ''} flex items-center justify-center gap-1.5 ${showTimelineText ? 'px-2' : 'w-9 px-0'} h-9 rounded-full text-xs font-bold active:scale-95 cursor-pointer shrink-0`}
                             title={isTimelineMinimized ? "Ver linha do tempo" : "Ocultar linha do tempo"}
                         >
                             <i className={`ti ${isTimelineMinimized ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm shrink-0`} />
@@ -1171,7 +1189,7 @@ const UnitCell: React.FC<{
                 isSelected 
                     ? (isLight ? 'text-neutral-900 font-bold' : 'text-white font-bold') 
                     : (isLight ? 'text-neutral-800 font-normal' : 'text-white/80 font-normal')
-            }`} style={fontFamily ? { fontFamily, fontStyle: italic ? 'italic' : undefined, fontWeight: italic ? 500 : 400 } : undefined}>{fixedDigits
+            }`} style={fontFamily ? { fontFamily, fontStyle: italic ? 'italic' : undefined, fontWeight: italic ? 500 : fontFamily.includes('Infant') ? 600 : 400 } : undefined}>{fixedDigits
                 ? String(value).split('').map((ch, i) => <span key={i} style={{ display: 'inline-block', width: '0.56em', textAlign: 'center' }}>{ch}</span>)
                 : value}</span>
         </div>

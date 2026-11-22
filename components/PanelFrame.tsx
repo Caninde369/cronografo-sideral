@@ -135,7 +135,7 @@ export const PanelFrame: React.FC<PanelFrameProps> = ({
             {/* Header / Bar - Ultra-sleek & Compact */}
             <div
                 onDoubleClick={handleResetLayout}
-                className={`flex items-center gap-1.5 px-2.5 py-0.5 border-b cursor-default select-none backdrop-blur-md shrink-0 relative z-10 transition-colors ${
+                className={`pf-head flex items-center gap-1.5 px-2.5 py-0.5 border-b cursor-default select-none backdrop-blur-md shrink-0 relative z-10 transition-colors ${
                     isLight 
                         ? 'border-[#8b8370]/20 bg-[#8b8370]/[0.08] text-amber-950' 
                         : 'border-white/10 bg-white/[0.04] text-brand-text'
@@ -146,7 +146,7 @@ export const PanelFrame: React.FC<PanelFrameProps> = ({
                     Peso 600 e não 500: as hastes finas da Playfair somem sobre #080612.
                     Nunca dourado — o ouro desce um nível e marca os rótulos de seção. */}
                 <span
-                    className="truncate flex-grow"
+                    className="pf-title truncate flex-grow"
                     style={{
                         fontFamily: "'Cormorant Garamond', Georgia, serif",
                         fontStyle: 'italic',
@@ -175,7 +175,7 @@ export const PanelFrame: React.FC<PanelFrameProps> = ({
                             onMenuToggle(e);
                         }}
                         style={{ width: `${btnSize}px`, height: `${btnSize}px` }}
-                        className={`rounded flex items-center justify-center transition-colors cursor-pointer relative ${
+                        className={`pf-menu rounded flex items-center justify-center transition-colors cursor-pointer relative ${
                             isMenuOpen
                                 ? (isLight ? 'bg-[#8b8370]/25 text-amber-950 font-bold' : 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/30')
                                 : isLocked

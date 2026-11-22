@@ -962,11 +962,21 @@ export const SolarScrubber: React.FC<SolarScrubberProps> = ({
                     <CurrentSignIcon style={{ width: 20, height: 20, color: 'currentColor', display: 'block' }} />
                   </span>
                 )}
-                <span className="text-[22px] leading-none">{daysIntoSign}</span>
+                <span className="text-[22px] leading-none" style={{ fontFamily: "'Cormorant Infant', 'Cormorant Garamond', Georgia, serif", fontStyle: 'normal', fontWeight: 600 }}>{daysIntoSign}</span>
                 <span className="text-[22px] leading-none">{currentSign.name}</span>
-                <i className={`ti ti-chevron-up text-[11px] ${isLight ? 'text-neutral-500' : 'text-white/50'}`} aria-hidden="true" />
               </span>
             </button>
+            {onMinimizeTimeline && (
+              <button
+                type="button"
+                className={`scrub-min self-end mb-1 w-7 h-7 rounded-full flex items-center justify-center cursor-pointer transition-colors border ${isLight ? 'border-black/15 text-neutral-600 hover:bg-black/[0.05]' : 'border-white/20 text-white/70 hover:bg-white/[0.06]'}`}
+                onClick={onMinimizeTimeline}
+                title="Minimizar a linha do tempo"
+                aria-label="Minimizar a linha do tempo"
+              >
+                <i className="ti ti-chevron-down text-[14px]" aria-hidden="true" />
+              </button>
+            )}
 
             {isFreeTier && (
               <button
