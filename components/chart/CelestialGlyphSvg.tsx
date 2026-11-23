@@ -58,17 +58,17 @@ export const CelestialGlyphSvg: React.FC<CelestialGlyphSvgProps> = ({
         <svg {...svgProps}>
           {/* Horns */}
           <path
-            d="M7.5 5.5 C9 3.5 15 3.5 16.5 5.5"
+            d="M8 2.6 C8.6 5.6 15.4 5.6 16 2.6"
             stroke="currentColor"
             strokeWidth="1.8"
             strokeLinecap="round"
           />
           {/* Head circle */}
-          <circle cx="12" cy="11" r="4.2" stroke="currentColor" strokeWidth="1.8" />
+          <circle cx="12" cy="10.6" r="4" stroke="currentColor" strokeWidth="1.8" />
           {/* Stem */}
-          <line x1="12" y1="15.2" x2="12" y2="22" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <line x1="12" y1="14.6" x2="12" y2="21.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           {/* Crossbar */}
-          <line x1="8.5" y1="18.5" x2="15.5" y2="18.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <line x1="8.5" y1="18.2" x2="15.5" y2="18.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         </svg>
       );
 
@@ -110,14 +110,14 @@ export const CelestialGlyphSvg: React.FC<CelestialGlyphSvgProps> = ({
         <svg {...svgProps}>
           {/* Crescent & arm */}
           <path
-            d="M6 8 C6 5.2 8.5 3.8 11 3.8 C13.5 3.8 14 5.8 14 7.8 C14 11.5 7 13 7 15 H18.5"
+            d="M5.8 5.2 C9 5.2 10.6 7.2 10.2 9.8 C9.9 12 8.4 13.6 6.6 15 H18.5"
             stroke="currentColor"
             strokeWidth="1.8"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
           {/* Vertical stem */}
-          <line x1="14" y1="9" x2="14" y2="21" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <line x1="15" y1="4.5" x2="15" y2="21" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         </svg>
       );
 
@@ -126,11 +126,11 @@ export const CelestialGlyphSvg: React.FC<CelestialGlyphSvgProps> = ({
       return (
         <svg {...svgProps}>
           {/* Cross top */}
-          <line x1="6.5" y1="4.5" x2="13.5" y2="4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          <line x1="10" y1="2" x2="10" y2="15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <line x1="6" y1="5.2" x2="12.5" y2="5.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <line x1="9.2" y1="2.2" x2="9.2" y2="14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           {/* Lower loop */}
           <path
-            d="M10 12.5 C10 10.2 13 8.8 15.5 8.8 C18 8.8 19.5 10.8 19.5 13 C19.5 16.5 16 20 10 20 C7.5 20 5.5 18.5 5.5 16.5"
+            d="M9.2 11 C10.2 9.3 12 8.6 13.6 8.6 C15.9 8.6 17.2 10.2 17.2 12 C17.2 14.4 14.8 15.8 14.8 18.2 C14.8 19.8 15.8 20.8 17.2 20.8"
             stroke="currentColor"
             strokeWidth="1.8"
             strokeLinecap="round"
