@@ -393,7 +393,7 @@ const CSS = `
 /* Celular: 8 colunas (0/α μ Ω + 7 dias), legenda escondida, marcas numa linha embaixo, nada passa da largura */
 @media (max-width:639px){
   .awv{height:auto;overflow:visible;max-width:100%}
-  .awv-grid{height:auto;grid-template-columns:24px repeat(7,minmax(0,1fr));grid-template-rows:auto repeat(3,auto) auto auto;column-gap:4px;row-gap:6px}
+  .awv-grid{height:auto;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:auto repeat(3,auto) auto auto;column-gap:4px;row-gap:6px}
   .awv-cell{height:auto}
   .awv-cell .awv-card{height:auto;width:100%}
   .awv-zero .awv-card{width:auto}
@@ -404,7 +404,7 @@ const CSS = `
   .awv-day{flex-direction:column;gap:1px;padding:2px 0}
   .awv-day .g{font-size:12px}
   .awv-day .d{font-size:8px;letter-spacing:.04em}
-  .awv-zero .awv-card{height:34px}
+  .awv-zero .awv-card{height:auto;width:100%}
   .awv-zero-words{display:none}
   .awv-sym{font-size:18px}
   .awv-kw{font-size:6px;letter-spacing:.04em;padding:0 1px}
