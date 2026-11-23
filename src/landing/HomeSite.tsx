@@ -11,6 +11,7 @@ import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LANDING, waLink } from './config';
 import { Starfield } from './Starfield';
+import { CatalogDialog } from './CatalogDialog';
 import { auth, googleProvider, signInWithPopup, syncUserProfile } from '../../lib/firebase';
 
 const HeroClock = lazy(() => import('./HeroClock'));
@@ -137,6 +138,7 @@ const PlansDialog: React.FC<{ open: boolean; onClose: () => void; onFree: () => 
 export const HomeSite: React.FC = () => {
   const [login, setLogin] = useState(false);
   const [plans, setPlans] = useState(false);
+  const [catalog, setCatalog] = useState(false);
 
   // Quem já está logado vai direto ao app
   useEffect(() => {
@@ -162,7 +164,10 @@ export const HomeSite: React.FC = () => {
 
       <header className="hs-top">
         <span className="hs-top-logo"><CometLogo /></span>
-        <button className="hs-enter" onClick={() => setLogin(true)}>Entrar</button>
+        <div className="hs-top-actions">
+          <button className="hs-enter hs-enter-cat" onClick={() => setCatalog(true)}>Atendimentos</button>
+          <button className="hs-enter" onClick={() => setLogin(true)}>Entrar</button>
+        </div>
       </header>
 
       <main className="hs-main">
@@ -176,6 +181,7 @@ export const HomeSite: React.FC = () => {
             <div className="hs-ctas">
               <button className="hs-pill hs-pill-solid" onClick={() => setLogin(true)}>Testar gratuitamente <i className="ti ti-arrow-right" aria-hidden="true" /></button>
               <button className="hs-pill hs-pill-goldfill" onClick={() => setPlans(true)}>Quero ser membro fundador</button>
+              <button className="hs-pill" onClick={() => setCatalog(true)}><i className="ti ti-book-2" aria-hidden="true" />Ver atendimentos</button>
             </div>
             <Social />
           </motion.div>
@@ -193,6 +199,7 @@ export const HomeSite: React.FC = () => {
 
       <LoginDialog open={login} onClose={() => setLogin(false)} />
       <PlansDialog open={plans} onClose={() => setPlans(false)} onFree={openFree} />
+      <CatalogDialog open={catalog} onClose={() => setCatalog(false)} />
     </div>
   );
 };
@@ -225,6 +232,9 @@ html,body{background:#040004;margin:0}
 
 .hs-top{position:absolute;top:0;left:0;right:0;z-index:5;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));align-items:center;padding-top:40px;pointer-events:none}
 .hs-enter{grid-column:6;justify-self:start}
+.hs-top-actions{grid-column:5 / span 2;justify-self:end;display:flex;gap:10px;padding-right:40px}
+.hs-top-actions .hs-enter{grid-column:auto}
+@media (max-width:640px){.hs-enter-cat{display:none!important}}
 .hs-top>*{pointer-events:auto}
 .hs-top-logo{display:none}
 .hs-panel-logo,.hs-top-logo .hs-logo{height:36px;display:flex;align-items:center}
@@ -347,6 +357,7 @@ html,body{background:#040004;margin:0}
 @media (max-width:1180px){
   .hs-main,.hs-top{grid-template-columns:minmax(24px,.6fr) minmax(250px,2.2fr) 5fr minmax(24px,.6fr)}
   .hs-enter{grid-column:3;justify-self:end}
+  .hs-top-actions{grid-column:3;padding-right:0}
   .hs-clock{grid-column:3}
   .hs-cards{grid-template-columns:1fr 1fr}
   .hs-card-founder{grid-column:1 / -1;order:-1}
