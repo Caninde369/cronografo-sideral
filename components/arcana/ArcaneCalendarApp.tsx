@@ -475,28 +475,14 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
             </div>
           )}
 
-          {/* ROW 2: Consulente Details Row */}
-          <section className={`shrink-0 bg-zinc-950 border border-zinc-800 rounded-2xl p-2 sm:px-3 sm:py-1.5 shadow-lg ${activeTab === 'calculadora' ? 'hidden sm:block' : ''}`}>
-            <div className="flex flex-wrap items-center justify-start gap-2 min-w-0">
-              
-              {/* Consulente Selector + Arcano Badge */}
-              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
-                <div className="w-6 h-8 rounded overflow-hidden border border-zinc-700 shrink-0 bg-black">
-                  <img
-                    src={personalArcanoObj.image}
-                    alt=""
-                    referrerPolicy="no-referrer"
-                    crossOrigin="anonymous"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      if (personalArcanoObj.backupImage && e.currentTarget.src !== personalArcanoObj.backupImage) {
-                        e.currentTarget.src = personalArcanoObj.backupImage;
-                      }
-                    }}
-                  />
-                </div>
-
-                {/* Consulente: lista com trocar, editar, excluir e cadastrar */}
+          {/* ROW 2: consulente (legível em chamada de vídeo) */}
+          <section className={`arc-person shrink-0 bg-zinc-950 border border-zinc-800 rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 ${activeTab === 'calculadora' ? 'hidden sm:block' : ''}`}>
+            <div className="flex flex-wrap items-center gap-3 min-w-0">
+              <div className="arc-person-thumb shrink-0">
+                <img src={personalArcanoObj.image} alt="" referrerPolicy="no-referrer" crossOrigin="anonymous"
+                  onError={(e) => { if (personalArcanoObj.backupImage && e.currentTarget.src !== personalArcanoObj.backupImage) e.currentTarget.src = personalArcanoObj.backupImage; }} />
+              </div>
+              <div className="arc-person-pick min-w-0">
                 <SlimPersonManager
                   persons={persons}
                   selectedPersonId={selectedPersonId}
@@ -507,100 +493,36 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                   onRemovePerson={handleRemovePerson}
                   onEditPerson={handleEditPerson}
                 />
-
-                <span className="text-[10px] font-sans bg-zinc-900 text-zinc-300 px-2 py-1 rounded-lg border border-zinc-800 font-bold whitespace-nowrap shrink-0">
-                  Arcano <span className="font-playfair text-amber-300">{toRoman(personalArcaneId)}</span> <span className="hidden xs:inline sm:inline">({personalArcanoObj.name})</span>
-                </span>
               </div>
-
-              {/* Stats pill inline */}
-              <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-sans text-zinc-300 bg-zinc-900/80 border border-zinc-800 px-2.5 py-1 rounded-lg shrink-0 whitespace-nowrap">
-                <span>Nasc: <strong className="text-white font-semibold">{formatDate(activePerson.birthDate)}</strong></span>
-                <span className="text-zinc-700">•</span>
-                <span>Dias: <strong className="text-amber-400 font-bold">{res.totalDays}d</strong></span>
-                <span className="text-zinc-700">•</span>
-                <span>Idade: <strong className="text-white font-semibold">{(res.totalDays/365.25).toFixed(1)}a</strong></span>
-              </div>
-
-              <button type="button" className="arc-novo ml-auto" onClick={() => setAddSignal(n => n + 1)} title="Cadastrar nova pessoa">
-                <UserPlus size={13} aria-hidden="true" /> Novo
+              <dl className="arc-person-stats">
+                <div><dt>Arcano pessoal</dt><dd><span className="arc-roman">{toRoman(personalArcaneId)}</span> {personalArcanoObj.name}</dd></div>
+                <div><dt>Nascimento</dt><dd className="mono">{formatDate(activePerson.birthDate)}</dd></div>
+                <div><dt>Dias vividos</dt><dd className="mono">{res.totalDays}</dd></div>
+                <div><dt>Idade</dt><dd className="mono">{(res.totalDays / 365.25).toFixed(1).replace('.', ',')} anos</dd></div>
+              </dl>
+              <button type="button" className="arc-novo arc-novo-round ml-auto" onClick={() => setAddSignal(n => n + 1)} title="Cadastrar nova pessoa" aria-label="Cadastrar nova pessoa">
+                <UserPlus size={18} aria-hidden="true" />
               </button>
-
             </div>
           </section>
 
-          {/* ROW 3: Journey Progress Bar & Date Navigator Bar */}
-          <section className={`shrink-0 bg-zinc-950 border border-zinc-800 rounded-2xl p-2.5 sm:px-3.5 sm:py-2 ${activeTab === 'calculadora' ? 'hidden sm:block' : ''}`}>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3">
-              
-              <div className="flex-1 min-w-0 bg-zinc-900/70 border border-zinc-800/80 rounded-xl px-2.5 sm:px-3 py-1.5 flex flex-col justify-center gap-1">
-                <div className="flex justify-between items-center text-[10px] font-sans text-zinc-400">
-                  <span className="truncate mr-1">Faltam <strong className="text-amber-400 font-bold">{daysRemainingInJourney}</strong> dias para completar jornada</span>
-                  <span className="text-amber-400 font-sans font-bold shrink-0">{journeyProgress.toFixed(1)}%</span>
-                </div>
-                <div className="w-full bg-zinc-950 rounded-full h-1.5 overflow-hidden border border-zinc-800">
-                  <div 
-                    className="arc-progress bg-gradient-to-r from-amber-500 to-yellow-400 h-full rounded-full transition-all duration-500" 
-                    style={{ width: `${journeyProgress}%` }}
-                  />
-                </div>
+          {/* ROW 3: jornada + data de leitura */}
+          <section className={`arc-journey shrink-0 bg-zinc-950 border border-zinc-800 rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 ${activeTab === 'calculadora' ? 'hidden sm:block' : ''}`}>
+            <div className="arc-jtop">
+              <div className="arc-jnums">
+                <div className="arc-jbig"><b>{daysRemainingInJourney}</b><span>dias para<br />concluir a jornada</span></div>
+                <div className="arc-jbig r"><b>{res.jornada}</b><span>jornadas<br />completas</span></div>
               </div>
-
-              {/* Celular: navegação de data própria (setas grandes + seletor nativo) */}
-              <ArcaneDateNav className="sm:hidden" value={readDate} onChange={setReadDate} />
-
-              {/* Time/Date Navigator */}
-              <div className="hidden sm:flex items-center justify-end gap-2 shrink-0">
-                <div className="flex items-center gap-1.5 bg-zinc-900 border border-amber-500/30 px-2 sm:px-2.5 py-1 rounded-xl">
-                  <CalendarIcon size={14} className="text-amber-400 shrink-0" />
-                  <input
-                    id="input-read-date"
-                    type="date"
-                    value={readDate}
-                    onChange={(e) => setReadDate(e.target.value)}
-                    className="bg-transparent text-white font-sans text-xs font-bold outline-none cursor-pointer w-[118px] sm:w-auto"
-                  />
-                </div>
-
-                <div className="flex items-center gap-0.5 sm:gap-1 bg-zinc-900 border border-zinc-800 p-0.5 sm:p-1 rounded-xl">
-                  <button 
-                    onClick={() => shiftDate(-22)} 
-                    title="-22 dias" 
-                    className="p-1 hover:bg-zinc-800 text-zinc-300 rounded-lg transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center"
-                  >
-                    <ChevronsLeft size={13}/>
-                  </button>
-                  <button 
-                    onClick={() => shiftDate(-1)} 
-                    title="-1 dia" 
-                    className="p-1 hover:bg-zinc-800 text-zinc-300 rounded-lg transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center"
-                  >
-                    <ChevronLeft size={13}/>
-                  </button>
-                  <button 
-                    id="btn-date-today"
-                    onClick={setDateToToday} 
-                    className="px-2 py-0.5 text-[10px] font-sans font-bold bg-amber-500/25 hover:bg-amber-500/40 text-amber-300 border border-amber-500/40 rounded-lg transition-colors uppercase min-h-[28px] flex items-center"
-                  >
-                    HOJE
-                  </button>
-                  <button 
-                    onClick={() => shiftDate(1)} 
-                    title="+1 dia" 
-                    className="p-1 hover:bg-zinc-800 text-zinc-300 rounded-lg transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center"
-                  >
-                    <ChevronRight size={13}/>
-                  </button>
-                  <button 
-                    onClick={() => shiftDate(22)} 
-                    title="+22 dias" 
-                    className="p-1 hover:bg-zinc-800 text-zinc-300 rounded-lg transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center"
-                  >
-                    <ChevronsRight size={13}/>
-                  </button>
-                </div>
+              <div className="arc-jnav">
+                <ArcaneDateNav value={readDate} onChange={setReadDate} size="lg" className="max-sm:!hidden" />
+                <ArcaneDateNav value={readDate} onChange={setReadDate} className="sm:!hidden" />
               </div>
-
+            </div>
+            <div className="arc-jbarrow">
+              <div className="arc-jbar" role="progressbar" aria-valuenow={Math.round(journeyProgress)} aria-valuemin={0} aria-valuemax={100} aria-label="Jornada">
+                <i style={{ width: `${journeyProgress}%` }} />
+              </div>
+              <span className="arc-jpct">{journeyProgress.toFixed(1).replace('.', ',')}%</span>
             </div>
           </section>
 
@@ -611,8 +533,7 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                 {arcanePillars.map((pillar, idx) => (
                   <div
                     key={idx}
-                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-3 flex flex-col group overflow-y-auto min-h-[440px]"
-                    style={{ scrollbarGutter: 'stable' }}
+                    className="arc-pillar bg-zinc-950 border border-zinc-800 rounded-2xl p-3 flex flex-col group min-h-[440px]"
                   >
                     {/* Pillar Header */}
                     <div className="shrink-0 pb-1.5 mb-1.5 border-b border-zinc-800 flex items-start justify-between">
@@ -641,9 +562,9 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
                         context: pillar.label,
                         value: pillar.val
                       })}
-                      className="arc-cardfill w-full my-1.5 cursor-pointer rounded-xl overflow-hidden border border-zinc-800/80 hover:border-amber-500/50 shadow-xl"
+                      className="arc-cardfill w-full my-2 cursor-pointer"
                     >
-                      <div className="absolute inset-0 overflow-hidden bg-black">
+                      <div className="arc-cardbox">
                         <img
                           src={pillar.arcano.image}
                           alt={pillar.arcano.name}

@@ -32,18 +32,6 @@ const weekdayOf = (iso: string) => { const d = new Date(`${iso}T12:00:00`); retu
 
 export const ArcaneMobileHome: React.FC<Props> = (p) => {
   const cards = [{ k: 'Ano', ...p.ano }, { k: 'Mês', ...p.mes }, { k: 'Dia', ...p.dia }];
-  // Ano arcano muda no aniversário: ‹‹‹ / ››› pulam para o aniversário anterior / seguinte
-  const yearJump = (dir: -1 | 1) => {
-    const [by, bm, bd] = p.birthDate.split('-').map(Number);
-    const r = new Date(`${p.readDate}T12:00:00`);
-    if (!by || isNaN(r.getTime())) return;
-    let y = r.getFullYear();
-    const bday = (yy: number) => new Date(yy, bm - 1, bd, 12);
-    if (bday(y) > r) y -= 1;            // início do ano arcano atual
-    const t = bday(y + dir);
-    const p2 = (n: number) => String(n).padStart(2, '0');
-    p.onReadDate(`${t.getFullYear()}-${p2(t.getMonth() + 1)}-${p2(t.getDate())}`);
-  };
   return (
     <div className="amh">
       <style>{CSS}</style>
@@ -67,8 +55,7 @@ export const ArcaneMobileHome: React.FC<Props> = (p) => {
         </div>
       </section>
 
-      <ArcaneDateNav className="amh-datenav" value={p.readDate} onChange={p.onReadDate} label="Data de leitura" bare
-        onYearPrev={() => yearJump(-1)} onYearNext={() => yearJump(1)} />
+      <ArcaneDateNav className="amh-datenav" value={p.readDate} onChange={p.onReadDate} label="Data de leitura" />
 
       <section className="amh-table" aria-label="Leitura">
         {cards.map(c => (

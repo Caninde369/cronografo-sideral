@@ -76,9 +76,45 @@ export const ARCANE_SKIN = `
 
 /* Cartas ocupando o bloco inteiro, sem tremer */
 /* tamanho fixo pela largura da coluna: as quatro cartas sempre iguais, sem pular ao trocar a data */
-.arc-skin .arc-cardfill{position:relative;flex:none;width:100%;aspect-ratio:2/3.3;max-height:62vh;contain:layout paint}
-.arc-skin .arc-desc{flex:1 1 0;min-height:0;overflow-y:auto;scrollbar-width:thin}
+.arc-skin .arc-cardfill{position:relative;flex:1 1 0;min-height:180px;width:100%;container-type:size;display:flex;align-items:center;justify-content:center}
+.arc-skin .arc-cardbox{position:relative;width:min(100cqw,calc(100cqh * 2 / 3.3));aspect-ratio:2/3.3;border-radius:14px;overflow:hidden;border:1px solid var(--a-line2);background:#000;box-shadow:0 18px 40px -16px rgba(0,0,0,.8)}
+.arc-skin .arc-cardfill:hover .arc-cardbox{border-color:var(--a-fg)}
+.arc-skin .arc-desc{flex:0 1 auto;min-height:0;overflow-y:auto;scrollbar-width:thin}
 .arc-skin .arc-cardfill img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;transform:none!important;transition:none!important;backface-visibility:hidden}
+
+/* Início no computador: tudo legível numa chamada de vídeo */
+.arc-skin .arc-person-thumb{width:40px;height:62px;border-radius:7px;overflow:hidden;border:1px solid var(--a-line2);background:#000}
+.arc-skin .arc-person-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.arc-skin .arc-person-pick #btn-consulentes-list-toggle{height:46px;padding:0 16px;border-radius:999px;font-size:17px;gap:10px}
+.arc-skin .arc-person-pick #btn-consulentes-list-toggle span{max-width:260px!important;font-weight:600}
+.arc-skin .arc-person-stats{display:flex;flex-wrap:wrap;gap:6px 22px;margin:0 0 0 4px;min-width:0}
+.arc-skin .arc-person-stats dt{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--a-dim);font-weight:600;margin-bottom:3px;white-space:nowrap}
+.arc-skin .arc-person-stats dd{margin:0;font-size:17px;font-weight:500;color:var(--a-hi);white-space:nowrap}
+.arc-skin .arc-person-stats dd.mono{font-family:'DM Mono',ui-monospace,monospace;font-size:17px}
+.arc-skin .arc-person-stats .arc-roman{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:22px;margin-right:3px}
+.arc-skin .arc-person .arc-novo-round{width:46px;height:46px;padding:0;border-radius:50%;justify-content:center;flex:none}
+.arc-skin .arc-jtop{display:flex;align-items:center;gap:14px;min-width:0}
+.arc-skin .arc-jnums{flex:1 1 auto;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.arc-skin .arc-jnav{flex:none;min-width:0}
+.arc-skin .arc-jbarrow{display:flex;align-items:center;gap:12px;margin-top:12px}
+.arc-skin .arc-jbarrow .arc-jbar{flex:1 1 auto}
+@media (max-width:639px){.arc-skin .arc-jtop{flex-direction:column;align-items:stretch;gap:10px}.arc-skin .arc-jnav{width:100%}}
+.arc-skin .arc-jbig{display:flex;align-items:center;gap:8px;flex:none}
+.arc-skin .arc-jbig.r{flex-direction:row-reverse;text-align:right}
+.arc-skin .arc-jbig b{font-family:'DM Mono',ui-monospace,monospace;font-weight:500;font-size:34px;line-height:1;color:var(--a-hi)}
+.arc-skin .arc-jbig span{font-size:9.5px;letter-spacing:.1em;line-height:1.35;text-transform:uppercase;color:var(--a-dim);font-weight:600}
+.arc-skin .arc-jbar{height:12px;background:var(--a-line2);clip-path:polygon(0 50%,10px 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,10px 100%)}
+.arc-skin .arc-jbar i{display:block;height:100%;background:var(--a-spec);clip-path:polygon(0 50%,10px 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,10px 100%)}
+.arc-skin .arc-jpct{align-self:center;font-family:'DM Mono',ui-monospace,monospace;font-size:14px;color:var(--a-mut)}
+@media (max-width:639px){.arc-skin .arc-jbig b{font-size:24px}.arc-skin .arc-jbig span{font-size:8.5px}.arc-skin .arc-jrow{gap:10px}.arc-skin .arc-person-pick #btn-consulentes-list-toggle{height:40px;font-size:14px}.arc-skin .arc-person-stats dd,.arc-skin .arc-person-stats dd.mono{font-size:14px}}
+@media (min-width:640px){
+  .arc-skin .arc-pillar{padding:14px}
+  .arc-skin .arc-pillar > div:first-child span:first-child{font-size:11px;letter-spacing:.14em}
+  .arc-skin .arc-pillar > div:first-child span.truncate{font-size:16px;max-width:170px}
+  .arc-skin .arc-pillar .arc-desc{font-size:14px}
+  .arc-skin .arc-pillar .arc-desc > div:first-child{font-size:13px;gap:3px 9px}
+  .arc-skin .arc-pillar .arc-desc .italic{font-size:14.5px;line-height:1.5}
+}
 .arc-skin .arc-novo{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 14px;border-radius:999px;border:1px solid var(--a-fg);background:var(--a-fg);color:var(--a-bg);font:600 11px 'DM Sans',sans-serif;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;cursor:pointer}
 .arc-skin .arc-novo:hover{background:#fff}
 
