@@ -182,8 +182,9 @@ export const SlimPersonManager: React.FC<SlimPersonManagerProps> = ({
       </button>}
 
       {/* Dropdown / Popover List */}
+      {isOpenList && <div className="spm-scrim" aria-hidden="true" onClick={() => setIsOpenList(false)} />}
       {isOpenList && (
-        <div className="absolute top-full right-0 sm:right-auto sm:left-0 mt-2 w-[calc(100vw-1.5rem)] max-w-sm sm:w-96 bg-zinc-950 border border-amber-500/40 rounded-xl p-3 shadow-2xl shadow-black/90 animate-in fade-in slide-in-from-top-2 duration-150 z-50">
+        <div className="spm-drop absolute top-full left-0 mt-2 w-96 max-w-sm bg-zinc-950 border border-zinc-700 rounded-xl p-3 shadow-2xl shadow-black/90 animate-in fade-in slide-in-from-top-2 duration-150 z-50">
           
           <style>{SPM_CSS}</style>
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800">
@@ -388,6 +389,11 @@ export const SlimPersonManager: React.FC<SlimPersonManagerProps> = ({
 };
 
 const SPM_CSS = `
+.spm-scrim{display:none}
+@media (max-width:639px){
+  .spm-scrim{display:block;position:fixed;inset:0;z-index:49;background:rgba(4,0,4,.55)}
+  .spm-drop{position:fixed!important;left:12px!important;right:12px!important;width:auto!important;max-width:none!important;max-height:calc(100dvh - 140px);overflow-y:auto;border-color:#3A3440!important}
+}
 .spm-tools{display:flex;flex-direction:column;gap:6px;margin:0 0 10px}
 .spm-lbl{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:#8a8590;font-weight:600}
 .spm-search{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border:1px solid #2a2430;border-radius:999px;color:#8a8590}

@@ -97,5 +97,12 @@ export const ARCANE_SKIN = `
   .arc-skin .overflow-y-auto,.arc-skin .overflow-auto{overflow-x:hidden}
   .arc-skin .arc-leftdock{height:auto}
   .arc-skin .arc-tabbody{overflow-y:auto;overflow-x:hidden;flex:none;min-height:auto}
+  .arc-skin header::after{display:none}
+  .arc-skin .arc-tabs{display:none!important}
 }
+.arc-skin .arc-hamb{display:flex;align-items:center;gap:7px;height:42px;padding:0 14px 0 12px;border-radius:999px;border:1px solid var(--a-line2);background:var(--a-card);color:var(--a-fg);font:600 11px 'DM Sans',sans-serif;letter-spacing:.1em;text-transform:uppercase}
+.arc-skin .arc-hamb-scrim{position:fixed;inset:0;z-index:59;background:rgba(4,0,4,.55)}
+.arc-skin .arc-hamb-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:60;min-width:210px;display:flex;flex-direction:column;padding:6px;border:1px solid #3A3440;border-radius:16px;background:var(--a-card);box-shadow:0 18px 40px -16px rgba(0,0,0,.8)}
+.arc-skin .arc-hamb-menu button{height:44px;padding:0 14px;border-radius:10px;border:0;background:none;color:var(--a-mut);text-align:left;font:500 14px 'DM Sans',sans-serif}
+.arc-skin .arc-hamb-menu button.on{background:var(--a-fg);color:var(--a-bg);font-weight:600}
 `;

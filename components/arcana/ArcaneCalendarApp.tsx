@@ -25,7 +25,8 @@ import {
   Quote,
   ChevronDown,
   X,
-  UserPlus
+  UserPlus,
+  Menu as MenuIcon,
 } from 'lucide-react';
 
 // Chaves próprias do Calendário Arcano. O "Resetar Dados" apaga SÓ estas
@@ -61,6 +62,11 @@ export interface ArcaneCalendarAppProps {
 
 const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onClose }) => {
   const [activeTab, setActiveTab] = useState<'calculadora' | 'calendario' | 'mesa' | 'baralho'>('calculadora');
+  const [tabMenu, setTabMenu] = useState(false);
+  const TAB_LIST = [
+    { id: 'calculadora', label: 'Início' }, { id: 'calendario', label: 'Calendário' },
+    { id: 'mesa', label: 'Mesa' }, { id: 'baralho', label: 'Visão de calendário' },
+  ] as const;
   
   // + Novo fica na linha do consulente e abre o cadastro no seletor do topo
   const [addSignal, setAddSignal] = useState(0);
@@ -336,8 +342,20 @@ const ArcaneCalendarApp: React.FC<ArcaneCalendarAppProps> = ({ initialDate, onCl
               <span><span className="arc-title">Calendário Arcano</span><span className="arc-sub">Cronógrafo Sideral</span></span>
             </h1>
 
-            {/* Mobile: só o fechar (o consulente fica na linha do consulente) */}
-            <div className="sm:hidden flex items-center gap-2">
+            {/* Mobile: menu das abas (hambúrguer) + fechar */}
+            <div className="sm:hidden flex items-center gap-2 relative">
+              <button type="button" className="arc-hamb" onClick={() => setTabMenu(v => !v)} aria-expanded={tabMenu} aria-label="Abas do Calendário Arcano">
+                <MenuIcon size={18} /><span>{TAB_LIST.find(t => t.id === activeTab)?.label.split(' ')[0]}</span>
+              </button>
+              {tabMenu && <>
+                <div className="arc-hamb-scrim" onClick={() => setTabMenu(false)} aria-hidden="true" />
+                <div className="arc-hamb-menu" role="menu">
+                  {TAB_LIST.map(t => (
+                    <button key={t.id} type="button" role="menuitem" className={activeTab === t.id ? 'on' : ''}
+                      onClick={() => { setActiveTab(t.id as any); setTabMenu(false); }}>{t.label}</button>
+                  ))}
+                </div>
+              </>}
               {onClose && (
                 <button data-close-x="" onClick={onClose} aria-label="Fechar Calendário Arcano" title="Fechar"
                   className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-700 transition-all shrink-0">
