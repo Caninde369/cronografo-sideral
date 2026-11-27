@@ -169,31 +169,12 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
             targetRect = targetElement.getBoundingClientRect();
         }
 
-        const popoverWidth = Math.min(650, screenWidth - 24);
-        
-        // Espaço abaixo e acima do card da lua
-        // Margem de 16px para evitar encostar no limite da tela ou na barra inferior
-        const margin = 16;
-        const spaceBelow = screenHeight - targetRect.bottom - margin;
-        const spaceAbove = targetRect.top - margin;
-
-        let isBottom = false; // true = abre para cima
-        // Se o espaço abaixo for muito apertado (< 340px) e tiver mais espaço acima, abre para cima
-        if (spaceBelow < 340 && spaceAbove > spaceBelow) {
-            isBottom = true;
-        }
-
-        let top: number | undefined = undefined;
-        let bottom: number | undefined = undefined;
-        let maxHeight = 520;
-
-        if (isBottom) {
-            bottom = Math.max(12, screenHeight - targetRect.top + 8);
-            maxHeight = Math.max(220, Math.min(520, spaceAbove - 8));
-        } else {
-            top = Math.max(12, targetRect.bottom + 8);
-            maxHeight = Math.max(220, Math.min(520, spaceBelow - 8));
-        }
+        // Janela do calendário: 800 × até 680, para o ciclo lunar inteiro caber sem rolagem
+        const popoverWidth = Math.min(800, screenWidth - 24);
+        const maxHeight = Math.max(260, Math.min(680, screenHeight - 24));
+        let top: number | undefined = targetRect.bottom + 8;
+        const bottom: number | undefined = undefined;
+        if (top + maxHeight > screenHeight - 12) top = Math.max(12, screenHeight - maxHeight - 12);
 
         // Alinhamento horizontal garantindo que não saia nem pela direita nem pela esquerda
         let right = screenWidth - targetRect.right;

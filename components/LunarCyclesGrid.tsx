@@ -3,10 +3,10 @@
  *
  * Estrutura: cada lunação tem 4 linhas, uma por fase (nova, crescente, cheia, minguante).
  * O primeiro dia de cada linha é o dia da fase principal. Sem texto de fase nos dias.
- * Card do dia, de cima para baixo: signo do Sol (glifo + abreviação), data, Lua do dia,
- * glifo do planeta do dia + dia da semana + signo da Lua.
- * Fundo do dia na cor do elemento do signo do Sol (cores do calendário atual).
- * Tocar num dia abre a leitura do dia num pop-up.
+ * Card do dia (aprovado em 27/11/2026): topo = dia + mês (serifa) e glifo do signo solar à direita;
+ * centro = a Lua (foco) com selinho do signo da Lua; rodapé = dia da semana abreviado + glifo do planeta do dia.
+ * Fundo do dia: tinta sutil da cor do elemento do signo do Sol. Entrada de fase (1º dia de cada linha) = anel na Lua.
+ * Hoje = borda branca + selo "hoje". Tocar num dia abre a leitura num popover junto ao dia.
  * Usado no calendário (Lunar › Ciclos) e no painel da Lua do celular.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -16,6 +16,12 @@ import { getYearCycles, LunarCycle } from '../lib/astrology/lunarCycles';
 import { calculateSunTropicalLongitude, calculateMoonTropicalLongitude } from '../lib/astrology/celestialBodies';
 import { getTermAt } from '../lib/astrology/terms';
 import { getDecanRuler } from '../lib/astrology/dignities';
+import { CelestialGlyphSvg } from './chart/CelestialGlyphSvg';
+
+const WD_PLANET = ['sun', 'moon', 'mars', 'mercury', 'jupiter', 'venus', 'saturn'];
+/* cores de identidade dos elementos */
+const EL = { fire: '#F54E42', earth: '#4ADE80', air: '#D6F3FF', water: '#34D9EF' } as const;
+const ELL = { fire: '#B91C1C', earth: '#047857', air: '#4B5563', water: '#0E7490' } as const;
 
 const M3 = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const MF = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -115,7 +121,7 @@ export const LunarCyclesGrid: React.FC<Props> = ({ year, latitude = 0, isLight =
   const today = useMemo(() => noon(new Date()), []);
   const todayRef = useRef<HTMLButtonElement | null>(null);
   const curRef = useRef<HTMLDivElement | null>(null);
-  const [open, setOpen] = useState<{ info: DayInfo; cycle: LunarCycle; row: number; first: boolean } | null>(null);
+  const [open, setOpen] = useState<{ info: DayInfo; cycle: LunarCycle; row: number; first: boolean; rect: DOMRect } | null>(null);
 
   const scrollToToday = (smooth: boolean) => {
     const el = todayRef.current || curRef.current;
@@ -159,7 +165,7 @@ export const LunarCyclesGrid: React.FC<Props> = ({ year, latitude = 0, isLight =
               <span className="lcy-em" aria-hidden="true">{cycle.emoji}</span>
               <span className="lcy-t">
                 <b>{cycle.name}</b>
-                <small>Ciclo {cycle.index} · {cycle.start.getDate()} {M3[cycle.start.getMonth()]} → {endDay.getDate()} {M3[endDay.getMonth()]}{endDay.getFullYear() !== cycle.start.getFullYear() ? ` ${endDay.getFullYear()}` : ''} · {cycle.totalDays} dias</small>
+                <small>{cycle.start.getDate()} {M3[cycle.start.getMonth()]} → {endDay.getDate()} {M3[endDay.getMonth()]}{endDay.getFullYear() !== cycle.start.getFullYear() ? ` ${endDay.getFullYear()}` : ''}</small>
               </span>
               {locked && <span className="lcy-lock"><i className="ti ti-lock" aria-hidden="true" /> PRO</span>}
             </header>
@@ -178,15 +184,21 @@ export const LunarCyclesGrid: React.FC<Props> = ({ year, latitude = 0, isLight =
                       <button key={k} type="button" ref={isToday ? todayRef : undefined}
                         data-day={`${info.date.getFullYear()}-${info.date.getMonth()}-${info.date.getDate()}`}
                         className={`lcy-d ${k === 0 ? 'is-phase' : ''} ${isToday ? 'is-today' : ''} ${isSel ? 'is-sel' : ''} ${found === `${info.date.getFullYear()}-${info.date.getMonth()}-${info.date.getDate()}` ? 'is-found' : ''}`}
-                        style={{ ['--tint' as any]: EC[s[3]].bg }}
+                        style={{ ['--el' as any]: EL[s[3]], ['--elt' as any]: isLight ? ELL[s[3]] : EL[s[3]] }}
                         aria-disabled={locked || undefined}
                         tabIndex={locked ? -1 : undefined}
-                        onClick={(e) => { e.stopPropagation(); if (locked) { onLocked?.(); return; } setOpen({ info, cycle, row: r, first: k === 0 }); }}
-                        aria-label={`${info.date.getDate()} de ${MF[info.date.getMonth()]}, Sol em ${s[1]}, Lua em ${ms[1]}`}>
-                        <span className="lcy-sg"><i style={{ color: isLight ? EC[s[3]].textL : EC[s[3]].text }}>{s[0]}{VS}</i>{s[2]}</span>
-                        <span className="lcy-dt">{info.date.getDate()} {M3[info.date.getMonth()]}</span>
-                        <MoonGlyph phase={info.phase} size={18} isLight={isLight} />
-                        <span className="lcy-bot"><i>{w[1]}</i>{w[0]}<i style={{ color: isLight ? EC[ms[3]].textL : EC[ms[3]].text }}>{ms[0]}{VS}</i></span>
+                        onClick={(e) => { e.stopPropagation(); if (locked) { onLocked?.(); return; } setOpen({ info, cycle, row: r, first: k === 0, rect: e.currentTarget.getBoundingClientRect() }); }}
+                        aria-label={`${info.date.getDate()} de ${MF[info.date.getMonth()]}${k === 0 ? `, entrada da ${PHASE_MAIN[r]}` : ''}, Sol em ${s[1]}, Lua em ${ms[1]}${isToday ? ', hoje' : ''}`}>
+                        {isToday && <span className="lcy-tag">hoje</span>}
+                        <span className="lcy-top">
+                          <span className="lcy-n">{info.date.getDate()}<small>{M3[info.date.getMonth()]}</small></span>
+                          <i className="lcy-ss">{s[0]}{VS}</i>
+                        </span>
+                        <span className="lcy-mo">
+                          <MoonGlyph phase={info.phase} size={36} isLight={isLight} />
+                          <i className="lcy-ms" style={{ color: isLight ? ELL[ms[3]] : EL[ms[3]] }}>{ms[0]}{VS}</i>
+                        </span>
+                        <span className="lcy-bot"><span>{w[0]}</span><CelestialGlyphSvg bodyId={WD_PLANET[info.wd]} size={13} /></span>
                       </button>
                     );
                   })}
@@ -207,17 +219,29 @@ export const LunarCyclesGrid: React.FC<Props> = ({ year, latitude = 0, isLight =
 };
 
 const DayPopup: React.FC<{
-  data: { info: DayInfo; cycle: LunarCycle; row: number; first: boolean };
+  data: { info: DayInfo; cycle: LunarCycle; row: number; first: boolean; rect: DOMRect };
   isLight: boolean; onClose: () => void; onPick?: (d: Date) => void;
 }> = ({ data, isLight, onClose, onPick }) => {
-  const { info, cycle, row, first } = data;
+  const { info, cycle, row, first, rect } = data;
+  const popRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  React.useLayoutEffect(() => {
+    const el = popRef.current; if (!el) return;
+    const vw = window.innerWidth, vh = window.innerHeight, w = el.offsetWidth, h = el.offsetHeight;
+    const left = Math.max(12, Math.min(rect.left + rect.width / 2 - w / 2, vw - w - 12));
+    let top = rect.bottom + 8;
+    if (top + h > vh - 12) top = rect.top - h - 8;
+    if (top < 12) top = Math.max(12, Math.min(vh - h - 12, rect.bottom + 8));
+    setPos({ left, top });
+  }, [rect]);
   const s = SIGNS[info.sunSign]; const ms = SIGNS[info.moonSign]; const w = WD[info.wd];
   const term = PLANET[getTermAt(info.sun).ruler]; const dec = PLANET[getDecanRuler(info.sun)];
   const phaseName = first ? PHASE_MAIN[row] : phaseLabel(info.phase);
   return (
     <div className={`lcy-pop-wrap ${isLight ? 'is-light' : ''}`} onClick={onClose}>
       <style>{LCY_CSS}</style>
-      <div className="lcy-pop" role="dialog" aria-modal="true" aria-label="Leitura do dia" onClick={e => e.stopPropagation()}>
+      <div ref={popRef} className="lcy-pop" role="dialog" aria-modal="true" aria-label="Leitura do dia" onClick={e => e.stopPropagation()}
+        style={pos ? { left: pos.left, top: pos.top } : { left: -9999, top: 0 }}>
         <div className="lcy-pop-h">
           <div>
             <b>{w[3]}, {info.date.getDate()} de {MF[info.date.getMonth()]}</b>
@@ -226,9 +250,9 @@ const DayPopup: React.FC<{
           <button type="button" className="cs-x" onClick={onClose} aria-label="Fechar"><i className="ti ti-x" aria-hidden="true" /></button>
         </div>
         <dl className="lcy-dl">
-          <div><dt>Lua</dt><dd><MoonGlyph phase={info.phase} size={16} isLight={isLight} />{phaseName} · {info.illum}%<small><span className="sy">{ms[0]}{VS}</span>{ms[1]} {deg(info.moon - info.moonSign * 30)} ao meio-dia</small></dd></div>
+          <div><dt>Lua</dt><dd><MoonGlyph phase={info.phase} size={16} isLight={isLight} />{first ? <b className="lcy-ent">Entrada da {phaseName}</b> : phaseName} · {info.illum}%<small><span className="sy">{ms[0]}{VS}</span>{ms[1]} {deg(info.moon - info.moonSign * 30)} ao meio-dia</small></dd></div>
           <div><dt>Sol</dt><dd><span className="sy">{s[0]}{VS}</span>{s[1]} {deg(info.sun - info.sunSign * 30)}</dd></div>
-          <div><dt>Planeta do dia</dt><dd><span className="sy">{w[1]}</span>{w[2]}</dd></div>
+          <div><dt>Planeta do dia</dt><dd><span className="sy"><CelestialGlyphSvg bodyId={WD_PLANET[info.wd]} size={14} /></span>{w[2]}</dd></div>
           <div><dt>Termo</dt><dd><span className="sy">{term[0]}</span>{term[1]}</dd></div>
           <div><dt>Decanato</dt><dd><span className="sy">{dec[0]}</span>{dec[1]}</dd></div>
         </dl>
@@ -241,40 +265,50 @@ const DayPopup: React.FC<{
 export const LCY_CSS = `
 .lcy{--fg:#EDE9E3;--hi:#FAF6EE;--mut:#B9B4BE;--dim:#8a8590;--line:#221d27;--line2:#2a2430;--line3:#3a3340;--card:#0a070c;--bg:#040004;display:flex;flex-direction:column;gap:12px;font-family:'DM Sans',system-ui,sans-serif}
 .lcy.is-light{--fg:#231714;--hi:#140c0a;--mut:#4b4038;--dim:#6b6253;--line:rgba(35,23,20,.12);--line2:rgba(35,23,20,.18);--line3:rgba(35,23,20,.28);--card:#fbf9f4;--bg:#fff}
-.lcy-cycle{flex:none;border:1px solid var(--line2);border-radius:16px;overflow:hidden;background:var(--bg);scroll-margin:12px}
+.lcy-cycle{flex:none;border:1px solid var(--line2);border-radius:16px;overflow:visible;background:var(--bg);scroll-margin:12px}
 .lcy-cycle.is-cur{border-color:color-mix(in srgb,var(--fg) 40%,transparent)}
 .lcy-cycle.is-locked{cursor:pointer}
 .lcy-cycle.is-locked .lcy-rows{filter:blur(3px);opacity:.35}
 .lcy-h{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line)}
 .lcy-em{font-size:18px;line-height:1}
 .lcy-t{flex:1;min-width:0}
-.lcy-t b{display:block;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:21px;line-height:1.05;color:var(--hi)}
-.lcy-t small{display:block;margin-top:2px;font:11px 'DM Mono',ui-monospace,monospace;color:var(--dim)}
+.lcy-t b{display:block;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:600;font-size:24px;line-height:1.05;color:var(--hi)}
+.lcy-t{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.lcy-t small{display:block;font:italic 500 15px 'Cormorant Garamond',Georgia,serif;color:var(--dim)}
 .lcy-now{font:600 9px 'DM Sans',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--hi);border:1px solid var(--line3);border-radius:999px;padding:4px 8px}
 .lcy-lock{font:700 9px 'DM Sans',sans-serif;color:#D4AF37;border:1px solid rgba(212,175,55,.35);border-radius:999px;padding:3px 7px}
-.lcy-rows{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px;padding:3px}
+.lcy-rows{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px 5px;padding:9px 6px 6px}
 .lcy-blank{display:block}
-.lcy-d{position:relative;height:100px;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:9px 2px 9px;border:0;border-radius:4px;background:linear-gradient(var(--tint),var(--tint)),var(--bg);color:var(--fg);font-family:'DM Sans',sans-serif;cursor:pointer;transition:none}
-.lcy-d.is-phase{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fg) 42%,transparent)}
-.lcy-d.is-sel{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--fg) 70%,transparent)}
-.lcy-d.is-today{box-shadow:inset 0 0 0 2px var(--fg)}
-.lcy-d.is-found{box-shadow:inset 0 0 0 2px var(--fg),0 0 0 3px color-mix(in srgb,var(--fg) 35%,transparent)}
+.lcy-d{--el:#888;position:relative;height:102px;min-width:0;display:flex;flex-direction:column;align-items:center;padding:6px 7px 7px;border:1px solid color-mix(in srgb,var(--el) 18%,var(--line));border-radius:4px;background:color-mix(in srgb,var(--el) 11%,var(--bg));color:var(--fg);font-family:'DM Sans',sans-serif;cursor:pointer;transition:none}
+.lcy.is-light .lcy-d{background:color-mix(in srgb,var(--el) 13%,#fff);border-color:color-mix(in srgb,var(--el) 28%,var(--line))}
+.lcy-d.is-sel{border-color:color-mix(in srgb,var(--fg) 60%,transparent)}
+.lcy-d.is-today{border:1.5px solid var(--hi);box-shadow:0 0 0 2px var(--bg),0 0 0 3px color-mix(in srgb,var(--hi) 35%,transparent)}
+.lcy-d.is-found{box-shadow:0 0 0 2px var(--fg)}
 .lcy-d:focus-visible{outline:2px solid var(--fg);outline-offset:1px}
-.lcy-sg{display:flex;align-items:center;gap:4px;font:600 10px 'DM Sans',sans-serif;letter-spacing:.04em;color:color-mix(in srgb,var(--fg) 88%,transparent);line-height:1}
-.lcy-sg i,.lcy-bot i,.lcy-dl .sy{font-style:normal;font-family:'Noto Sans Symbols 2','Segoe UI Symbol','Apple Symbols',serif}
-.lcy-sg i{font-size:14px}
-.lcy-dt{font:500 13px 'DM Mono',ui-monospace,monospace;color:var(--hi);line-height:1;white-space:nowrap}
-.lcy-bot{display:flex;align-items:center;gap:4px;font:600 9.5px 'DM Sans',sans-serif;letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb,var(--fg) 85%,transparent);line-height:1}
-.lcy-bot i{font-size:14px;color:var(--hi);letter-spacing:0}
+.lcy-tag{position:absolute;top:-8px;left:50%;transform:translateX(-50%);z-index:2;background:var(--hi);color:var(--bg);font:700 7.5px/1 'DM Sans',sans-serif;letter-spacing:.14em;text-transform:uppercase;padding:2.5px 5px;border-radius:3px}
+.lcy-top{width:100%;display:flex;align-items:baseline;gap:3px}
+.lcy-n{display:flex;align-items:baseline;gap:3px;font:600 16px/1 'Cormorant Infant','Cormorant Garamond',Georgia,serif;color:var(--hi)}
+.lcy-n small{font:italic 500 12px/1 'Cormorant Garamond',Georgia,serif;color:var(--mut)}
+.lcy-ss,.lcy-ms,.lcy-dl .sy{font-style:normal;font-family:'Noto Sans Symbols 2','Segoe UI Symbol','Apple Symbols',serif;font-variant-emoji:text}
+.lcy-ss{margin-left:auto;font-size:12px;line-height:1;color:var(--elt);font-weight:700}
+.lcy-mo{position:relative;margin:6px 0 0;flex:none}
+.lcy-ms{position:absolute;right:-8px;bottom:-4px;z-index:1;width:17px;height:17px;border-radius:50%;background:var(--bg);border:1px solid var(--line3);font-size:10px;line-height:15px;text-align:center;font-weight:700}
+.lcy-d.is-phase .lcy-mo::before{content:"";position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--fg);opacity:.85}
+.lcy-bot{margin-top:auto;width:100%;display:flex;justify-content:space-between;align-items:center;font:italic 500 13px/1 'Cormorant Garamond',Georgia,serif;color:var(--mut)}
+.lcy-bot svg{color:var(--fg)}
 /* celular: 8 dias por linha numa tela estreita */
-body.is-mobile .lcy-rows{gap:2px;padding:2px}
-body.is-mobile .lcy-d{height:80px;padding:6px 0 6px}
-body.is-mobile .lcy-sg{font-size:7.5px;gap:2px}
-body.is-mobile .lcy-sg i{font-size:10px}
-body.is-mobile .lcy-dt{font-size:9.5px}
-body.is-mobile .lcy-d svg{width:15px;height:15px}
-body.is-mobile .lcy-bot{font-size:7px;gap:1px;letter-spacing:0}
-body.is-mobile .lcy-bot i{font-size:10px}
+body.is-mobile .lcy-rows{gap:7px 3px;padding:9px 3px 4px}
+body.is-mobile .lcy-d{height:90px;padding:4px 3px 4px}
+body.is-mobile .lcy-top{align-items:flex-start;justify-content:space-between}
+body.is-mobile .lcy-n{flex-direction:column;gap:0;font-size:14px}
+body.is-mobile .lcy-n small{font-size:9.5px;line-height:1.1}
+body.is-mobile .lcy-ss{font-size:9.5px;margin-left:0}
+body.is-mobile .lcy-mo{margin-top:3px}
+body.is-mobile .lcy-mo svg{width:26px;height:26px}
+body.is-mobile .lcy-ms{width:14px;height:14px;font-size:8.5px;line-height:12px;right:-7px}
+body.is-mobile .lcy-bot{font-size:10.5px}
+body.is-mobile .lcy-bot svg{width:10px;height:10px}
+body.is-mobile .lcy-tag{font-size:6.5px;padding:2px 4px;top:-7px}
 body.is-mobile .lcy-h{padding:9px 10px}
 body.is-mobile .lcy-t b{font-size:19px}
 .lcy-today{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 13px 0 11px;border-radius:999px;border:1px solid rgba(160,154,168,.45);background:rgba(10,7,12,.85);color:inherit;font:600 11px 'DM Sans',sans-serif;letter-spacing:.06em;cursor:pointer}
@@ -283,9 +317,9 @@ body.is-mobile .lcy-t b{font-size:19px}
 .lcy-search input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;cursor:pointer;-webkit-appearance:none;appearance:none;font-size:16px;color-scheme:dark}
 .lcy-today i{font-size:15px}
 /* pop-up do dia */
-.lcy-pop-wrap{position:fixed;inset:0;z-index:12000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.55);--fg:#EDE9E3;--hi:#FAF6EE;--mut:#B9B4BE;--dim:#8a8590;--line:#221d27;--line2:#2a2430;--line3:#3a3340;--card:#0a070c}
-.lcy-pop-wrap.is-light{--fg:#231714;--hi:#140c0a;--mut:#4b4038;--dim:#6b6253;--line:rgba(35,23,20,.12);--line2:rgba(35,23,20,.18);--line3:rgba(35,23,20,.28);--card:#fbf9f4;background:rgba(20,12,10,.35)}
-.lcy-pop{width:100%;max-width:380px;border-radius:20px;border:1px solid var(--line2);background:var(--card);padding:16px;box-shadow:0 24px 60px -16px rgba(0,0,0,.9);font-family:'DM Sans',system-ui,sans-serif;color:var(--fg)}
+.lcy-pop-wrap{position:fixed;inset:0;z-index:12000;background:transparent;--fg:#EDE9E3;--hi:#FAF6EE;--mut:#B9B4BE;--dim:#8a8590;--line:#221d27;--line2:#2a2430;--line3:#3a3340;--card:#0a070c}
+.lcy-pop-wrap.is-light{--fg:#231714;--hi:#140c0a;--mut:#4b4038;--dim:#6b6253;--line:rgba(35,23,20,.12);--line2:rgba(35,23,20,.18);--line3:rgba(35,23,20,.28);--card:#fbf9f4;background:transparent}
+.lcy-pop{position:fixed;width:min(360px,calc(100vw - 24px));border-radius:20px;border:1px solid var(--line2);background:var(--card);padding:16px;box-shadow:0 24px 60px -16px rgba(0,0,0,.9);font-family:'DM Sans',system-ui,sans-serif;color:var(--fg)}
 .lcy-pop-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .lcy-pop-h b{display:block;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;font-size:23px;line-height:1.1;color:var(--hi)}
 .lcy-pop-h small{display:block;margin-top:4px;font-size:11.5px;color:var(--dim)}
@@ -294,7 +328,8 @@ body.is-mobile .lcy-t b{font-size:19px}
 .lcy-dl dt{font:600 9.5px 'DM Sans',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
 .lcy-dl dd{margin:0;font-size:14px;color:var(--hi);display:flex;flex-wrap:wrap;align-items:center;gap:6px}
 .lcy-dl dd small{flex-basis:100%;font-size:12px;color:var(--mut);display:flex;align-items:center;gap:5px}
-.lcy-dl .sy{font-size:16px;color:var(--fg);width:18px;text-align:center}
+.lcy-dl .sy{font-size:16px;color:var(--fg);width:18px;text-align:center;display:inline-flex;justify-content:center}
+.lcy-ent{font-weight:600;color:var(--hi)}
 .lcy-go{width:100%;height:44px;margin-top:10px;border-radius:14px;border:1px solid var(--line3);background:none;color:var(--fg);font:600 13px 'DM Sans',sans-serif;cursor:pointer}
 .lcy-go:hover{border-color:var(--fg)}
 `;
