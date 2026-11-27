@@ -9,7 +9,7 @@ import { PLANOS, vendidasManual } from '../plans/plans';
  */
 export const LANDING = {
   // Só números, com 55 e DDD. Pode ser trocado no Vercel (VITE_WHATSAPP_NUMBER), como no app.
-  whatsapp: ((import.meta.env.VITE_WHATSAPP_NUMBER as string | undefined) || '5511988791539').replace(/\D/g, ''),
+  whatsapp: ((import.meta.env.VITE_WHATSAPP_NUMBER as string | undefined) || '5511978964503').replace(/\D/g, ''),
   msgFundador: 'Olá! Quero saber sobre a vaga de Fundador do Cronógrafo Sideral.',
   msgPro: 'Olá! Quero ser avisado quando o Plano Pro do Cronógrafo Sideral abrir.',
   msgGeral: 'Olá! Vim pelo site do Cronógrafo Sideral e tenho uma dúvida.',

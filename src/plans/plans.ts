@@ -10,7 +10,7 @@
  * Assinantes antigos de R$110 (legado) mantêm a cobrança: nada aqui mexe nisso.
  */
 
-const WHATSAPP = ((import.meta.env.VITE_WHATSAPP_NUMBER as string | undefined) || '5511988791539').replace(/\D/g, '');
+const WHATSAPP = ((import.meta.env.VITE_WHATSAPP_NUMBER as string | undefined) || '5511978964503').replace(/\D/g, '');
 
 export const PLANOS = {
   whatsapp: WHATSAPP,

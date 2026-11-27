@@ -9,7 +9,7 @@
 import { PLANOS } from '../src/plans/plans';
 
 /** Número do WhatsApp de atendimento/suporte (só dígitos, com DDI). Pode ser trocado no Vercel. */
-const WHATSAPP_NUMBER = ((import.meta.env.VITE_WHATSAPP_NUMBER as string | undefined) || '5511988791539').replace(/\D/g, '');
+const WHATSAPP_NUMBER = ((import.meta.env.VITE_WHATSAPP_NUMBER as string | undefined) || '5511978964503').replace(/\D/g, '');
 
 /** Link do WhatsApp com a mensagem já escrita. */
 export const whatsappLink = (message: string): string =>
