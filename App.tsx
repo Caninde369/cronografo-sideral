@@ -116,9 +116,9 @@ const getMobileKind = (): null | 'portrait' | 'landscape' => {
     if (h <= 520 && w > h && w <= 1100) return 'landscape';
     return null;
 };
-const M_TABS_H = 68;      // barra de abas (em pé)
+const M_TABS_H = 90;      // barra de abas flutuante (em pé)
 const M_RAIL_W = 72;      // barra de abas (deitado)
-const M_HEAD_H = 104;     // topo: logo + data
+const M_HEAD_H = 170;     // topo: logo + data/hora + local + Lua
 const M_HEAD_ROW = 52;
 
 const TOUR_MAIN_PLANETS = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'];
@@ -395,6 +395,7 @@ export const App: React.FC = () => {
     const [viewport, setViewport] = useState(() => ({ w: typeof window !== 'undefined' ? window.innerWidth : 1400, h: typeof window !== 'undefined' ? window.innerHeight : 900 }));
     const isMobile = mobileKind !== null;
     const [mTab, setMTab] = useState<'ceu' | 'astros' | 'aspectos' | 'casas' | 'mais' | 'lua'>('ceu');
+    const [mMenu, setMMenu] = useState(false); // menu ☰ do topo (celular)
     const [mSub, setMSub] = useState<'lista' | 'resumo'>('lista');
     const [mControlsH, setMControlsH] = useState(200);
     const [mNatalReq, setMNatalReq] = useState(0);
@@ -3564,61 +3565,91 @@ const handlePlanetClick = useCallback((id: string) => {
                                 {isFreeTier && !isAuthenticated && (
                                     <button type="button" className="m-chip" onClick={() => setShowLoginModal(true)}>Entrar</button>
                                 )}
-                                <button type="button" className="m-ghost" aria-label="Apresentar em tela cheia" onClick={() => setImmersiveMode(true)}>
-                                    <i className="ti ti-maximize" aria-hidden="true" />
+                                <button type="button" className="m-ghost" aria-label="Menu" aria-expanded={mMenu} onClick={() => setMMenu(v => !v)}>
+                                    <i className={`ti ${mMenu ? 'ti-x' : 'ti-menu-2'}`} aria-hidden="true" />
                                 </button>
                             </div>
-                            {mTab === 'ceu' && (
-                                <div className="m-head-row m-head-date">
-                                    <div className="m-dcard">
-                                        {isRealTime ? (
-                                            <span className="m-live" aria-label="Seguindo a hora de agora"><i aria-hidden="true" />Agora</span>
-                                        ) : (
-                                            <button type="button" className="m-back" data-tour="now" onClick={() => setIsRealTime(true)} aria-label="Voltar para a data e hora de agora">
-                                                <i className="ti ti-arrow-back-up" aria-hidden="true" /><span>Voltar<br />para hoje</span>
+                            {mTab === 'ceu' && (() => {
+                                const p2 = (n: number) => String(n).padStart(2, '0');
+                                const openPicker = (e: React.MouseEvent) => window.dispatchEvent(new CustomEvent('cronografo:open-datepicker', { detail: { rect: (e.currentTarget as HTMLElement).getBoundingClientRect() } }));
+                                const lon = (((celestialData?.moonEclipticLongitude ?? 0) % 360) + 360) % 360;
+                                const si = Math.floor(lon / 30) % 12;
+                                const SG = ['Áries', 'Touro', 'Gêmeos', 'Câncer', 'Leão', 'Virgem', 'Libra', 'Escorpião', 'Sagitário', 'Capricórnio', 'Aquário', 'Peixes'];
+                                const GL = ['♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓'];
+                                const ELC = ['#F54E42', '#4ADE80', '#D6F3FF', '#34D9EF'];
+                                const RO = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+                                const house = celestialData?.housePlacements?.moon;
+                                return (
+                                    <div className="m-ts">
+                                        <div className="m-ts-l1">
+                                            <button type="button" className={`m-now ${isRealTime ? 'is-on' : ''}`} role="switch" aria-checked={isRealTime} data-tour="now"
+                                                onClick={() => setIsRealTime(v => !v)} aria-label={isRealTime ? 'Ao vivo (toque para pausar)' : 'Voltar para agora'}>
+                                                <span className="ic">{isRealTime ? <i className="dot" /> : <i className="ti ti-arrow-back-up" aria-hidden="true" />}</span>Agora
+                                            </button>
+                                            <span className="m-ts-date">
+                                                <button type="button" className="n" onClick={openPicker} aria-label="Mudar o dia">{p2(currentTime.getDate())}</button>
+                                                <button type="button" className="m" onClick={openPicker} aria-label="Mudar o mês">{['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][currentTime.getMonth()]}</button>
+                                                <button type="button" className="n y" onClick={openPicker} aria-label="Mudar o ano">{currentTime.getFullYear()}</button>
+                                            </span>
+                                            <button type="button" className="n m-ts-h" onClick={openPicker} aria-label="Mudar a hora">{p2(currentTime.getHours())}:{p2(currentTime.getMinutes())}</button>
+                                        </div>
+                                        <button type="button" className="m-ts-row" onClick={openPicker} aria-label="Mudar o local">
+                                            <i className="ti ti-map-pin" aria-hidden="true" /><span className="tx">{location?.displayName || 'Escolher local'}</span><i className="ti ti-chevron-right cv" aria-hidden="true" />
+                                        </button>
+                                        {celestialData && (
+                                            <button type="button" className="m-ts-row" data-tour="lunar" onClick={() => setMTab('lua')} aria-label="Abrir a Lua">
+                                                <MoonPhaseDisk phase={celestialData.moonPhase ?? 0} size={16} />
+                                                <span className="tx">{getMoonPhaseInfo(celestialData.moonPhase || 0)?.name || 'Lua'} em <b style={{ color: theme === 'light' ? undefined : ELC[si % 4] }}>{GL[si]}{'︎'} {SG[si]} {p2(Math.floor(lon - si * 30))}°</b>{house ? ` · casa ${RO[house] || house}` : ''} · {Math.round((celestialData.moonIllumination ?? 0) * 100)}%</span>
+                                                <i className="ti ti-chevron-right cv" aria-hidden="true" />
                                             </button>
                                         )}
-                                        <button
-                                            type="button"
-                                            className="m-date"
-                                            onClick={(e) => window.dispatchEvent(new CustomEvent('cronografo:open-datepicker', { detail: { rect: (e.currentTarget as HTMLElement).getBoundingClientRect() } }))}
-                                            aria-label="Mudar data, hora e local"
-                                        >
-                                            <span className="m-date-txt">
-                                                <b>{`${String(currentTime.getDate()).padStart(2, '0')} ${['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][currentTime.getMonth()]} ${currentTime.getFullYear()} · ${String(currentTime.getHours()).padStart(2, '0')}:${String(currentTime.getMinutes()).padStart(2, '0')}`}</b>
-                                                <small>{`${isRealTime ? 'Ao vivo' : ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][currentTime.getDay()]} · ${(location?.displayName || 'Local').split(',')[0]}`}</small>
-                                            </span>
-                                            <i className="ti ti-pencil" aria-hidden="true" />
-                                        </button>
                                     </div>
-                                    <button type="button" className={`m-plus ${natalTime ? 'is-on' : ''}`} aria-label="Mapa natal" onClick={() => setMNatalReq(n => n + 1)}>
-                                        <i className="ti ti-plus" aria-hidden="true" />
-                                    </button>
-                                </div>
-                            )}
+                                );
+                            })()}
                         </header>
+                        {mMenu && (
+                            <>
+                                <div className="m-menu-scrim" onClick={() => setMMenu(false)} />
+                                <div className="m-menu" role="menu">
+                                    {isAuthenticated && (
+                                        <button type="button" className="m-menu-me" onClick={() => { setMMenu(false); setShowProfileModal(true); }}>
+                                            <span className="av">{(username || 'A').charAt(0).toUpperCase()}</span>
+                                            <span><b>{username}</b><small>{isAdmin ? 'Administrador' : 'Perfil e conta'}</small></span>
+                                        </button>
+                                    )}
+                                    <button type="button" role="menuitem" onClick={() => { setMMenu(false); setShowSaveMapModal(true); }}><i className="ti ti-bookmark" aria-hidden="true" />Salvar mapa</button>
+                                    <button type="button" role="menuitem" onClick={() => { setMMenu(false); setShowProfileModal(true); }}><i className="ti ti-stack-2" aria-hidden="true" />Mapas salvos</button>
+                                    <span className="sep" />
+                                    <button type="button" role="menuitem" onClick={() => { setMMenu(false); setShowArcaneCalendar(true); }}><i className="ti ti-cards" aria-hidden="true" />Calendário Arcano</button>
+                                    {isAdmin && <button type="button" role="menuitem" onClick={() => { setMMenu(false); setShowAdminDashboard(true); }}><i className="ti ti-chart-bar" aria-hidden="true" />Administração</button>}
+                                    <span className="sep" />
+                                    <button type="button" role="menuitem" className="gold" onClick={() => { setMMenu(false); setShowPaymentPlansModal(true); }}><i className="ti ti-crown" aria-hidden="true" />Planos de acesso</button>
+                                    {isAuthenticated
+                                        ? <button type="button" role="menuitem" onClick={() => { setMMenu(false); handleLogout(); }}><i className="ti ti-logout" aria-hidden="true" />Sair</button>
+                                        : <button type="button" role="menuitem" onClick={() => { setMMenu(false); setShowLoginModal(true); }}><i className="ti ti-login" aria-hidden="true" />Entrar</button>}
+                                </div>
+                            </>
+                        )}
                         <nav className="m-tabs" aria-label="Navegação">
-                            {([
-                                ['astros', 'Astros', 'ti-planet'],
-                                ['casas', 'Casas', 'ti-chart-pie-4'],
-                                ['mais', 'Mais', 'ti-layout-grid'],
-                                ['aspectos', 'Aspectos', 'ti-triangle'],
-                                ['lua', 'Lua', ''],
-                            ] as const).map(([id, label, icon]) => (
-                                <button
-                                    key={id}
-                                    type="button"
-                                    className={`${mTab === id ? 'is-on' : ''} ${id === 'mais' ? 'm-tab-mais' : ''}`}
-                                    data-tour={id === 'lua' ? 'lunar' : undefined}
-                                    aria-current={mTab === id ? 'page' : undefined}
-                                    onClick={() => setMTab(prev => (prev === id ? 'ceu' : id))}
-                                >
-                                    {id === 'lua'
-                                        ? <MoonPhaseDisk phase={celestialData?.moonPhase ?? 0} size={22} />
-                                        : <span className="m-tab-ico"><i className={`ti ${mTab === 'mais' && id === 'mais' ? 'ti-x' : icon}`} aria-hidden="true" /></span>}
-                                    <span>{id === 'lua' && celestialData ? `Lua ${Math.round(celestialData.moonIllumination * 100)}%` : (mTab === 'mais' && id === 'mais' ? 'Fechar' : label)}</span>
-                                </button>
-                            ))}
+                            <div className="m-cap">
+                                {([
+                                    ['astros', 'Astros', 'ti-planet'],
+                                    ['casas', 'Casas', 'ti-chart-pie-4'],
+                                    ['aspectos', 'Aspectos', 'ti-triangle'],
+                                ] as const).map(([id, label, icon]) => (
+                                    <button key={id} type="button" className={mTab === id ? 'is-on' : ''} aria-current={mTab === id ? 'page' : undefined}
+                                        onClick={() => setMTab(prev => (prev === id ? 'ceu' : id))}>
+                                        <span className="m-tab-ico"><i className={`ti ${icon}`} aria-hidden="true" /></span>
+                                        <span>{label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                            <button type="button" className={`m-fab ${mTab === 'mais' ? 'is-on' : ''}`} aria-label={mTab === 'mais' ? 'Fechar' : 'Mais aplicações'}
+                                onClick={() => setMTab(prev => (prev === 'mais' ? 'ceu' : 'mais'))}>
+                                {mTab === 'mais' ? <i className="ti ti-x" aria-hidden="true" /> : (
+                                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><circle cx="7" cy="7" r="2.2" /><circle cx="17" cy="7" r="2.2" /><circle cx="7" cy="17" r="2.2" /><path d="M17 13.6l.9 2.5 2.5.9-2.5.9-.9 2.5-.9-2.5-2.5-.9 2.5-.9z" /></svg>
+                                )}
+                            </button>
                         </nav>
                         {mTab === 'lua' && celestialData && (
                             <MoonPanelMobile
