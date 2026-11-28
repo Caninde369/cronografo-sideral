@@ -46,6 +46,8 @@ const PLANET: Record<string, [string, string]> = {
   jupiter: ['♃', 'Júpiter'], venus: ['♀', 'Vênus'], saturn: ['♄', 'Saturno'],
 };
 const PHASE_MAIN = ['Lua nova', 'Quarto crescente', 'Lua cheia', 'Quarto minguante'];
+const PHASE_SHORT = ['Nova', 'Cresc.', 'Cheia', 'Ming.'];
+const PHASE_MID = ['Lua nova', 'Crescente', 'Lua cheia', 'Minguante'];
 const VS = '︎';
 
 const deg = (x: number) => { const g = Math.floor(x); const m = Math.floor((x - g) * 60); return `${g}°${String(m).padStart(2, '0')}′`; };
@@ -168,10 +170,13 @@ export const LunarCyclesGrid: React.FC<Props> = ({ year, latitude = 0, isLight =
                 <small>{cycle.start.getDate()} {M3[cycle.start.getMonth()]} → {endDay.getDate()} {M3[endDay.getMonth()]}{endDay.getFullYear() !== cycle.start.getFullYear() ? ` ${endDay.getFullYear()}` : ''}</small>
               </span>
               {locked && <span className="lcy-lock"><i className="ti ti-lock" aria-hidden="true" /> PRO</span>}
+              <span className="lcy-cy"><span>Ciclo<em> lunar</em></span><b>{cycle.index}</b></span>
             </header>
             <div className="lcy-rows" aria-hidden={locked || undefined}>
               {cycle.phases.map((ph, r) => (
                 <React.Fragment key={r}>
+                  {(() => { const d0 = new Date(cycle.start); d0.setDate(cycle.start.getDate() + (ph.days[0] ?? 1) - 1);
+                    return <span className="lcy-pl"><b><span className="s">{PHASE_SHORT[r]}</span><span className="l">{PHASE_MID[r]}</span></b><small>{d0.getDate()} {M3[d0.getMonth()]}</small></span>; })()}
                   {Array.from({ length: 8 }, (_, k) => {
                     const lunarDay = ph.days[k];
                     if (lunarDay === undefined) return <span key={k} className="lcy-blank" />;
@@ -195,7 +200,7 @@ export const LunarCyclesGrid: React.FC<Props> = ({ year, latitude = 0, isLight =
                           <i className="lcy-ss">{s[0]}{VS}</i>
                         </span>
                         <span className="lcy-mo">
-                          <MoonGlyph phase={info.phase} size={36} isLight={isLight} />
+                          <MoonGlyph phase={info.phase} size={28} isLight={isLight} />
                           <i className="lcy-ms" style={{ color: isLight ? ELL[ms[3]] : EL[ms[3]] }}>{ms[0]}{VS}</i>
                         </span>
                         <span className="lcy-bot"><span>{w[0]}</span><CelestialGlyphSvg bodyId={WD_PLANET[info.wd]} size={13} /></span>
@@ -265,52 +270,73 @@ const DayPopup: React.FC<{
 export const LCY_CSS = `
 .lcy{--fg:#EDE9E3;--hi:#FAF6EE;--mut:#B9B4BE;--dim:#8a8590;--line:#221d27;--line2:#2a2430;--line3:#3a3340;--card:#0a070c;--bg:#040004;display:flex;flex-direction:column;gap:12px;font-family:'DM Sans',system-ui,sans-serif}
 .lcy.is-light{--fg:#231714;--hi:#140c0a;--mut:#4b4038;--dim:#6b6253;--line:rgba(35,23,20,.12);--line2:rgba(35,23,20,.18);--line3:rgba(35,23,20,.28);--card:#fbf9f4;--bg:#fff}
-.lcy-cycle{flex:none;border:1px solid var(--line2);border-radius:16px;overflow:visible;background:var(--bg);scroll-margin:12px}
+.lcy-cycle{flex:none;border:1px solid var(--line2);border-radius:16px;overflow:visible;background:var(--card);scroll-margin:12px}
 .lcy-cycle.is-cur{border-color:color-mix(in srgb,var(--fg) 40%,transparent)}
 .lcy-cycle.is-locked{cursor:pointer}
 .lcy-cycle.is-locked .lcy-rows{filter:blur(3px);opacity:.35}
-.lcy-h{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line)}
-.lcy-em{font-size:18px;line-height:1}
-.lcy-t{flex:1;min-width:0}
-.lcy-t b{display:block;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:600;font-size:24px;line-height:1.05;color:var(--hi)}
-.lcy-t{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-.lcy-t small{display:block;font:italic 500 15px 'Cormorant Garamond',Georgia,serif;color:var(--dim)}
+.lcy-h{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.lcy-em{font-size:21px;line-height:1}
+.lcy-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.lcy-t b{display:block;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:600;font-size:21px;line-height:1;color:var(--hi)}
+.lcy-t small{display:block;font:italic 500 14px/1.1 'Cormorant Garamond',Georgia,serif;color:var(--dim)}
+.lcy-cy{flex:none;display:inline-flex;align-items:baseline;gap:6px;padding:6px 12px;border:1px solid var(--line3);border-radius:999px}
+.lcy-cy>span{font:600 10px 'DM Sans',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--mut)}
+.lcy-cy em{font-style:normal}
+.lcy-cy b{font:600 18px/1 'Cormorant Infant','Cormorant Garamond',Georgia,serif;color:var(--hi)}
 .lcy-now{font:600 9px 'DM Sans',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--hi);border:1px solid var(--line3);border-radius:999px;padding:4px 8px}
 .lcy-lock{font:700 9px 'DM Sans',sans-serif;color:#D4AF37;border:1px solid rgba(212,175,55,.35);border-radius:999px;padding:3px 7px}
-.lcy-rows{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px 5px;padding:9px 6px 6px}
+.lcy-rows{display:grid;grid-template-columns:44px repeat(8,minmax(0,1fr));gap:8px 6px;padding:12px 10px 10px;min-width:0}
+.lcy-pl{display:flex;flex-direction:column;justify-content:center;gap:3px;min-width:0;padding-right:2px;border-right:1px solid var(--line)}
+.lcy-pl b{font:italic 600 13px/1 'Cormorant Garamond',Georgia,serif;color:var(--hi)}
+.lcy-pl b .l{display:none}
+.lcy-pl small{font:9.5px 'DM Mono',ui-monospace,monospace;color:var(--dim);white-space:nowrap}
 .lcy-blank{display:block}
-.lcy-d{--el:#888;position:relative;height:102px;min-width:0;display:flex;flex-direction:column;align-items:center;padding:6px 7px 7px;border:1px solid color-mix(in srgb,var(--el) 18%,var(--line));border-radius:4px;background:color-mix(in srgb,var(--el) 11%,var(--bg));color:var(--fg);font-family:'DM Sans',sans-serif;cursor:pointer;transition:none}
-.lcy.is-light .lcy-d{background:color-mix(in srgb,var(--el) 13%,#fff);border-color:color-mix(in srgb,var(--el) 28%,var(--line))}
+.lcy-d{--el:#888;position:relative;height:92px;min-width:0;display:flex;flex-direction:column;align-items:center;padding:7px 8px 7px;border:1px solid var(--line);border-radius:4px;background:color-mix(in srgb,var(--el) 6%,#110e15);color:var(--fg);font-family:'DM Sans',sans-serif;cursor:pointer;transition:none}
+.lcy.is-light .lcy-d{background:color-mix(in srgb,var(--el) 9%,#fff)}
+.lcy-d.is-phase{border-color:var(--line3)}
 .lcy-d.is-sel{border-color:color-mix(in srgb,var(--fg) 60%,transparent)}
-.lcy-d.is-today{border:1.5px solid var(--hi);box-shadow:0 0 0 2px var(--bg),0 0 0 3px color-mix(in srgb,var(--hi) 35%,transparent)}
+.lcy-d.is-today{border:1px solid var(--hi);box-shadow:0 0 0 1px var(--hi)}
 .lcy-d.is-found{box-shadow:0 0 0 2px var(--fg)}
 .lcy-d:focus-visible{outline:2px solid var(--fg);outline-offset:1px}
 .lcy-tag{position:absolute;top:-8px;left:50%;transform:translateX(-50%);z-index:2;background:var(--hi);color:var(--bg);font:700 7.5px/1 'DM Sans',sans-serif;letter-spacing:.14em;text-transform:uppercase;padding:2.5px 5px;border-radius:3px}
 .lcy-top{width:100%;display:flex;align-items:baseline;gap:3px}
-.lcy-n{display:flex;align-items:baseline;gap:3px;font:600 16px/1 'Cormorant Infant','Cormorant Garamond',Georgia,serif;color:var(--hi)}
-.lcy-n small{font:italic 500 12px/1 'Cormorant Garamond',Georgia,serif;color:var(--mut)}
+.lcy-n{display:flex;align-items:baseline;gap:3px;font:600 15px/1 'Cormorant Infant','Cormorant Garamond',Georgia,serif;color:var(--hi)}
+.lcy-n small{font:italic 500 13px/1 'Cormorant Garamond',Georgia,serif;color:var(--mut)}
 .lcy-ss,.lcy-ms,.lcy-dl .sy{font-style:normal;font-family:'Noto Sans Symbols 2','Segoe UI Symbol','Apple Symbols',serif;font-variant-emoji:text}
-.lcy-ss{margin-left:auto;font-size:12px;line-height:1;color:var(--elt);font-weight:700}
-.lcy-mo{position:relative;margin:6px 0 0;flex:none}
-.lcy-ms{position:absolute;right:-8px;bottom:-4px;z-index:1;width:17px;height:17px;border-radius:50%;background:var(--bg);border:1px solid var(--line3);font-size:10px;line-height:15px;text-align:center;font-weight:700}
-.lcy-d.is-phase .lcy-mo::before{content:"";position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--fg);opacity:.85}
-.lcy-bot{margin-top:auto;width:100%;display:flex;justify-content:space-between;align-items:center;font:italic 500 13px/1 'Cormorant Garamond',Georgia,serif;color:var(--mut)}
-.lcy-bot svg{color:var(--fg)}
-/* celular: 8 dias por linha numa tela estreita */
-body.is-mobile .lcy-rows{gap:7px 3px;padding:9px 3px 4px}
-body.is-mobile .lcy-d{height:90px;padding:4px 3px 4px}
+.lcy-ss{margin-left:auto;font-size:14px;line-height:1;color:var(--elt);font-weight:700}
+.lcy-mo{position:relative;margin:5px 0 0;flex:none}
+.lcy-mo svg{width:28px;height:28px}
+.lcy-ms{position:absolute;right:-9px;bottom:-5px;z-index:1;width:17px;height:17px;border-radius:50%;background:var(--bg);border:1px solid var(--line3);font-size:10.5px;line-height:15px;text-align:center;font-weight:700}
+.lcy-d.is-phase .lcy-mo::before{content:"";position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--fg)}
+.lcy-bot{margin-top:auto;width:100%;display:flex;justify-content:space-between;align-items:center;font:italic 500 14px/1 'Cormorant Garamond',Georgia,serif;color:var(--mut)}
+.lcy-bot svg{color:var(--fg);width:15px;height:15px}
+/* celular: 8 dias por linha; fase vira rótulo acima de cada linha */
+body.is-mobile .lcy-rows{grid-template-columns:repeat(8,minmax(0,1fr));gap:0 3px;padding:2px 3px 6px}
+body.is-mobile .lcy-pl{grid-column:1/-1;flex-direction:row;align-items:baseline;justify-content:flex-start;gap:6px;border:0;padding:8px 2px 5px}
+body.is-mobile .lcy-pl b{font-size:12px}
+body.is-mobile .lcy-pl b .s{display:none}
+body.is-mobile .lcy-pl b .l{display:inline}
+body.is-mobile .lcy-pl small{font-size:9px}
+body.is-mobile .lcy-d{height:80px;padding:4px 3px 5px}
 body.is-mobile .lcy-top{align-items:flex-start;justify-content:space-between}
-body.is-mobile .lcy-n{flex-direction:column;gap:0;font-size:14px}
-body.is-mobile .lcy-n small{font-size:9.5px;line-height:1.1}
-body.is-mobile .lcy-ss{font-size:9.5px;margin-left:0}
-body.is-mobile .lcy-mo{margin-top:3px}
-body.is-mobile .lcy-mo svg{width:26px;height:26px}
-body.is-mobile .lcy-ms{width:14px;height:14px;font-size:8.5px;line-height:12px;right:-7px}
-body.is-mobile .lcy-bot{font-size:10.5px}
-body.is-mobile .lcy-bot svg{width:10px;height:10px}
+body.is-mobile .lcy-n{flex-direction:column;gap:0;font-size:13px}
+body.is-mobile .lcy-n small{font-size:10px;line-height:1.1}
+body.is-mobile .lcy-ss{font-size:11px;margin-left:0}
+body.is-mobile .lcy-mo{margin-top:2px}
+body.is-mobile .lcy-mo svg{width:22px;height:22px}
+body.is-mobile .lcy-mo::before{inset:-3px!important}
+body.is-mobile .lcy-ms{width:13px;height:13px;font-size:8.5px;line-height:11px;right:-7px;bottom:-4px}
+body.is-mobile .lcy-bot{font-size:11px}
+body.is-mobile .lcy-bot svg{width:11px;height:11px}
 body.is-mobile .lcy-tag{font-size:6.5px;padding:2px 4px;top:-7px}
-body.is-mobile .lcy-h{padding:9px 10px}
+body.is-mobile .lcy-h{padding:10px 10px}
+body.is-mobile .lcy-em{font-size:19px}
 body.is-mobile .lcy-t b{font-size:19px}
+body.is-mobile .lcy-t small{font-size:12.5px}
+body.is-mobile .lcy-cy{padding:5px 10px}
+body.is-mobile .lcy-cy>span{font-size:8.5px;letter-spacing:.14em}
+body.is-mobile .lcy-cy em{display:none}
+body.is-mobile .lcy-cy b{font-size:16px}
 .lcy-today{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 13px 0 11px;border-radius:999px;border:1px solid rgba(160,154,168,.45);background:rgba(10,7,12,.85);color:inherit;font:600 11px 'DM Sans',sans-serif;letter-spacing:.06em;cursor:pointer}
 .lcy-today:hover{border-color:currentColor}
 .lcy-search{position:relative;overflow:hidden}

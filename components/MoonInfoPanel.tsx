@@ -471,15 +471,15 @@ export const MoonInfoPanel: React.FC<MoonInfoPanelProps> = ({
                             width: `${popoverPos.width}px`,
                             height: `${popoverPos.maxHeight}px`,
                             maxHeight: `${popoverPos.maxHeight}px`,
-                            background: isLight ? 'rgba(255, 255, 255, 0.98)' : 'rgba(8, 6, 18, 0.98)',
+                            background: isLight ? 'rgba(255, 255, 255, 0.98)' : '#0a070c',
                             backdropFilter: 'blur(24px)',
                             WebkitBackdropFilter: 'blur(24px)',
-                            border: isLight ? '1px solid rgba(0, 0, 0, 0.15)' : '1px solid rgba(255, 255, 255, 0.22)',
+                            border: isLight ? '1px solid rgba(0, 0, 0, 0.15)' : '1px solid #2a2430',
                             borderRadius: 16,
                             overflow: 'hidden',
                             boxShadow: isLight 
                                 ? '0 16px 40px rgba(0, 0, 0, 0.2), 0 0 20px rgba(0, 0, 0, 0.08)' 
-                                : '0 16px 40px rgba(0, 0, 0, 0.95), 0 0 25px rgba(168, 85, 247, 0.3)',
+                                : '0 24px 60px -20px rgba(0, 0, 0, 0.95)',
                             display: 'flex',
                             flexDirection: 'column',
                         }}
